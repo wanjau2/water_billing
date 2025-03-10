@@ -4,6 +4,5 @@ instance/
 createadmin.py
 createANDdelete.py
 databse.py
-requirements.txt
 migrations/
 __pycache__/
