@@ -1,6 +1,5 @@
 .env
 venv/
-
 instance/
 createadmin.py
 createANDdelete.py
