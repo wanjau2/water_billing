@@ -329,7 +329,6 @@ def record_reading():
         
         if sms:
             sender_number = sms_config.sender_number if sms_config else None
-            
             try:
                 response = send_message(tenant.phone, message, sender=sender_number)
                 if "error" in response:
@@ -427,8 +426,7 @@ def page_not_found(e):
 def server_error(e):
     return render_template('500.html'), 500
 
-# Create admin user if none exists
-@app.before_first_request
+# Function to create an admin user if none exists
 def create_admin_user():
     if Admin.query.count() == 0:
         default_username = os.environ.get('DEFAULT_ADMIN_USERNAME', 'admin')
@@ -450,6 +448,7 @@ def create_admin_user():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        create_admin_user()
     
     # Use debug mode only in development
     debug_mode = os.environ.get('FLASK_ENV') == 'development'
