@@ -3,7 +3,7 @@ venv/
 instance/
 createadmin.py
 createANDdelete.py
-database.py
+databse.py
 requirements.txt
 migrations/
 __pycache__/
