@@ -1,0 +1,10 @@
+.env
+venv/
+
+instance/
+createadmin.py
+createANDdelete.py
+database.py
+requirements.txt
+migrations/
+__pycache__/
