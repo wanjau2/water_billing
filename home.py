@@ -16,8 +16,8 @@ load_dotenv()
 AFRICASTALKING_USERNAME = os.environ.get("AFRICASTALKING_USERNAME")
 AFRICASTALKING_API_KEY = os.environ.get("AFRICASTALKING_API_KEY")
 DEFAULT_SENDER = os.environ.get("AFRICASTALKING_SENDER")
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///water_billing.db")
-SECRET_KEY = os.environ.get("SECRET_KEY", os.urandom(24).hex())
+DATABASE_URL = os.environ.get("DATABASE_URL")
+SECRET_KEY = os.environ.get("SECRET_KEY")
 RATE_PER_UNIT = float(os.environ.get("RATE_PER_UNIT", 100))
 
 # Validate critical environment variables
