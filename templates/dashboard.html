@@ -59,6 +59,7 @@
           </div>
           <div class="card-body">
             <form action="{{ url_for('add_tenant') }}" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="mb-3">
                 <label for="name" class="form-label">Name</label>
                 <input type="text" class="form-control" id="name" name="name" required>
@@ -79,6 +80,7 @@
           </div>
           <div class="card-body">
             <form action="{{ url_for('record_reading') }}" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="mb-3">
                 <label for="tenant_id" class="form-label">Select Tenant</label>
                 <select class="form-select" id="tenant_id" name="tenant_id" required>
