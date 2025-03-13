@@ -65,8 +65,21 @@ csrf = CSRFProtect(app)
 
 # Define a proper Content Security Policy
 csp = {
-    'default-src': ["'self'"],
-    # add additional directives as needed
+    'default-src': [
+        "'self'",
+        # Add any other domains you trust for default resources
+    ],
+    # Permit loading CSS from your own domain and the CDN
+    'style-src': [
+        "'self'",
+        "'unsafe-inline'",  # needed for inline Bootstrap if any
+        'https://cdn.jsdelivr.net'
+    ],
+    # If you also load scripts from a CDN, configure script-src similarly
+    'script-src': [
+        "'self'",
+        'https://cdn.jsdelivr.net'
+    ],
 }
 Talisman(app, content_security_policy=csp)
 
@@ -167,6 +180,7 @@ class WaterReading(db.Model):
 
 
 class SMSConfig(db.Model):
+    __tablename__ = 'sms_config' 
     id = db.Column(db.Integer, primary_key=True)
     sender_number = db.Column(db.String(50), nullable=False)
     rate_per_unit = db.Column(db.Float, default=RATE_PER_UNIT)
