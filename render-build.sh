@@ -5,6 +5,11 @@ apt-get update && apt-get install -y \
   curl \
   apt-transport-https \
   gnupg
+  # Install ODBC Driver 18 for SQL Server
+sudo apt-get update
+sudo apt-get install -y unixodbc-dev
+sudo apt-get install -y msodbcsql18
+
 
 # Add Microsoft repo and install ODBC driver
 curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
