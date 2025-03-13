@@ -84,7 +84,7 @@ csp = {
 Talisman(app, content_security_policy=csp)
 
 #limiter = Limiter(key_func=get_remote_address, app=app,storage_uri="redis://localhost:6379")
-limiter = Limiter(key_func=get_remote_address, app=app,storage_uri="memory://")
+limiter = Limiter(key_func=get_remote_address, default_limits=["200 per day", "50 per hour"],app=app,storage_uri="memory://")
 
 
 # Initialize AfricasTalking if credentials are available
