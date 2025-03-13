@@ -1,20 +1,16 @@
 #!/usr/bin/env bash
 
-# Update and install ODBC Driver for SQL Server
-apt-get update && apt-get install -y \
-  curl \
-  apt-transport-https \
-  gnupg
-  # Install ODBC Driver 18 for SQL Server
+# Update package lists and install required packages
 sudo apt-get update
-sudo apt-get install -y unixodbc-dev
-sudo apt-get install -y msodbcsql18
+sudo apt-get install -y curl apt-transport-https gnupg
 
+# Add Microsoft’s package signing key and repository
+curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
 
-# Add Microsoft repo and install ODBC driver
-curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
-curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list
-apt-get update && ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
+# Update package lists again and install ODBC Driver 18 and unixODBC development headers
+sudo apt-get update
+sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
 
-# Ensure the virtual environment installs dependencies
+# Finally, install Python dependencies
 pip install -r requirements.txt
