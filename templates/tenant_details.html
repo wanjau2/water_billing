@@ -30,7 +30,10 @@
       <h5>Billing History Chart</h5>
     </div>
     <div class="card-body">
-      <canvas id="billingChart" height="300"></canvas>
+      <!-- Add a fixed height container to prevent collapsing on hover -->
+      <div style="height: 400px; position: relative;">
+        <canvas id="billingChart"></canvas>
+      </div>
     </div>
   </div>
   
@@ -74,16 +77,13 @@
     // Safely parse JSON data from Flask
     let labels = [];
     let usageData = [];
-    let billData = [];
     
     try {
       labels = {{ labels|tojson }};
       usageData = {{ usage_data|tojson }};
-      billData = {{ bill_data|tojson }};
       
       console.log('Labels:', labels);
       console.log('Usage Data:', usageData);
-      console.log('Bill Data:', billData);
     } catch (e) {
       console.error('Error parsing chart data:', e);
     }
@@ -91,64 +91,92 @@
     // Ensure we have valid arrays
     if (!Array.isArray(labels)) labels = [];
     if (!Array.isArray(usageData)) usageData = [];
-    if (!Array.isArray(billData)) billData = [];
     
     // If no data is provided, use some dummy data for visualization
     if (labels.length === 0) {
       console.warn("No chart data provided. Using fallback dummy data.");
       labels = ["2025-01-01", "2025-02-01", "2025-03-01"];
       usageData = [50, 75, 60];
-      billData = [500, 750, 600];
+    }
+    
+    // Handle duplicate dates by adding time information
+    const uniqueLabels = [];
+    const uniqueUsageData = [];
+    
+    // Process data to handle duplicates
+    for (let i = 0; i < labels.length; i++) {
+      let label = labels[i];
+      // If this date already exists, add a suffix
+      let count = 0;
+      for (let j = 0; j < i; j++) {
+        if (labels[j] === label) count++;
+      }
+      if (count > 0) {
+        label = `${label} (${count + 1})`;
+      }
+      uniqueLabels.push(label);
+      uniqueUsageData.push(usageData[i]);
     }
     
     const ctx = document.getElementById('billingChart').getContext('2d');
     const billingChart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: labels,
+        labels: uniqueLabels,
         datasets: [
           {
             label: 'Water Usage (m³)',
-            data: usageData,
+            data: uniqueUsageData,
             borderColor: 'rgba(54, 162, 235, 1)',
             backgroundColor: 'rgba(54, 162, 235, 0.2)',
-            yAxisID: 'y',
-            tension: 0.4
-          },
-          {
-            label: 'Bill Amount (Ksh)',
-            data: billData,
-            borderColor: 'rgba(255, 99, 132, 1)',
-            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-            yAxisID: 'y1',
-            tension: 0.4
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            pointRadius: 5,
+            pointHoverRadius: 7
           }
         ]
       },
       options: {
         responsive: true,
-        interaction: {
-          mode: 'index',
-          intersect: false
+        maintainAspectRatio: false,  // Change to false to respect container dimensions
+        plugins: {
+          title: {
+            display: true,
+            text: 'Water Usage Trend',
+            font: {
+              size: 16
+            }
+          },
+          legend: {
+            position: 'top'
+          },
+          tooltip: {
+            mode: 'index',
+            intersect: false
+          }
         },
         scales: {
           y: {
-            type: 'linear',
-            position: 'left',
+            beginAtZero: true,
             title: {
               display: true,
-              text: 'Water Usage (m³)'
+              text: 'Water Usage (m³)',
+              font: {
+                weight: 'bold'
+              }
+            },
+            ticks: {
+              precision: 0
             }
           },
-          y1: {
-            type: 'linear',
-            position: 'right',
-            grid: {
-              drawOnChartArea: false
-            },
+          x: {
             title: {
               display: true,
-              text: 'Bill Amount (Ksh)'
+              text: 'Date',
+              font: {
+                weight: 'bold'
+              }
             }
           }
         }

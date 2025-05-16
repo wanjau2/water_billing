@@ -115,7 +115,7 @@
             <h5 class="mb-0">Record Water Reading</h5>
           </div>
           <div class="card-body">
-            <form action="{{ url_for('record_reading') }}" method="post">
+            <form action="{{ url_for('record_reading') }}" method="post" id="readingForm">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="mb-3">
                 <label for="tenant_id" class="form-label">Select Tenant</label>
@@ -128,16 +128,72 @@
               </div>
               <div class="mb-3">
                 <label for="previous_reading" class="form-label">Previous Reading (m³)</label>
-                <input type="number" step="0.01" class="form-control" id="previous_reading" name="previous_reading" required>
+                <input type="number" step="0.01" class="form-control" id="previous_reading" name="previous_reading" readonly required>
               </div>
               <div class="mb-3">
                 <label for="current_reading" class="form-label">Current Reading (m³)</label>
                 <input type="number" step="0.01" class="form-control" id="current_reading" name="current_reading" required>
+                <div id="reading-error" class="invalid-feedback">Current reading must be greater than previous reading.</div>
               </div>
               <button type="submit" class="btn btn-primary">Record Reading</button>
             </form>
             
-            <!-- Removed inline script - moved to external file -->
+            <script>
+              document.addEventListener('DOMContentLoaded', function() {
+                const tenantSelect = document.getElementById('tenant_id');
+                const previousReadingInput = document.getElementById('previous_reading');
+                const currentReadingInput = document.getElementById('current_reading');
+                const readingForm = document.getElementById('readingForm');
+                
+                // When tenant is selected, fetch their last reading
+                tenantSelect.addEventListener('change', function() {
+                  const tenantId = this.value;
+                  if (!tenantId) {
+                    previousReadingInput.value = '';
+                    return;
+                  }
+                  
+                  // Fetch the last reading for this tenant
+                  fetch(`/api/tenant/${tenantId}/readings`)
+                    .then(response => response.json())
+                    .then(data => {
+                      if (data && data.length > 0) {
+                        // Get the most recent reading (last item in the array)
+                        const lastReading = data[data.length - 1];
+                        previousReadingInput.value = lastReading.current_reading;
+                      } else {
+                        // No previous readings, start from 0
+                        previousReadingInput.value = '0';
+                      }
+                    })
+                    .catch(error => {
+                      console.error('Error fetching readings:', error);
+                      previousReadingInput.value = '';
+                    });
+                });
+                
+                // Validate that current reading is greater than previous reading
+                readingForm.addEventListener('submit', function(event) {
+                  const prevReading = parseFloat(previousReadingInput.value) || 0;
+                  const currReading = parseFloat(currentReadingInput.value) || 0;
+                  
+                  if (currReading <= prevReading) {
+                    event.preventDefault();
+                    currentReadingInput.classList.add('is-invalid');
+                    document.getElementById('reading-error').style.display = 'block';
+                  } else {
+                    currentReadingInput.classList.remove('is-invalid');
+                    document.getElementById('reading-error').style.display = 'none';
+                  }
+                });
+                
+                // Clear validation errors when user starts typing
+                currentReadingInput.addEventListener('input', function() {
+                  this.classList.remove('is-invalid');
+                  document.getElementById('reading-error').style.display = 'none';
+                });
+              });
+            </script>
           </div>
         </div>
       </div>
