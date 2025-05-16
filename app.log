@@ -493,3 +493,319 @@ Traceback (most recent call last):
   File "C:\Users\eugen\water_billing\venv\Lib\site-packages\flask\templating.py", line 98, in _get_source_fast
     raise TemplateNotFound(template)
 jinja2.exceptions.TemplateNotFound: 404.html
+Exception on /dashboard [GET]
+Traceback (most recent call last):
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1964, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\default.py", line 942, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+pyodbc.OperationalError: ('08S01', '[08S01] [Microsoft][ODBC Driver 18 for SQL Server]TCP Provider: An existing connection was forcibly closed by the remote host.\r\n (10054) (SQLExecDirectW); [08S01] [Microsoft][ODBC Driver 18 for SQL Server]Communication link failure (10054)')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\flask\app.py", line 2190, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\flask\app.py", line 1486, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\eugen\water_billing\home.py", line 109, in decorated_function
+    return redirect(url_for('login'))
+       ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\eugen\water_billing\home.py", line 239, in dashboard
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\flask_sqlalchemy\query.py", line 98, in paginate
+    return QueryPagination(
+        query=self,
+    ...<4 lines>...
+        count=count,
+    )
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\flask_sqlalchemy\pagination.py", line 72, in __init__
+    items = self._query_items()
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\flask_sqlalchemy\pagination.py", line 358, in _query_items
+    out = query.limit(self.per_page).offset(self._query_offset).all()
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\orm\query.py", line 2699, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\orm\query.py", line 2853, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\orm\context.py", line 305, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1416, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 516, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1638, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1843, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1983, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2352, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1964, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\default.py", line 942, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.OperationalError: (pyodbc.OperationalError) ('08S01', '[08S01] [Microsoft][ODBC Driver 18 for SQL Server]TCP Provider: An existing connection was forcibly closed by the remote host.\r\n (10054) (SQLExecDirectW); [08S01] [Microsoft][ODBC Driver 18 for SQL Server]Communication link failure (10054)')
+[SQL: SELECT tenant.id AS tenant_id, tenant.name AS tenant_name, tenant.phone AS tenant_phone, tenant.created_at AS tenant_created_at 
+FROM tenant ORDER BY tenant.name
+ OFFSET ? ROWS
+ FETCH FIRST ? ROWS ONLY]
+[parameters: (0, 10)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Exception on /dashboard [GET]
+Traceback (most recent call last):
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1964, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\default.py", line 942, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+pyodbc.OperationalError: ('08S01', '[08S01] [Microsoft][ODBC Driver 18 for SQL Server]TCP Provider: An existing connection was forcibly closed by the remote host.\r\n (10054) (SQLExecDirectW); [08S01] [Microsoft][ODBC Driver 18 for SQL Server]Communication link failure (10054)')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\flask\app.py", line 2190, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\flask\app.py", line 1486, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\eugen\water_billing\home.py", line 109, in decorated_function
+    return redirect(url_for('login'))
+       ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\eugen\water_billing\home.py", line 239, in dashboard
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\flask_sqlalchemy\query.py", line 98, in paginate
+    return QueryPagination(
+        query=self,
+    ...<4 lines>...
+        count=count,
+    )
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\flask_sqlalchemy\pagination.py", line 72, in __init__
+    items = self._query_items()
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\flask_sqlalchemy\pagination.py", line 358, in _query_items
+    out = query.limit(self.per_page).offset(self._query_offset).all()
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\orm\query.py", line 2699, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\orm\query.py", line 2853, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\orm\context.py", line 305, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1416, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 516, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1638, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1843, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1983, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2352, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1964, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\eugen\water_billing\venv\Lib\site-packages\sqlalchemy\engine\default.py", line 942, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.OperationalError: (pyodbc.OperationalError) ('08S01', '[08S01] [Microsoft][ODBC Driver 18 for SQL Server]TCP Provider: An existing connection was forcibly closed by the remote host.\r\n (10054) (SQLExecDirectW); [08S01] [Microsoft][ODBC Driver 18 for SQL Server]Communication link failure (10054)')
+[SQL: SELECT tenant.id AS tenant_id, tenant.name AS tenant_name, tenant.phone AS tenant_phone, tenant.created_at AS tenant_created_at 
+FROM tenant ORDER BY tenant.name
+ OFFSET ? ROWS
+ FETCH FIRST ? ROWS ONLY]
+[parameters: (0, 10)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Database initialization error: (pyodbc.InterfaceError) ('28000', "[28000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Login failed for user 'peter'. (18456) (SQLDriverConnect); [28000] [Microsoft][ODBC Driver 18 for SQL Server]Invalid connection string attribute (0); [28000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Login failed for user 'peter'. (18456); [28000] [Microsoft][ODBC Driver 18 for SQL Server]Invalid connection string attribute (0)")
+(Background on this error at: https://sqlalche.me/e/20/rvf5)
+Error sending message on attempt 1: Server error
+Error sending message on attempt 2: Server error
+Error sending message on attempt 1: Invalid phone number
+Error sending message on attempt 2: Invalid phone number
+Error sending message on attempt 3: Invalid phone number
+Error sending message on attempt 1: Connection error
+Error sending message on attempt 2: Connection error
+Error sending message on attempt 3: Connection error
+Error sending message on attempt 1: Server error
+Error sending message on attempt 2: Server error
+Error sending message on attempt 1: Invalid phone number
+Error sending message on attempt 2: Invalid phone number
+Error sending message on attempt 3: Invalid phone number
+Error sending message on attempt 1: Connection error
+Error sending message on attempt 2: Connection error
+Error sending message on attempt 3: Connection error
+Database initialization error: 'NoneType' object has no attribute 'admins'
+Database initialization error: 'NoneType' object has no attribute 'admins'
+Database initialization error: 'NoneType' object has no attribute 'command'
+Database initialization error: 'NoneType' object has no attribute 'admins'
+Database initialization error: 'NoneType' object has no attribute 'command'
+Database initialization error: 'NoneType' object has no attribute 'admins'
+Database initialization error: 'NoneType' object has no attribute 'command'
+Database initialization error: 'NoneType' object has no attribute 'admins'
+Database initialization error: 'NoneType' object has no attribute 'command'
+Database initialization error: 'NoneType' object has no attribute 'admins'
+Database initialization error: 'NoneType' object has no attribute 'command'
+Database initialization error: 'NoneType' object has no attribute 'admins'
+Database initialization error: 'NoneType' object has no attribute 'command'
+Database initialization error: 'NoneType' object has no attribute 'admins'
+Database initialization error: 'NoneType' object has no attribute 'command'
+Database initialization error: 'NoneType' object has no attribute 'admins'
+Database initialization error: 'NoneType' object has no attribute 'command'
+Database initialization error: 'NoneType' object has no attribute 'admins'
+Database initialization error: 'NoneType' object has no attribute 'command'
+Database initialization error: 'NoneType' object has no attribute 'admins'
+Database initialization error: 'NoneType' object has no attribute 'command'
+Database initialization error: 'NoneType' object has no attribute 'admins'
+Database initialization error: 'NoneType' object has no attribute 'command'
+Database initialization error: 'NoneType' object has no attribute 'admins'
+Database initialization error: 'NoneType' object has no attribute 'command'
+Database initialization error: 'NoneType' object has no attribute 'admins'
+Error sending message on attempt 1: Expecting value: line 1 column 1 (char 0)
+Error sending message on attempt 2: Expecting value: line 1 column 1 (char 0)
+Error sending message on attempt 3: Expecting value: line 1 column 1 (char 0)
+Error sending message on attempt 1: Expecting value: line 1 column 1 (char 0)
+Error sending message on attempt 2: Expecting value: line 1 column 1 (char 0)
+Error sending message on attempt 3: Expecting value: line 1 column 1 (char 0)
+Error sending message on attempt 1: Expecting value: line 1 column 1 (char 0)
+Error sending message on attempt 2: Expecting value: line 1 column 1 (char 0)
+Error sending message on attempt 3: Expecting value: line 1 column 1 (char 0)
+Error sending message on attempt 1: Expecting value: line 1 column 1 (char 0)
+Error sending message on attempt 2: Expecting value: line 1 column 1 (char 0)
+Error sending message on attempt 3: Expecting value: line 1 column 1 (char 0)
