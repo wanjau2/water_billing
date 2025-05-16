@@ -26,12 +26,12 @@ load_dotenv()
 # Environment variables with fallbacks
 TALKSASA_API_KEY = os.environ.get("TALKSASA_API_KEY")
 TALKSASA_SENDER_ID = os.environ.get("TALKSASA_SENDER_ID", "WATER")
-SECRET_KEY = os.environ.get("SECRET_KEY", "you-should-change-this")
+SECRET_KEY = os.environ.get("SECRET_KEY")
 RATE_PER_UNIT = float(os.environ.get("RATE_PER_UNIT", 100))
 DEFAULT_PER_PAGE = int(os.environ.get("DEFAULT_PER_PAGE", 10))
 
 # MongoDB connection parameters
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/water_billing")
+MONGO_URI = os.environ.get("MONGO_URI")
 
 # Create Flask app
 app = Flask(__name__)
