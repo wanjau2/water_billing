@@ -18,7 +18,11 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
-import pymongo.errors
+import pandas as pd
+from datetime import datetime
+from io import BytesIO
+from flask import send_file
+from bson import ObjectId
 
 # Load environment variables from the .env file
 load_dotenv()
@@ -546,6 +550,36 @@ def edit_tenant(tenant_id):
 
     return redirect(url_for('tenant_details', tenant_id=tenant_id))
 
+@app.route('/delete_tenant/<tenant_id>', methods=['POST'])
+@login_required
+def delete_tenant(tenant_id):
+    try:
+        tenant_id_obj = ObjectId(tenant_id)
+        
+        # Get tenant details before deletion (for flash message)
+        tenant = mongo.db.tenants.find_one({"_id": tenant_id_obj})
+        if not tenant:
+            flash('Tenant not found', 'danger')
+            return redirect(url_for('dashboard'))
+            
+        tenant_name = tenant.get('name', 'Unknown')
+        
+        # Delete all water readings for this tenant
+        mongo.db.water_readings.delete_many({"tenant_id": tenant_id_obj})
+        
+        # Delete the tenant
+        result = mongo.db.tenants.delete_one({"_id": tenant_id_obj})
+        
+        if result.deleted_count > 0:
+            flash(f'Tenant "{tenant_name}" and all their records have been deleted', 'success')
+        else:
+            flash('Error deleting tenant', 'danger')
+            
+    except Exception as e:
+        flash(f'Error: {str(e)}', 'danger')
+        
+    return redirect(url_for('dashboard'))
+
 @app.route('/test_sms', methods=['POST'])
 @login_required
 def test_sms():
@@ -657,6 +691,217 @@ def create_admin_user():
         except Exception as e:
             app.logger.error(f"Failed to create default admin: {e}")
 
+# Excel import route
+@app.route('/import_excel', methods=['POST'])
+@login_required
+def import_excel():
+    if 'excel_file' not in request.files:
+        flash('No file part', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    file = request.files['excel_file']
+    if file.filename == '':
+        flash('No selected file', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    if file and (file.filename.endswith('.xlsx') or file.filename.endswith('.xls')):
+        try:
+            # Read the Excel file
+            df = pd.read_excel(file)
+            
+            # Validate required columns
+            required_columns = ['Name', 'Phone', 'Date']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            
+            # Check for reading columns (at least one)
+            reading_columns = [col for col in df.columns if 'Reading' in col]
+            if not reading_columns:
+                missing_columns.append('Reading columns')
+            
+            if missing_columns:
+                flash(f"Missing required columns: {', '.join(missing_columns)}", 'danger')
+                return redirect(url_for('dashboard'))
+            
+            # Process each tenant
+            success_count = 0
+            error_count = 0
+            error_messages = []
+            
+            # Get rate per unit
+            sms_config = mongo.db.sms_config.find_one()
+            rate_per_unit = sms_config['rate_per_unit'] if sms_config else 50  # Default rate
+            
+            # Group by tenant
+            for tenant_name, tenant_data in df.groupby('Name'):
+                try:
+                    # Get or create tenant
+                    phone = format_phone_number(str(tenant_data['Phone'].iloc[0]))
+                    
+                    tenant = mongo.db.tenants.find_one({"name": tenant_name})
+                    if not tenant:
+                        # Create new tenant
+                        tenant_id = mongo.db.tenants.insert_one({
+                            "name": tenant_name,
+                            "phone": phone
+                        }).inserted_id
+                    else:
+                        tenant_id = tenant['_id']
+                    
+                    # Sort reading columns to ensure chronological order
+                    reading_columns.sort(key=lambda x: int(x.split(' ')[-1]) if x.split(' ')[-1].isdigit() else 0)
+                    
+                    # Process readings chronologically
+                    prev_reading = 0
+                    for i, row in tenant_data.iterrows():
+                        # Parse date
+                        if isinstance(row['Date'], str):
+                            try:
+                                date_recorded = datetime.strptime(row['Date'], '%Y-%m-%d')
+                            except ValueError:
+                                date_recorded = datetime.now()
+                        elif isinstance(row['Date'], datetime):
+                            date_recorded = row['Date']
+                        else:
+                            date_recorded = datetime.now()
+                        
+                        # Process each reading column
+                        for j, col in enumerate(reading_columns):
+                            if pd.notna(row[col]):  # Check if reading is not NaN
+                                current_reading = float(row[col])
+                                
+                                # Calculate usage and bill
+                                usage = current_reading - prev_reading if j > 0 else current_reading
+                                bill_amount = usage * rate_per_unit
+                                
+                                # Insert reading if usage is valid
+                                if usage >= 0:
+                                    mongo.db.water_readings.insert_one({
+                                        "tenant_id": ObjectId(tenant_id),
+                                        "previous_reading": prev_reading,
+                                        "current_reading": current_reading,
+                                        "usage": usage,
+                                        "bill_amount": bill_amount,
+                                        "date_recorded": date_recorded
+                                    })
+                                    success_count += 1
+                                    prev_reading = current_reading
+                                else:
+                                    error_messages.append(f"Row {i+2}, {col}: Usage cannot be negative")
+                                    error_count += 1
+                
+                except Exception as e:
+                    error_messages.append(f"Error processing tenant {tenant_name}: {str(e)}")
+                    error_count += 1
+            
+            # Show results
+            if success_count > 0:
+                flash(f"Successfully imported {success_count} readings", 'success')
+            
+            if error_count > 0:
+                flash(f"Failed to import {error_count} readings", 'warning')
+                for msg in error_messages[:5]:  # Show first 5 errors
+                    flash(msg, 'warning')
+                if len(error_messages) > 5:
+                    flash(f"... and {len(error_messages) - 5} more errors", 'warning')
+            
+            return redirect(url_for('dashboard'))
+            
+        except Exception as e:
+            flash(f"Error processing file: {str(e)}", 'danger')
+            return redirect(url_for('dashboard'))
+    else:
+        flash('Invalid file format. Please upload an Excel file (.xlsx or .xls)', 'danger')
+        return redirect(url_for('dashboard'))
+
+# Route to download Excel template
+@app.route('/download_excel_template')
+@login_required
+def download_excel_template():
+    # Retrieve actual data from the database
+    tenants = list(mongo.db.tenants.find())
+    readings = list(mongo.db.water_readings.find().sort("date_recorded", -1))
+    
+    # Create a list to store tenant data with readings
+    tenant_data = []
+    
+    # Process each tenant and their readings
+    for tenant in tenants:
+        tenant_id = tenant['_id']
+        tenant_name = tenant['name']
+        tenant_phone = tenant['phone']
+        
+        # Get readings for this tenant
+        tenant_readings = [r for r in readings if r.get('tenant_id') == tenant_id]
+        
+        # Create a base row for this tenant
+        row = {
+            'Name': tenant_name,
+            'Phone': tenant_phone,
+        }
+        
+        # If tenant has readings, add them to the row
+        if tenant_readings:
+            # Sort readings by date (oldest to newest)
+            tenant_readings.sort(key=lambda x: x.get('date_recorded', datetime.now()))
+            
+            # Add up to 5 readings with their dates
+            for i, reading in enumerate(tenant_readings[-5:], 1):
+                date_str = reading.get('date_recorded', datetime.now()).strftime('%Y-%m-%d')
+                reading_value = reading.get('current_reading', 0)
+                
+                # Add reading and date to the row
+                row[f'Date {i}'] = date_str
+                row[f'Reading {i}'] = reading_value
+        else:
+            # Add empty date and reading fields
+            row['Date 1'] = datetime.now().strftime('%Y-%m-%d')
+            row['Reading 1'] = None
+        
+        tenant_data.append(row)
+    
+    # If no data exists, add a sample row to show the format
+    if not tenant_data:
+        sample_row = {
+            'Name': 'Example Tenant',
+            'Phone': '+254712345678',
+            'Date 1': datetime.now().strftime('%Y-%m-%d'),
+            'Reading 1': 0,
+            'Date 2': (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d'),
+            'Reading 2': 10
+        }
+        tenant_data = [sample_row]
+    
+    # Create DataFrame from the collected data
+    df = pd.DataFrame(tenant_data)
+    
+    # Ensure all columns are present even if some tenants don't have all readings
+    all_columns = ['Name', 'Phone']
+    for i in range(1, 6):  # Support up to 5 readings
+        all_columns.extend([f'Date {i}', f'Reading {i}'])
+    
+    # Add missing columns with None values
+    for col in all_columns:
+        if col not in df.columns:
+            df[col] = None
+    
+    # Reorder columns to ensure consistent format
+    df = df[all_columns]
+    
+    # Create Excel file in memory
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False)
+    
+    output.seek(0)
+    
+    # Send file to user
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name='water_billing_template.xlsx',
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
 if __name__ == '__main__':
     try:
         create_admin_user()
@@ -665,3 +910,5 @@ if __name__ == '__main__':
         print(f"Database initialization error: {e}")
     
     app.run(debug=True, host='0.0.0.0', port=5000)
+
+
