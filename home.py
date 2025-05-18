@@ -449,7 +449,7 @@ def record_reading():
         result = mongo.db.water_readings.insert_one(new_reading)
         reading_id = result.inserted_id
 
-        message = f"Hello {tenant['name']}, your water meter reading is {current_reading} units (used {usage:.2f} units). Your bill is Ksh {bill_amount:.2f}. Thank you!"
+        message = f" Hello  {tenant['name']}, your water meter reading is {current_reading} units (used {usage:.2f} units). Your bill is Ksh {bill_amount:.2f}. Thank you!, From Peter Murage"
 
         # Remove the sender_number parameter
         response = send_message(tenant['phone'], message)
@@ -824,14 +824,33 @@ def download_excel_template():
     # Create a list to store tenant data with readings
     tenant_data = []
     
-    # Process each tenant and their readings
+    # Find the maximum number of readings any tenant has
+    max_readings = 0
+    tenant_readings_map = {}
+    
+    # First pass: group readings by tenant and find the maximum
+    for tenant in tenants:
+        tenant_id = tenant['_id']
+        # Get readings for this tenant
+        tenant_readings = [r for r in readings if r.get('tenant_id') == tenant_id]
+        
+        # Sort readings by date (oldest to newest)
+        tenant_readings.sort(key=lambda x: x.get('date_recorded', datetime.now()))
+        
+        # Store readings for this tenant
+        tenant_readings_map[tenant_id] = tenant_readings
+        
+        # Update max readings count
+        max_readings = max(max_readings, len(tenant_readings))
+    
+    # Second pass: create rows with all readings
     for tenant in tenants:
         tenant_id = tenant['_id']
         tenant_name = tenant['name']
         tenant_phone = tenant['phone']
         
-        # Get readings for this tenant
-        tenant_readings = [r for r in readings if r.get('tenant_id') == tenant_id]
+        # Get the sorted readings for this tenant
+        tenant_readings = tenant_readings_map.get(tenant_id, [])
         
         # Create a base row for this tenant
         row = {
@@ -839,21 +858,17 @@ def download_excel_template():
             'Phone': tenant_phone,
         }
         
-        # If tenant has readings, add them to the row
-        if tenant_readings:
-            # Sort readings by date (oldest to newest)
-            tenant_readings.sort(key=lambda x: x.get('date_recorded', datetime.now()))
+        # Add all readings with their dates
+        for i, reading in enumerate(tenant_readings, 1):
+            date_str = reading.get('date_recorded', datetime.now()).strftime('%Y-%m-%d')
+            reading_value = reading.get('current_reading', 0)
             
-            # Add up to 5 readings with their dates
-            for i, reading in enumerate(tenant_readings[-5:], 1):
-                date_str = reading.get('date_recorded', datetime.now()).strftime('%Y-%m-%d')
-                reading_value = reading.get('current_reading', 0)
-                
-                # Add reading and date to the row
-                row[f'Date {i}'] = date_str
-                row[f'Reading {i}'] = reading_value
-        else:
-            # Add empty date and reading fields
+            # Add reading and date to the row
+            row[f'Date {i}'] = date_str
+            row[f'Reading {i}'] = reading_value
+        
+        # If tenant has no readings, add at least one empty date/reading field
+        if not tenant_readings:
             row['Date 1'] = datetime.now().strftime('%Y-%m-%d')
             row['Reading 1'] = None
         
@@ -870,13 +885,14 @@ def download_excel_template():
             'Reading 2': 10
         }
         tenant_data = [sample_row]
+        max_readings = 2
     
     # Create DataFrame from the collected data
     df = pd.DataFrame(tenant_data)
     
     # Ensure all columns are present even if some tenants don't have all readings
     all_columns = ['Name', 'Phone']
-    for i in range(1, 6):  # Support up to 5 readings
+    for i in range(1, max_readings + 1):  # Support all readings
         all_columns.extend([f'Date {i}', f'Reading {i}'])
     
     # Add missing columns with None values
