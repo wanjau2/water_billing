@@ -13,3 +13,6 @@ template for import.xlsx
 tenant_import_template.xlsx
 test_talksasa.py
 test.py
+paymentscollection.py
+databse.py
+createANDdelete.py
