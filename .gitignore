@@ -6,3 +6,10 @@ createANDdelete.py
 databse.py
 migrations/
 __pycache__/
+test2mongo.py
+testmongo.py
+sampledata.py
+template for import.xlsx
+tenant_import_template.xlsx
+test_talksasa.py
+test.py
