@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Terms of Service for WaterBill Pro - Water Utility Management System">
+    <title>Terms of Service | WaterBill Pro</title>
+    <!-- TailwindCSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="https://via.placeholder.com/32x32">
+</head>
+<body class="font-sans text-gray-800 antialiased">
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center">
+                <a href="{{ url_for('index') }}" class="text-2xl font-bold text-blue-600">
+                    <span class="flex items-center">
+                        <i class="fas fa-water mr-2"></i>
+                        WaterBill Pro
+                    </span>
+                </a>
+            </div>
+            <div class="flex items-center">
+                <a href="{{ url_for('index') }}" class="text-gray-600 hover:text-blue-600 transition mr-6">Home</a>
+                <a href="{{ url_for('login') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md font-medium transition">Login</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="py-12">
+        <div class="container mx-auto px-4 max-w-4xl">
+            <h1 class="text-3xl md:text-4xl font-bold mb-8">Terms of Service</h1>
+            
+            <div class="prose prose-lg max-w-none">
+                <p class="mb-4">Last Updated: January 1, 2025</p>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">1. Acceptance of Terms</h2>
+                <p class="mb-4">By accessing or using WaterBill Pro services, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our services.</p>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">2. Description of Service</h2>
+                <p class="mb-4">WaterBill Pro provides water utility management and billing software services. Our services include but are not limited to billing management, consumption tracking, payment processing, and customer management.</p>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">3. User Accounts</h2>
+                <p class="mb-4">To use certain features of our services, you may be required to create an account. You are responsible for maintaining the confidentiality of your account information and for all activities that occur under your account.</p>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">4. Payment Terms</h2>
+                <p class="mb-4">Our services are provided on a one-time license fee basis. Payment is required before access to the software is granted. All fees are non-refundable unless otherwise specified.</p>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">5. Data Privacy</h2>
+                <p class="mb-4">We respect your privacy and are committed to protecting your personal data. Please refer to our Privacy Policy for information on how we collect, use, and disclose information.</p>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">6. Limitation of Liability</h2>
+                <p class="mb-4">WaterBill Pro shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of or inability to use our services.</p>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">7. Changes to Terms</h2>
+                <p class="mb-4">We reserve the right to modify these Terms of Service at any time. We will provide notice of significant changes by posting the updated terms on our website.</p>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">8. Contact Information</h2>
+                <p class="mb-4">If you have any questions about these Terms of Service, please contact us at info@waterbillpro.com.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-12">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <div class="text-2xl font-bold mb-6">
+                        <span class="flex items-center">
+                            <i class="fas fa-water mr-2"></i>
+                            WaterBill Pro
+                        </span>
+                    </div>
+                    <p class="text-gray-400 mb-6">Comprehensive water utility management and billing system designed to streamline operations and improve customer satisfaction.</p>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Quick Links</h3>
+                    <ul class="space-y-3">
+                        <li><a href="{{ url_for('index') }}#features" class="text-gray-400 hover:text-white transition">Features</a></li>
+                        <li><a href="{{ url_for('index') }}#benefits" class="text-gray-400 hover:text-white transition">Benefits</a></li>
+                        <li><a href="{{ url_for('index') }}#pricing" class="text-gray-400 hover:text-white transition">Pricing</a></li>
+                        <li><a href="{{ url_for('index') }}#testimonials" class="text-gray-400 hover:text-white transition">Testimonials</a></li>
+                        <li><a href="{{ url_for('contact') }}" class="text-gray-400 hover:text-white transition">Contact</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Legal</h3>
+                    <ul class="space-y-3">
+                        <li><a href="{{ url_for('terms') }}" class="text-gray-400 hover:text-white transition">Terms of Service</a></li>
+                        <li><a href="{{ url_for('privacy') }}" class="text-gray-400 hover:text-white transition">Privacy Policy</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Contact</h3>
+                    <ul class="space-y-3 text-gray-400">
+                        <li class="flex items-start">
+                            <i class="fas fa-envelope mt-1 mr-3"></i>
+                            <span>info@waterbillpro.com</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-phone mt-1 mr-3"></i>
+                            <span>+254 700 000 000</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-12 pt-8 text-center text-gray-400">
+                <p>&copy; 2025 WaterBill Pro. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

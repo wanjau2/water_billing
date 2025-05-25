@@ -809,3 +809,110 @@ Error sending message on attempt 3: Expecting value: line 1 column 1 (char 0)
 Error sending message on attempt 1: Expecting value: line 1 column 1 (char 0)
 Error sending message on attempt 2: Expecting value: line 1 column 1 (char 0)
 Error sending message on attempt 3: Expecting value: line 1 column 1 (char 0)
+Database initialization error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Error initializing houses collection: name 'mongo' is not defined
+Error initializing houses collection: name 'mongo' is not defined
+Error during data migration: name 'mongo' is not defined
+Database initialization error: name 'mongo' is not defined
+Database initialization error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Error initializing houses collection: name 'mongo' is not defined
+Error initializing houses collection: name 'mongo' is not defined
+Error during data migration: name 'mongo' is not defined
+Database initialization error: name 'mongo' is not defined
+Database initialization error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Error initializing houses collection: name 'mongo' is not defined
+Error initializing houses collection: name 'mongo' is not defined
+Error during data migration: name 'mongo' is not defined
+Database initialization error: name 'mongo' is not defined
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Error initializing houses collection: name 'mongo' is not defined
+Error initializing houses collection: name 'mongo' is not defined
+Error during data migration: name 'mongo' is not defined
+Database initialization error: name 'mongo' is not defined
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Error initializing houses collection: name 'mongo' is not defined
+Error initializing houses collection: name 'mongo' is not defined
+Error during data migration: name 'mongo' is not defined
+Database initialization error: name 'mongo' is not defined
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Error initializing houses collection: name 'mongo' is not defined
+Error initializing houses collection: name 'mongo' is not defined
+Error during data migration: name 'mongo' is not defined
+Database initialization error: name 'mongo' is not defined
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+Database initialization error: 'NoneType' object has no attribute 'db'
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+MongoDB did not initialize—check MONGO_URI!
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+MongoDB did not initialize—check MONGO_URI!
+MongoDB configuration error: No default database defined
+MongoDB did not initialize—check MONGO_URI!
+MongoDB configuration error: No default database defined
+MongoDB did not initialize—check MONGO_URI!
+Row 2: Possible duplicate tenant. Similar names: John Nganga (House: BE2), John Kihara (House: BE1)
+No admins found for migration
+No admins found for migration
+SMS notification failed: name 'send_sms_notification' is not defined
+SMS notification failed: name 'send_sms_notification' is not defined
+SMS notification failed: name 'send_sms_notification' is not defined
+SMS error: name 'reading_id' is not defined
+Error recording reading for tenant 6830f50101eb4a7e9b94cd8f: name 'reading_id' is not defined
+Error in payments dashboard: No filter named 'currency' found.
+Error in payments dashboard: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'elif' or 'else' or 'endif'. The innermost block that needs to be closed is 'if'.
+Error in payments dashboard: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'elif' or 'else' or 'endif'. The innermost block that needs to be closed is 'if'.
+Error in payments dashboard: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'elif' or 'else' or 'endif'. The innermost block that needs to be closed is 'if'.
+Error in payments dashboard: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'elif' or 'else' or 'endif'. The innermost block that needs to be closed is 'if'.

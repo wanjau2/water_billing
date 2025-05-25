@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Streamline your water utility management with our comprehensive water billing system. Efficient billing, real-time monitoring, and seamless payment processing.">
+    <meta name="keywords" content="water billing, utility management, water meter reading, online water bill payment">
+    <title>WaterBill Pro | Efficient Water Utility Management System</title>
+    <!-- TailwindCSS -->
+    <link 
+    href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" 
+    rel="stylesheet">
+
+<!-- Font Awesome (via jsDelivr) -->
+    <link 
+    href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" 
+    rel="stylesheet">
+
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images.jpeg') }}">    <!-- Open Graph tags for social sharing -->
+    <meta property="og:title" content="WaterBill Pro | Efficient Water Utility Management System">
+    <meta property="og:description" content="Streamline your water utility management with our comprehensive water billing system.">
+    <meta property="og:image" content="https://via.placeholder.com/1200x630">
+    <meta property="og:url" content="https://water-billing-1.onrender.com">
+    <meta property="og:type" content="website">
+    <!-- Schema.org markup for Google -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "WaterBill Pro",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "Contact for pricing",
+        "priceCurrency": "ksh"
+      },
+      "description": "Comprehensive water utility management and billing system"
+    }
+    </script>
+    <style>
+        .hero-image {
+            max-width: 100%;
+            height: auto;
+            filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.1));
+            transition: all 0.3s ease;
+            mix-blend-mode: multiply;
+            border: none;
+            border-radius: 0;
+            background: transparent;
+            /* Add these properties for better blending */
+            object-fit: contain;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Add a new class for the logo image */
+        .logo-image {
+            max-width: 100%;
+            height: auto;
+            mix-blend-mode: multiply;
+            border: none;
+            border-radius: 0;
+            background: transparent;
+            filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.08));
+            object-fit: contain;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .hero-background {
+            background: linear-gradient(to bottom, #E0F7FF, #3498db);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero-background::before,
+        .hero-background::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150%;
+            height: 300px;
+            border-radius: 50%;
+        }
+        
+        .hero-background::before {
+        bottom: 40%;
+        background: rgba(255, 255, 255, 0.3);
+        height: 250px;
+        }
+    
+        .hero-background::after {
+        bottom: 5%;
+        background: rgba(130, 207, 255, 0.7);
+        height: 200px;
+        }
+        
+        .cloud {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+        }
+        
+        .cloud-large {
+        width: 150px;
+        height: 50px;
+        top: 10%;
+        right: 10%;
+        }
+    
+        .cloud-small {
+        width: 80px;
+        height: 30px;
+        top: 25%;
+        left: 15%;
+        }
+    
+        /* Add a third cloud for more visual interest */
+        .cloud-medium {
+            width: 100px;
+            height: 35px;
+            bottom: 30%;
+            right: 25%;
+        }
+    </style>
+    
+</head>
+<body class="font-sans text-gray-800 antialiased">
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50" style="background-color:#F0F4FE;">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center">
+                <div class="text-2xl font-bold text-blue-600">
+                    <span class="flex items-center">
+                        <i class="fas fa-water mr-2"></i>
+                        WaterBill Pro
+                    </span>
+                </div>
+            </div>
+            <nav class="hidden md:flex space-x-8">
+                <a href="#features" class="text-gray-600 hover:text-blue-600 transition">Features</a>
+                <a href="#benefits" class="text-gray-600 hover:text-blue-600 transition">Benefits</a>
+                <a href="#testimonials" class="text-gray-600 hover:text-blue-600 transition">Testimonials</a>
+                <a href="#pricing" class="text-gray-600 hover:text-blue-600 transition">Pricing</a>
+                <a href="#contact" class="text-gray-600 hover:text-blue-600 transition">Contact</a>
+            </nav>
+            <div class="flex items-center">
+                <a href="{{ url_for('login') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md font-medium transition">Login</a>
+                <button class="ml-4 md:hidden text-gray-600 focus:outline-none">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="py-20" style="background-color:#F0F4FE; color:inherit;">
+        <div class="container mx-auto px-4 relative z-10">
+            <div class="flex flex-col md:flex-row items-center">
+                <div class="md:w-1/2 mb-10 md:mb-0">
+                    <h1 class="text-4xl md:text-5xl font-bold leading-tight mb-6">Simplify Water Utility Management & Billing</h1>
+                    <p class="text-xl mb-8 text-gray-600">Streamline operations, reduce errors, and improve customer satisfaction with our comprehensive water billing solution.</p>
+                    <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+                        <a href="{{ url_for('login') }}" class="bg-blue-600 text-white hover:bg-blue-700 px-6 py-3 rounded-md font-medium text-center transition">Get Started</a>
+                        <a href="#demo" class="bg-transparent border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-6 py-3 rounded-md font-medium text-center transition">Request Demo</a>
+                    </div>
+                </div>
+                <div class="md:w-1/2">
+                    <img src={{ url_for('static', filename='images/logo.png') }} alt="Water Billing System Dashboard" class="hero-image">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20" style="background-color:#F0F4FE;">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">Powerful Features</h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">Our water billing system offers comprehensive tools to manage your utility operations efficiently.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition">
+                    <div class="text-blue-600 mb-4">
+                        <i class="fas fa-calculator text-4xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Automated Billing</h3>
+                    <p class="text-gray-600">Generate accurate bills automatically based on meter readings, rates, and consumption patterns.</p>
+                </div>
+                <!-- Feature 2 -->
+                <div class="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition">
+                    <div class="text-blue-600 mb-4">
+                        <i class="fas fa-chart-line text-4xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Consumption Analytics</h3>
+                    <p class="text-gray-600">Track and analyze water usage patterns with detailed reports and interactive dashboards.</p>
+                </div>
+                <!-- Feature 3 -->
+                <div class="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition">
+                    <div class="text-blue-600 mb-4">
+                        <i class="fas fa-credit-card text-4xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Online Payments</h3>
+                    <p class="text-gray-600">Accept payments online through multiple channels with secure payment processing.</p>
+                </div>
+                
+                <!-- Feature 4 -->
+                <div class="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition">
+                    <div class="text-blue-600 mb-4">
+                        <i class="fas fa-bell text-4xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Automated Notifications</h3>
+                    <p class="text-gray-600">Send automated reminders for bill payments, consumption alerts, and service updates.</p>
+                </div>
+                <!-- Feature 6 -->
+                <div class="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition">
+                    <div class="text-blue-600 mb-4">
+                        <i class="fas fa-file-invoice text-4xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Comprehensive Reporting</h3>
+                    <p class="text-gray-600">Generate detailed reports on revenue, consumption, customer data, and operational metrics.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Benefits Section -->
+    <section id="benefits" class="py-20 hero-background text-white">
+        <div class="cloud cloud-large"></div>
+        <div class="cloud cloud-small"></div>
+        <div class="cloud cloud-medium"></div>
+        <div class="container mx-auto px-4 relative z-10">
+            <div class="flex flex-col md:flex-row items-center">
+                <div class="md:w-1/2 mb-10 md:mb-0">
+                    <img src="{{ url_for('static', filename='images/hero.png') }}" alt="Water Utility Management Benefits" class="logo-image">
+                </div>
+                <div class="md:w-1/2 md:pl-12">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-6" style="color: #003B73;">Why Choose Our System?</h2>
+                    <div class="space-y-6">
+                        <div class="flex">
+                            <div class="flex-shrink-0 mt-1">
+                                <div class="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-600">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-xl font-semibold mb-1" style="color: #003B73;">Reduce Operational Costs</h3>
+                                <p class="text-gray-600">Automate manual processes and reduce the resources needed for billing and customer service.</p>
+                            </div>
+                        </div>
+                        <div class="flex">
+                            <div class="flex-shrink-0 mt-1">
+                                <div class="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-600">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-xl font-semibold mb-1" style="color: #003B73;">Improve Accuracy</h3>
+                                <p class="text-gray-600">Eliminate human errors in meter reading, billing calculations, and payment processing.</p>
+                            </div>
+                        </div>
+                        <div class="flex">
+                            <div class="flex-shrink-0 mt-1">
+                                <div class="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-600">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-xl font-semibold mb-1" style="color: #003B73;">Enhance Customer Satisfaction</h3>
+                                <p class="text-gray-600">Provide transparent billing, convenient payment options, and responsive customer service.</p>
+                            </div>
+                        </div>
+                        <div class="flex">
+                            <div class="flex-shrink-0 mt-1">
+                                <div class="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-600">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-xl font-semibold mb-1" style="color: #003B73;">Data-Driven Decisions</h3>
+                                <p class="text-gray-600">Gain insights from comprehensive analytics to optimize operations and resource allocation.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section id="testimonials" class="py-20 bg-gray-50">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">Trusted by Utilities Countrywide</h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">See what our customers have to say about our water billing system.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Testimonial 1 -->
+                <div class="bg-white p-8 rounded-lg shadow-md">
+                    <div class="flex items-center mb-4">
+                        <div class="text-yellow-400 flex">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 mb-6">"Since implementing WaterBill Pro, we've reduced our billing processing time by 75% and significantly improved our collection rates. The system has paid for itself many times over."</p>
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-user-tie"></i>
+                        <div class="ml-4">
+                            <h4 class="font-bold">John Smith</h4>
+                            <p class="text-gray-600 text-sm">Utility Director, Metro Water</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Testimonial 2 -->
+                <div class="bg-white p-8 rounded-lg shadow-md">
+                    <div class="flex items-center mb-4">
+                        <div class="text-yellow-400 flex">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 mb-6">"Our customers love the online portal where they can view their usage, pay bills, and set up automatic payments. Customer complaints have decreased by 40% since implementation."</p>
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-user-tie"></i>
+                        <div class="ml-4">
+                            <h4 class="font-bold">Sarah Johnson</h4>
+                            <p class="text-gray-600 text-sm">Customer Service Manager, Riverside Utilities</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Testimonial 3 -->
+                <div class="bg-white p-8 rounded-lg shadow-md">
+                    <div class="flex items-center mb-4">
+                        <div class="text-yellow-400 flex">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star-half-alt"></i>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 mb-6">"The analytics and reporting features have given us unprecedented insights into consumption patterns, helping us identify leaks and optimize our water conservation programs."</p>
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-user-tie"></i>
+                        <div class="ml-4">
+                            <h4 class="font-bold">Michael Chen</h4>
+                            <p class="text-gray-600 text-sm">Operations Manager, Valley Water District</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <!-- Pricing Section -->
+<section id="pricing" class="py-20 bg-white">
+    <div class="container mx-auto px-4">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">One‑Time Lifetime Licenses</h2>
+        <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+          Choose the plan that fits your property size—no monthly fees, ever.
+        </p>
+      </div>
+      <div class="grid md:grid-cols-3 gap-8">
+        
+        <!-- Basic Plan -->
+        <div class="border rounded-lg p-8 shadow hover:shadow-lg transition">
+          <h3 class="text-2xl font-bold text-blue-600 mb-2">Basic</h3>
+          <p class="text-gray-600 mb-4">Up to 20 tenants</p>
+          <div class="text-4xl font-extrabold mb-4">Ksh 15,000</div>
+          <ul class="text-gray-700 mb-6 space-y-2 text-left">
+            <li><i class="fas fa-check text-green-500 mr-2"></i> Automated billing</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i> SMS alerts</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i> Analytics & charts</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i> Basic support</li>
+          </ul>
+          <a href="{{ url_for('login') }}"
+             class="block bg-blue-600 hover:bg-blue-700 text-white text-center py-3 rounded-md font-medium">
+            Get Basic
+          </a>
+        </div>
+        
+        <!-- Pro Plan -->
+        <div class="border-2 border-blue-600 rounded-lg p-8 shadow-lg transform scale-105">
+          <div class="bg-blue-600 text-white text-sm uppercase inline-block px-3 py-1 rounded-full mb-4">Most Popular</div>
+          <h3 class="text-2xl font-bold text-blue-600 mb-2">Pro</h3>
+          <p class="text-gray-600 mb-4">Up to 100 tenants</p>
+          <div class="text-4xl font-extrabold mb-4">Ksh 60,000</div>
+          <ul class="text-gray-700 mb-6 space-y-2 text-left">
+            <li><i class="fas fa-check text-green-500 mr-2"></i> Automated billing</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i> SMS alerts</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i> Analytics & charts</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i> Priority support</li>
+          </ul>
+          <a href="{{ url_for('login') }}"
+             class="block bg-blue-600 hover:bg-blue-700 text-white text-center py-3 rounded-md font-medium">
+            Get Pro
+          </a>
+        </div>
+        
+        <!-- Enterprise Plan -->
+        <div class="border rounded-lg p-8 shadow hover:shadow-lg transition">
+          <h3 class="text-2xl font-bold text-blue-600 mb-2">Enterprise</h3>
+          <p class="text-gray-600 mb-4">100+ tenants</p>
+          <div class="text-4xl font-extrabold mb-4">Ksh 150,000</div>
+          <ul class="text-gray-700 mb-6 space-y-2 text-left">
+            <li><i class="fas fa-check text-green-500 mr-2"></i> Automated billing</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i> SMS alerts</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i> Analytics & charts</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i> Unlimited tenants</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i> Dedicated onboarding</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i> 24/7 support</li>
+          </ul>
+          <a href="#contact"
+             class="block bg-gray-800 hover:bg-gray-900 text-white text-center py-3 rounded-md font-medium">
+            Contact Sales
+          </a>
+        </div>
+  
+      </div>
+    </div>
+  </section>
+  
+
+    <!-- CTA Section -->
+    <section class="py-20 bg-blue-600 text-white">
+        <div class="container mx-auto px-4 text-center">
+            <h2 class="text-3xl md:text-4xl font-bold mb-6">Ready to Transform Your Water Utility Management?</h2>
+            <p class="text-xl mb-8 max-w-3xl mx-auto text-blue-100">Join hundreds of water utilities that have streamlined their operations with our comprehensive billing system.</p>
+            <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+                <a href="{{ url_for('login') }}" class="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 rounded-md font-medium text-lg transition">Get Started</a>
+                <a href="#demo" class="bg-transparent border-2 border-white hover:bg-white hover:text-blue-600 px-8 py-4 rounded-md font-medium text-lg transition">Request Demo</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+        <!-- Main Content -->
+        <section id="contact" class="py-20">
+            <div class="container mx-auto px-4">
+                <div class="max-w-5xl mx-auto">
+                    <h1 class="text-3xl md:text-4xl font-bold mb-8 text-center">Contact Us</h1>
+                    
+                    <div class="flex flex-col md:flex-row bg-white rounded-lg shadow-lg overflow-hidden">
+                        <!-- Contact Information -->
+                        <div class="md:w-1/3 bg-blue-600 text-white p-8">
+                            <h2 class="text-2xl font-bold mb-6">Get in Touch</h2>
+                            <p class="mb-8">Have questions about our water billing system? Our team is here to help.</p>
+                            
+                            <div class="space-y-6">
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 mt-1">
+                                        <div class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-500 text-white">
+                                            <i class="fas fa-map-marker-alt"></i>
+                                        </div>
+                                    </div>
+                                    <div class="ml-4">
+                                        <h3 class="text-lg font-semibold mb-1">Address</h3>
+                                        <p class="text-blue-100">123 Water Street, Nairobi, Kenya</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 mt-1">
+                                        <div class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-500 text-white">
+                                            <i class="fas fa-phone"></i>
+                                        </div>
+                                    </div>
+                                    <div class="ml-4">
+                                        <h3 class="text-lg font-semibold mb-1">Phone</h3>
+                                        <p class="text-blue-100">+254 700 000 000</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 mt-1">
+                                        <div class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-500 text-white">
+                                            <i class="fas fa-envelope"></i>
+                                        </div>
+                                    </div>
+                                    <div class="ml-4">
+                                        <h3 class="text-lg font-semibold mb-1">Email</h3>
+                                        <p class="text-blue-100">info@waterbillpro.com</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+    
+                        </div>
+                        
+                        <!-- Contact Form -->
+                        <div class="md:w-2/3 p-8">
+                            <h2 class="text-2xl font-bold mb-6">Send Us a Message</h2>
+                            <form>
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                    <div>
+                                        <label for="name" class="block text-gray-700 font-medium mb-2">Full Name</label>
+                                        <input type="text" id="name" name="name" class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                    </div>
+                                    <div>
+                                        <label for="email" class="block text-gray-700 font-medium mb-2">Email Address</label>
+                                        <input type="email" id="email" name="email" class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-6">
+                                    <label for="subject" class="block text-gray-700 font-medium mb-2">Subject</label>
+                                    <input type="text" id="subject" name="subject" class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                </div>
+                                
+                                <div class="mb-6">
+                                    <label for="message" class="block text-gray-700 font-medium mb-2">Message</label>
+                                    <textarea id="message" name="message" rows="5" class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
+                                </div>
+                                
+                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium transition">Send Message</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+    
+                </div>
+            </div>
+        </section>
+
+    <!-- FAQ Section -->
+    <section class="py-20 bg-gray-50">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">Frequently Asked Questions</h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">Find answers to common questions about our water billing system.</p>
+            </div>
+            <div class="max-w-4xl mx-auto">
+                <div class="space-y-6">
+                    <!-- FAQ Item 1 -->
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <button class="flex justify-between items-center w-full text-left">
+                            <h3 class="text-xl font-semibold">How long does implementation take?</h3>
+                            <i class="fas fa-chevron-down text-blue-600"></i>
+                        </button>
+                        <div class="mt-4">
+                            <p class="text-gray-600">Implementation typically takes 4-8 weeks depending on the size of your utility and the complexity of your existing systems. Our team will work closely with you to ensure a smooth transition with minimal disruption to your operations.</p>
+                        </div>
+                    </div>
+                    <!-- FAQ Item 2 -->
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <button class="flex justify-between items-center w-full text-left">
+                            <h3 class="text-xl font-semibold">Can I integrate with my existing systems?</h3>
+                            <i class="fas fa-chevron-down text-blue-600"></i>
+                        </button>
+                        <div class="mt-4">
+                            <p class="text-gray-600">Yes, our system is designed to integrate with most existing utility management systems, accounting software, and payment processors. We provide APIs and custom integration services to ensure seamless data flow between systems.</p>
+                        </div>
+                    </div>
+                    <!-- FAQ Item 3 -->
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <button class="flex justify-between items-center w-full text-left">
+                            <h3 class="text-xl font-semibold">Is the system cloud-based or on-premises?</h3>
+                            <i class="fas fa-chevron-down text-blue-600"></i>
+                        </button>
+                        <div class="mt-4">
+                            <p class="text-gray-600">We offer both cloud-based and on-premises solutions. Most of our customers prefer our secure cloud-based option for its lower maintenance requirements and automatic updates, but we can accommodate on-premises deployments for utilities with specific security or compliance requirements.</p>
+                        </div>
+                    </div>
+                    <!-- FAQ Item 4 -->
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <button class="flex justify-between items-center w-full text-left">
+                            <h3 class="text-xl font-semibold">What kind of support do you provide?</h3>
+                            <i class="fas fa-chevron-down text-blue-600"></i>
+                        </button>
+                        <div class="mt-4">
+                            <p class="text-gray-600">All plans include email and phone support during business hours. Our Professional and Enterprise plans include 24/7 emergency support. We also provide comprehensive documentation, video tutorials, and regular training webinars for your team.</p>
+                        </div>
+                    </div>
+                    <!-- FAQ Item 5 -->
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <button class="flex justify-between items-center w-full text-left">
+                            <h3 class="text-xl font-semibold">Is my data secure?</h3>
+                            <i class="fas fa-chevron-down text-blue-600"></i>
+                        </button>
+                        <div class="mt-4">
+                            <p class="text-gray-600">Absolutely. We implement industry-leading security measures including encryption at rest and in transit, regular security audits, and compliance with relevant data protection regulations. Our system is hosted in SOC 2 compliant data centers with redundant backups.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-12">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <div class="text-2xl font-bold mb-6">
+                        <span class="flex items-center">
+                            <i class="fas fa-water mr-2"></i>
+                            WaterBill Pro
+                        </span>
+                    </div>
+                    <p class="text-gray-400 mb-6">Comprehensive water utility management and billing system designed to streamline operations and improve customer satisfaction.</p>
+            
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-6">Quick Links</h3>
+                    <ul class="space-y-3">
+                        <li><a href="#features" class="text-gray-400 hover:text-white transition">Features</a></li>
+                        <li><a href="#benefits" class="text-gray-400 hover:text-white transition">Benefits</a></li>
+                        <li><a href="#pricing" class="text-gray-400 hover:text-white transition">Pricing</a></li>
+                        <li><a href="#testimonials" class="text-gray-400 hover:text-white transition">Testimonials</a></li>
+                        <li><a href="#contact" class="text-gray-400 hover:text-white transition">Contact</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-6">Legal</h3>
+                    <ul class="space-y-3">
+                        <li><a href="{{ url_for('privacy') }}" class="text-gray-400 hover:text-white transition">Privacy Policy</a></li>
+                        <li><a href="{{ url_for('terms') }}" class="text-gray-400 hover:text-white transition">Terms of Service</a></li>
+
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-12 pt-8 text-center text-gray-400">
+                <p>&copy; 2025 WaterBill Pro. All rights reserved.</p>
+                <p> Developed By:<a href="https:wanjau.netlify.app">Wanjau</a></p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Simple JavaScript for FAQ toggles -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const faqButtons = document.querySelectorAll('.bg-white button');
+            
+            faqButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const content = this.nextElementSibling;
+                    const icon = this.querySelector('i');
+                    
+                    if (content.style.display === 'none' || content.style.display === '') {
+                        content.style.display = 'block';
+                        icon.classList.remove('fa-chevron-down');
+                        icon.classList.add('fa-chevron-up');
+                    } else {
+                        content.style.display = 'none';
+                        icon.classList.remove('fa-chevron-up');
+                        icon.classList.add('fa-chevron-down');
+                    }
+                });
+            });
+            const mobileMenuButton = document.querySelector('button.md\\:hidden');
+            const mobileMenu = document.querySelector('nav.hidden.md\\:flex');
+            
+            if (mobileMenuButton && mobileMenu) {
+                mobileMenuButton.addEventListener('click', function() {
+                    // Check if the menu is currently hidden
+                    const isHidden = mobileMenu.classList.contains('hidden');
+                    
+                    // Toggle the hidden class
+                    if (isHidden) {
+                        mobileMenu.classList.remove('hidden');
+                        mobileMenu.classList.add('flex', 'flex-col', 'absolute', 'top-16', 'left-0', 'right-0', 'bg-white', 'shadow-md', 'p-4', 'z-50');
+                    } else {
+                        mobileMenu.classList.add('hidden');
+                        mobileMenu.classList.remove('flex', 'flex-col', 'absolute', 'top-16', 'left-0', 'right-0', 'bg-white', 'shadow-md', 'p-4', 'z-50');
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+

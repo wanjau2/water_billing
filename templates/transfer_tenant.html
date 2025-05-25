@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Transfer Tenant{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4>Transfer Tenant to New House</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <p><strong>Tenant:</strong> {{ tenant.name }}</p>
+                        <p><strong>Current House:</strong> {{ tenant.house_number }}</p>
+                        <p><strong>Phone:</strong> {{ tenant.phone }}</p>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('transfer_tenant', tenant_id=tenant._id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="form-group mb-3">
+                            <label for="new_house"><strong>Select New House:</strong></label>
+                            <select class="form-control" id="new_house" name="new_house" required>
+                                <option value="">-- Select New House --</option>
+                                {% for house in houses %}
+                                    {% if house != tenant.house_number %}
+                                    <option value="{{ house }}">{{ house }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <p><strong>Note:</strong> This action will:</p>
+                            <ul>
+                                <li>Transfer the tenant to the new house</li>
+                                <li>Preserve reading history for both houses</li>
+                                <li>Reset the tenant's current readings for the new house</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Transfer Tenant</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

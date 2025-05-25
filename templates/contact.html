@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Contact WaterBill Pro for water utility management and billing solutions">
+    <title>Contact Us | WaterBill Pro</title>
+    <!-- TailwindCSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="https://via.placeholder.com/32x32">
+</head>
+<body class="font-sans text-gray-800 antialiased">
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center">
+                <a href="{{ url_for('index') }}" class="text-2xl font-bold text-blue-600">
+                    <span class="flex items-center">
+                        <i class="fas fa-water mr-2"></i>
+                        WaterBill Pro
+                    </span>
+                </a>
+            </div>
+            <div class="flex items-center">
+                <a href="{{ url_for('index') }}" class="text-gray-600 hover:text-blue-600 transition mr-6">Home</a>
+                <a href="{{ url_for('login') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md font-medium transition">Login</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="py-12">
+        <div class="container mx-auto px-4">
+            <div class="max-w-5xl mx-auto">
+                <h1 class="text-3xl md:text-4xl font-bold mb-8 text-center">Contact Us</h1>
+                
+                <div class="flex flex-col md:flex-row bg-white rounded-lg shadow-lg overflow-hidden">
+                    <!-- Contact Information -->
+                    <div class="md:w-1/3 bg-blue-600 text-white p-8">
+                        <h2 class="text-2xl font-bold mb-6">Get in Touch</h2>
+                        <p class="mb-8">Have questions about our water billing system? Our team is here to help.</p>
+                        
+                        <div class="space-y-6">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 mt-1">
+                                    <div class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-500 text-white">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <h3 class="text-lg font-semibold mb-1">Address</h3>
+                                    <p class="text-blue-100">123 Water Street, Nairobi, Kenya</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 mt-1">
+                                    <div class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-500 text-white">
+                                        <i class="fas fa-phone"></i>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <h3 class="text-lg font-semibold mb-1">Phone</h3>
+                                    <p class="text-blue-100">+254 700 000 000</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 mt-1">
+                                    <div class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-500 text-white">
+                                        <i class="fas fa-envelope"></i>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <h3 class="text-lg font-semibold mb-1">Email</h3>
+                                    <p class="text-blue-100">info@waterbillpro.com</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+
+                    </div>
+                    
+                    <!-- Contact Form -->
+                    <div class="md:w-2/3 p-8">
+                        <h2 class="text-2xl font-bold mb-6">Send Us a Message</h2>
+                        <form>
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <label for="name" class="block text-gray-700 font-medium mb-2">Full Name</label>
+                                    <input type="text" id="name" name="name" class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                </div>
+                                <div>
+                                    <label for="email" class="block text-gray-700 font-medium mb-2">Email Address</label>
+                                    <input type="email" id="email" name="email" class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <label for="subject" class="block text-gray-700 font-medium mb-2">Subject</label>
+                                <input type="text" id="subject" name="subject" class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <label for="message" class="block text-gray-700 font-medium mb-2">Message</label>
+                                <textarea id="message" name="message" rows="5" class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
+                            </div>
+                            
+                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium transition">Send Message</button>
+                        </form>
+                    </div>
+                </div>
+                
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-12 mt-12">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <div class="text-2xl font-bold mb-6">
+                        <span class="flex items-center">
+                            <i class="fas fa-water mr-2"></i>
+                            WaterBill Pro
+                        </span>
+                    </div>
+                    <p class="text-gray-400 mb-6">Comprehensive water utility management and billing system designed to streamline operations and improve customer satisfaction.</p>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Quick Links</h3>
+                    <ul class="space-y-3">
+                        <li><a href="{{ url_for('index') }}#features" class="text-gray-400 hover:text-white transition">Features</a></li>
+                        <li><a href="{{ url_for('index') }}#benefits" class="text-gray-400 hover:text-white transition">Benefits</a></li>
+                        <li><a href="{{ url_for('index') }}#pricing" class="text-gray-400 hover:text-white transition">Pricing</a></li>
+                        <li><a href="{{ url_for('index') }}#testimonials" class="text-gray-400 hover:text-white transition">Testimonials</a></li>
+                        <li><a href="{{ url_for('contact') }}" class="text-gray-400 hover:text-white transition">Contact</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Legal</h3>
+                    <ul class="space-y-3">
+                        <li><a href="{{ url_for('terms') }}" class="text-gray-400 hover:text-white transition">Terms of Service</a></li>
+                        <li><a href="{{ url_for('privacy') }}" class="text-gray-400 hover:text-white transition">Privacy Policy</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Contact</h3>
+                    <ul class="space-y-3 text-gray-400">
+                        <li class="flex items-start">
+                            <i class="fas fa-envelope mt-1 mr-3"></i>
+                            <span>info@waterbillpro.com</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-phone mt-1 mr-3"></i>
+                            <span>+254 700 000 000</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-12 pt-8 text-center text-gray-400">
+                <p>&copy; 2025 WaterBill Pro. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

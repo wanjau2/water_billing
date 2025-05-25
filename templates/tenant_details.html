@@ -4,21 +4,62 @@
 
 {% block content %}
 <div class="container mt-4">
+      <div>
+        <!-- Flash Messages -->
+
+      </div>  
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>{{ tenant.name }}'s Billing History</h1>
-    <div>
-      <!-- Edit Button -->
-      <button type="button" class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#editTenantModal">
-        <i class="bi bi-pencil"></i> Edit Profile
-      </button>
-      
-      <!-- Delete Button -->
-      <button type="button" class="btn btn-outline-danger me-2" data-bs-toggle="modal" data-bs-target="#deleteTenantModal">
-        <i class="bi bi-trash"></i> Delete Tenant
-      </button>
-      
-      <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+
+  
+    
+</div>
+
+<!-- Record Reading Modal -->
+<div class="modal fade" id="recordReadingModal" tabindex="-1" aria-labelledby="recordReadingModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="recordReadingModalLabel">Record Water Reading</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{{ url_for('record_tenant_reading', tenant_id=tenant._id) }}" method="post">
+        <div class="modal-body">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="tenant_id" value="{{ tenant._id }}">
+          
+          <div class="mb-3">
+            <label for="previous_reading" class="form-label">Previous Reading (m³)</label>
+            <input type="number" class="form-control" id="previous_reading" name="previous_reading" 
+                   value="{% if latest_reading %}{{ latest_reading.current_reading }}{% else %}0{% endif %}" 
+                   step="0.01" readonly>
+            <div class="form-text">This is automatically filled from the last recorded reading.</div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="current_reading" class="form-label">Current Reading (m³)</label>
+            <input type="number" class="form-control" id="current_reading" name="current_reading" 
+                   step="0.01" min="{% if latest_reading %}{{ latest_reading.current_reading }}{% else %}0{% endif %}" 
+                   required>
+            <div class="form-text">Enter the current meter reading. Must be greater than previous reading.</div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="reading_date" class="form-label">Reading Date</label>
+            <input type="date" class="form-control" id="reading_date" name="reading_date" 
+                   value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success">Record Reading</button>
+        </div>
+      </form>
     </div>
+    
+  </div>
+</div>
+
   </div>
   
   <!-- Edit Tenant Modal -->
@@ -35,6 +76,10 @@
             <div class="mb-3">
               <label for="name" class="form-label">Name</label>
               <input type="text" class="form-control" id="name" name="name" value="{{ tenant.name }}" required>
+            </div>
+            <div class="mb-3">
+              <label for="house_number" class="form-label">House Number</label>
+              <input type="text" class="form-control" id="house_number" name="house_number" value="{{ tenant.house_number }}" required>
             </div>
             <div class="mb-3">
               <label for="phone" class="form-label">Phone Number</label>
@@ -80,13 +125,42 @@
     <div class="card-body">
       <p><strong>Name:</strong> {{ tenant.name }}</p>
       <p><strong>Phone:</strong> {{ tenant.phone }}</p>
+      <p><strong>House Number:</strong> {{ tenant.house_number }}</p>
       <p><strong>Total Readings:</strong> {{ readings|length }}</p>
       {% if readings and readings|length > 0 %}
         {% set latest_reading = readings[0] if readings[0].date_recorded > readings[-1].date_recorded else readings[-1] %}
         <p><strong>Latest Bill:</strong> Ksh {{ latest_reading.bill_amount }}</p>
       {% endif %}
     </div>
+  <div class="card-body">
+    <div>
+      <!-- Record Reading Button -->
+        <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#recordReadingModal">
+          <i class="bi bi-plus-circle"></i> Record Reading
+        </button>
+        
+        <!-- Download History Button -->
+        <a href="{{ url_for('export_tenant_data', tenant_id=tenant._id) }}" class="btn btn-outline-info me-2">
+          <i class="bi bi-download"></i> Download History
+        </a>
+
+    
+      <!-- Edit Button -->
+        <button type="button" class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#editTenantModal">
+          <i class="bi bi-pencil"></i> Edit Profile
+        </button>
+        <!-- Delete Button -->
+        <button type="button" class="btn btn-outline-danger me-2" data-bs-toggle="modal" data-bs-target="#deleteTenantModal">
+          <i class="bi bi-trash"></i> Delete Tenant
+        </button>
+      <!--transfer-->
+      <a href="{{ url_for('transfer_tenant', tenant_id=tenant._id) }}" class="btn btn-info btn-sm">
+        <i class="fas fa-exchange-alt"></i> Transfer
+      </a>
+    </div>
   </div>
+</br>
+
   
   <!-- Billing History Chart -->
   <div class="card mb-4">
@@ -247,5 +321,6 @@
       }
     });
   });
+
 </script>
 {% endblock %}

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Privacy Policy for WaterBill Pro - Water Utility Management System">
+    <title>Privacy Policy | WaterBill Pro</title>
+    <!-- TailwindCSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="https://via.placeholder.com/32x32">
+</head>
+<body class="font-sans text-gray-800 antialiased">
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center">
+                <a href="{{ url_for('index') }}" class="text-2xl font-bold text-blue-600">
+                    <span class="flex items-center">
+                        <i class="fas fa-water mr-2"></i>
+                        WaterBill Pro
+                    </span>
+                </a>
+            </div>
+            <div class="flex items-center">
+                <a href="{{ url_for('index') }}" class="text-gray-600 hover:text-blue-600 transition mr-6">Home</a>
+                <a href="{{ url_for('login') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md font-medium transition">Login</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="py-12">
+        <div class="container mx-auto px-4 max-w-4xl">
+            <h1 class="text-3xl md:text-4xl font-bold mb-8">Privacy Policy</h1>
+            
+            <div class="prose prose-lg max-w-none">
+                <p class="mb-4">Last Updated: January 1, 2025</p>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">1. Introduction</h2>
+                <p class="mb-4">At WaterBill Pro, we respect your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our water utility management and billing services.</p>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">2. Information We Collect</h2>
+                <p class="mb-4">We collect several types of information from and about users of our services, including:</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>Personal identifiers (name, email address, phone number, billing address)</li>
+                    <li>Account credentials</li>
+                    <li>Water consumption data</li>
+                    <li>Payment information</li>
+                    <li>Usage data about how you interact with our services</li>
+                </ul>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">3. How We Use Your Information</h2>
+                <p class="mb-4">We use the information we collect to:</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>Provide, maintain, and improve our services</li>
+                    <li>Process payments and send billing information</li>
+                    <li>Communicate with you about your account or our services</li>
+                    <li>Monitor and analyze usage patterns and trends</li>
+                    <li>Protect against unauthorized access and fraud</li>
+                </ul>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">4. Data Security</h2>
+                <p class="mb-4">We implement appropriate technical and organizational measures to protect your personal data against unauthorized or unlawful processing, accidental loss, destruction, or damage.</p>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">5. Data Retention</h2>
+                <p class="mb-4">We retain your personal data only for as long as necessary to fulfill the purposes for which we collected it, including for the purposes of satisfying any legal, accounting, or reporting requirements.</p>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">6. Your Rights</h2>
+                <p class="mb-4">Depending on your location, you may have certain rights regarding your personal data, including:</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>The right to access your personal data</li>
+                    <li>The right to rectify inaccurate personal data</li>
+                    <li>The right to request deletion of your personal data</li>
+                    <li>The right to restrict processing of your personal data</li>
+                    <li>The right to data portability</li>
+                </ul>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">7. Third-Party Services</h2>
+                <p class="mb-4">Our services may contain links to third-party websites or services. We are not responsible for the privacy practices of these third parties and encourage you to read their privacy policies.</p>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">8. Changes to This Privacy Policy</h2>
+                <p class="mb-4">We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date.</p>
+                
+                <h2 class="text-2xl font-bold mt-8 mb-4">9. Contact Us</h2>
+                <p class="mb-4">If you have any questions about this Privacy Policy, please contact us at info@waterbillpro.com.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-12">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <div class="text-2xl font-bold mb-6">
+                        <span class="flex items-center">
+                            <i class="fas fa-water mr-2"></i>
+                            WaterBill Pro
+                        </span>
+                    </div>
+                    <p class="text-gray-400 mb-6">Comprehensive water utility management and billing system designed to streamline operations and improve customer satisfaction.</p>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Quick Links</h3>
+                    <ul class="space-y-3">
+                        <li><a href="{{ url_for('index') }}#features" class="text-gray-400 hover:text-white transition">Features</a></li>
+                        <li><a href="{{ url_for('index') }}#benefits" class="text-gray-400 hover:text-white transition">Benefits</a></li>
+                        <li><a href="{{ url_for('index') }}#pricing" class="text-gray-400 hover:text-white transition">Pricing</a></li>
+                        <li><a href="{{ url_for('index') }}#testimonials" class="text-gray-400 hover:text-white transition">Testimonials</a></li>
+                        <li><a href="{{ url_for('contact') }}" class="text-gray-400 hover:text-white transition">Contact</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Legal</h3>
+                    <ul class="space-y-3">
+                        <li><a href="{{ url_for('terms') }}" class="text-gray-400 hover:text-white transition">Terms of Service</a></li>
+                        <li><a href="{{ url_for('privacy') }}" class="text-gray-400 hover:text-white transition">Privacy Policy</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Contact</h3>
+                    <ul class="space-y-3 text-gray-400">
+                        <li class="flex items-start">
+                            <i class="fas fa-envelope mt-1 mr-3"></i>
+                            <span>info@waterbillpro.com</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-phone mt-1 mr-3"></i>
+                            <span>+254 700 000 000</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-12 pt-8 text-center text-gray-400">
+                <p>&copy; 2025 WaterBill Pro. All rights reserved.</p>
+                <p> Developed By:<a href="https:wanjau.netlify.app">Wanjau</a></p>
+
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="alert alert-danger">
+        <h4 class="alert-heading">Error</h4>
+        <p>{{ error_message }}</p>
+        <hr>
+        <p class="mb-0">Please try again later or contact support if the problem persists.</p>
+    </div>
+    <a href="{{ url_for('index') }}" class="btn btn-primary">Return to Home</a>
+</div>
+{% endblock %}

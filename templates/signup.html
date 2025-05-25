@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Create a new WaterBill Pro account to manage your water utility billing and payments.">
+    <title>Sign Up | WaterBill Pro</title>
+    <!-- Replace cdn.tailwindcss.com with cdn.jsdelivr.net -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Replace cdnjs.cloudflare.com with cdn.jsdelivr.net -->
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Replace placeholder favicon with your local image -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images.jpeg') }}">
+</head>
+<body class="bg-gray-50 font-sans text-gray-800 antialiased min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex items-center">
+                <a href="{{ url_for('index') }}" class="text-2xl font-bold text-blue-600">
+                    <span class="flex items-center">
+                        <i class="fas fa-water mr-2"></i>
+                        WaterBill Pro
+                    </span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Signup Section -->
+    <main class="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-md w-full">
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="bg-gradient-to-r from-blue-500 to-blue-700 px-6 py-8 text-center text-white">
+                    <h1 class="text-3xl font-bold">Create Account</h1>
+                    <p class="mt-2 text-blue-100">Sign up to manage your water utility billing</p>
+                </div>
+                
+                <div class="px-6 py-8">
+                    <form id="signupForm" class="space-y-5" action="{{ url_for('signup') }}" method="POST">
+                        <!-- Name Input -->
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div>
+                            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-user text-gray-400"></i>
+                                </div>
+                                <input id="name" name="name" type="text" required 
+                                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Enter your full name">
+                            </div>
+                        </div>
+                        
+                        <!-- Till Number Input -->
+                        <div>
+                            <label for="till" class="block text-sm font-medium text-gray-700 mb-1">Till Number</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-cash-register text-gray-400"></i>
+                                </div>
+                                <input id="till" name="till" type="text" required 
+                                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Enter your till number">
+                            </div>
+                        </div>
+                        
+                        <!-- Cost of Units Input (Moved below Till Number) -->
+                        <div>
+                            <label for="cost" class="block text-sm font-medium text-gray-700 mb-1">Cost of Units</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-dollar-sign text-gray-400"></i>
+                                </div>
+                                <input id="cost" name="cost" type="number" step="0.01" min="0" required 
+                                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Enter cost per unit">
+                            </div>
+                        </div>
+                        
+                        <!-- Password Input -->
+                        <div>
+                            <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-lock text-gray-400"></i>
+                                </div>
+                                <input id="password" name="password" type="password" required 
+                                    class="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Create a password"
+                                    pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
+                                    title="Must contain at least one number, one uppercase and lowercase letter, and at least 8 characters">
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                    <button type="button" id="togglePassword" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Password strength indicator -->
+                            <div class="mt-1">
+                                <div class="w-full bg-gray-200 rounded-full h-1.5">
+                                    <div id="password-strength" class="bg-red-500 h-1.5 rounded-full" style="width: 0%"></div>
+                                </div>
+                                <p id="password-strength-text" class="text-xs mt-1 text-gray-500">Password strength: Too weak</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Confirm Password Input -->
+                        <div>
+                            <label for="confirm-password" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-lock text-gray-400"></i>
+                                </div>
+                                <input id="confirm-password" name="confirm-password" type="password" required 
+                                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Confirm your password">
+                            </div>
+                            <p id="password-match" class="text-xs mt-1 hidden text-red-500">Passwords do not match</p>
+                        </div>
+                        
+                        <!-- Terms and Conditions Checkbox -->
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                <input id="terms" name="terms" type="checkbox" required
+                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            </div>
+                            <div class="ml-3 text-sm">
+                                <label for="terms" class="text-gray-700">
+                                    I agree to the <a href="{{ url_for('terms') }}" class="text-blue-600 hover:text-blue-500">Terms of Service</a> and <a href="{{ url_for('privacy') }}" class="text-blue-600 hover:text-blue-500">Privacy Policy</a>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Signup Button -->
+                        <div>
+                            <button type="submit" 
+                                class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">
+                                <span class="mr-2">Create Account</span>
+                                <i class="fas fa-user-plus"></i>
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Login Link -->
+                    <div class="mt-6 text-center">
+                        <p class="text-sm text-gray-600">
+                            Already have an account? 
+                            <a href="{{ url_for('login') }}" class="font-medium text-blue-600 hover:text-blue-500">
+                                Sign in
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Security Notice -->
+            <div class="mt-6 text-center">
+                <p class="text-xs text-gray-500 flex items-center justify-center">
+                    <i class="fas fa-shield-alt mr-1"></i>
+                    Secure registration | Your data is protected
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 py-6">
+        <div class="container mx-auto px-4">
+            <div class="text-center text-gray-500 text-sm">
+                <p>&copy; 2025 WaterBill Pro. All rights reserved.</p>
+                <p> Developed By:<a href="https:wanjau.netlify.app">Wanjau</a></p>
+
+                <div class="mt-2 space-x-4">
+                    <a href="{{ url_for('privacy') }}" class="text-gray-500 hover:text-gray-700">Privacy Policy</a>
+                    <a href="{{ url_for('terms') }}" class="text-gray-500 hover:text-gray-700">Terms of Service</a>
+                    <a href="{{ url_for('contact') }}" class="text-gray-500 hover:text-gray-700">Contact Support</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript for form validation and password visibility -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const togglePassword = document.getElementById('togglePassword');
+            const password = document.getElementById('password');
+            const confirmPassword = document.getElementById('confirm-password');
+            const passwordStrength = document.getElementById('password-strength');
+            const passwordStrengthText = document.getElementById('password-strength-text');
+            const passwordMatch = document.getElementById('password-match');
+            const signupForm = document.getElementById('signupForm');
+            
+            // Toggle password visibility
+            togglePassword.addEventListener('click', function() {
+                const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+                password.setAttribute('type', type);
+                
+                // Toggle eye icon
+                const eyeIcon = this.querySelector('i');
+                eyeIcon.classList.toggle('fa-eye');
+                eyeIcon.classList.toggle('fa-eye-slash');
+            });
+            
+            // Password strength checker
+            password.addEventListener('input', function() {
+                const value = password.value;
+                let strength = 0;
+                
+                // Check length
+                if (value.length >= 8) strength += 25;
+                
+                // Check for lowercase letters
+                if (value.match(/[a-z]+/)) strength += 25;
+                
+                // Check for uppercase letters
+                if (value.match(/[A-Z]+/)) strength += 25;
+                
+                // Check for numbers
+                if (value.match(/[0-9]+/)) strength += 25;
+                
+                // Update strength indicator
+                passwordStrength.style.width = strength + '%';
+                
+                // Update color based on strength
+                if (strength < 50) {
+                    passwordStrength.className = 'bg-red-500 h-1.5 rounded-full';
+                    passwordStrengthText.textContent = 'Password strength: Weak';
+                    passwordStrengthText.className = 'text-xs mt-1 text-red-500';
+                } else if (strength < 75) {
+                    passwordStrength.className = 'bg-yellow-500 h-1.5 rounded-full';
+                    passwordStrengthText.textContent = 'Password strength: Medium';
+                    passwordStrengthText.className = 'text-xs mt-1 text-yellow-600';
+                } else {
+                    passwordStrength.className = 'bg-green-500 h-1.5 rounded-full';
+                    passwordStrengthText.textContent = 'Password strength: Strong';
+                    passwordStrengthText.className = 'text-xs mt-1 text-green-500';
+                }
+            });
+            
+            // Check if passwords match
+            confirmPassword.addEventListener('input', function() {
+                if (password.value !== confirmPassword.value) {
+                    passwordMatch.classList.remove('hidden');
+                } else {
+                    passwordMatch.classList.add('hidden');
+                }
+            });
+            
+            // Form validation
+            signupForm.addEventListener('submit', function(event) {
+                // Check if passwords match
+                if (password.value !== confirmPassword.value) {
+                    event.preventDefault();
+                    passwordMatch.classList.remove('hidden');
+                    return;
+                }
+                
+                // Check if all fields are filled
+                const name = document.getElementById('name').value;
+                const till = document.getElementById('till').value;
+                const cost = document.getElementById('cost').value;
+                const terms = document.getElementById('terms').checked;
+                
+                if (!name || !till || !password.value || !confirmPassword.value || !cost || !terms) {
+                    event.preventDefault();
+                    alert('Please fill in all fields and accept the terms and conditions');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

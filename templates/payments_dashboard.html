@@ -1,0 +1,607 @@
+{% extends "base.html" %}
+
+{% block title %}Water Billing - Payments Dashboard{% endblock %}
+
+{% block content %}
+<!-- Main Container with Water-Themed Background -->
+<div class="min-vh-100 bg-light py-4">
+    <div class="container">
+        <!-- Header Card Component -->
+        <div class="card mb-4 border-start border-primary border-4 shadow">
+            <div class="card-body p-4">
+                <div class="row align-items-center">
+                    <div class="col-md-8 d-flex align-items-center mb-3 mb-md-0">
+                        <div class="bg-primary bg-opacity-10 p-3 rounded-circle me-3">
+                            <svg class="text-primary" width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="fs-2 fw-bold">Water Billing Dashboard</h1>
+                            <p class="text-muted">Manage payments and billing records</p>
+                        </div>
+
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <a href="{{ url_for('dashboard') }}" 
+                           class="btn btn-primary d-inline-flex align-items-center">
+                            <svg width="20" height="20" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                            </svg>
+                            <span>Back to Dashboard</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mb-4">
+            <!-- Total Billed Card -->
+            <div class="col-md-4 mb-3 mb-md-0">
+                <div class="card h-100 border-top border-primary border-4 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-primary bg-opacity-10 p-3 rounded-circle me-3">
+                                <svg width="24" height="24" class="text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="small fw-medium text-muted mb-0">Total Billed (All Time)</p>
+                                <p class="fs-4 fw-bold mb-0">KES {{ "%.2f"|format(total_ever_billed) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Total Collected Card -->
+            <div class="col-md-4 mb-3 mb-md-0">
+                <div class="card h-100 border-top border-success border-4 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="bg-success bg-opacity-10 p-3 rounded-circle me-3">
+                                <svg width="24" height="24" class="text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+
+                                </svg>
+                                
+                            </div>
+                     
+                            <div>
+                                <p class="small fw-medium text-muted mb-0">Total Collected (All Time)</p>
+                                <p class="fs-4 fw-bold mb-0">KES {{ "%.2f"|format(total_ever_collected) }}</p>
+                            </div>
+                            <div>
+                                <a href="{{ url_for('payments_dashboard', _=now) }}" class="btn btn-sm btn-outline-success" title="Refresh totals">
+                                    <svg width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                                        <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Outstanding Balance Card -->
+            <div class="col-md-4">
+                <div class="card h-100 border-top border-danger border-4 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-danger bg-opacity-10 p-3 rounded-circle me-3">
+                                <svg width="24" height="24" class="text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="small fw-medium text-muted mb-0">Outstanding Balance</p>
+                                <p class="fs-4 fw-bold mb-0">KES {{ "%.2f"|format(bills|sum(attribute='outstanding_amount')) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if bills %}
+        <!-- Bills Table Card Component -->
+        <div class="card mb-4 shadow">
+            <!-- Table Header -->
+            <div class="card-header bg-primary text-white p-3">
+                <h2 class="fs-5 fw-semibold mb-0 d-flex align-items-center">
+                    <svg width="24" height="24" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Payment Records
+                </h2>
+            </div>
+            
+            <!-- Table Filters & Controls -->
+            <div class="bg-light p-3 border-bottom">
+                <form method="GET" action="{{ url_for('payments_dashboard') }}">
+                    <div class="row align-items-center">
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <div class="d-flex align-items-center">
+                                <span class="text-muted me-2 small fw-medium">Filter:</span>
+                                <select name="filter" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    <option value="all" {% if request.args.get('filter') == 'all' %}selected{% endif %}>All Records</option>
+                                    <option value="unpaid" {% if request.args.get('filter') == 'unpaid' %}selected{% endif %}>Unpaid Only</option>
+                                    <option value="partial" {% if request.args.get('filter') == 'partial' %}selected{% endif %}>Partial Payments</option>
+                                    <option value="paid" {% if request.args.get('filter') == 'paid' %}selected{% endif %}>Paid Only</option>
+                                    <option value="unpaid_partial" {% if request.args.get('filter', 'unpaid_partial') == 'unpaid_partial' %}selected{% endif %}>Unpaid & Partial</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" class="text-muted" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                </span>
+                                <input type="text" name="search" placeholder="Search records..." class="form-control form-control-sm" value="{{ request.args.get('search', '') }}">
+                                <button type="submit" class="btn btn-sm btn-primary">Search</button>
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <a href="{{ url_for('payments_dashboard') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Table Content -->
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>
+                                <div class="d-flex align-items-center">
+                                    <svg width="16" height="16" class="me-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    </svg>
+                                    Tenant
+                                </div>
+                            </th>
+                            <th>
+                                <div class="d-flex align-items-center">
+                                    <svg width="16" height="16" class="me-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+                                    </svg>
+                                    House
+                                </div>
+                            </th>
+                            <th>
+                                <div class="d-flex align-items-center">
+                                    <svg width="16" height="16" class="me-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Month
+                                </div>
+                            </th>
+                            <th>Bill Amount</th>
+                            <th>Paid</th>
+                            <th>Outstanding</th>
+                            <th>Status</th>
+                            <th>Due Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bill in bills %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary bg-opacity-10 rounded-circle p-2 me-2">
+                                        <svg width="16" height="16" class="text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                        </svg>
+                                    </div>
+                                    <span class="fw-medium">{{ bill.tenant_name }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark">{{ bill.house_number }}</span>
+                            </td>
+                            <td>{{ bill.month_year }}</td>
+                            <td class="fw-semibold">KES {{ "%.2f"|format(bill.bill_amount) }}</td>
+                            <td class="text-success fw-medium">KES {{ "%.2f"|format(bill.amount_paid or 0) }}</td>
+                            <td class="text-danger fw-medium">KES {{ "%.2f"|format(bill.outstanding_amount) }}</td>
+                            <td>
+                                <span class="badge {% if bill.payment_status == 'paid' %}bg-success{% elif bill.payment_status == 'partial' %}bg-warning{% else %}bg-danger{% endif %} d-flex align-items-center">
+                                    {% if bill.payment_status == 'paid' %}
+                                        <svg width="12" height="12" class="me-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                        </svg>
+                                    {% elif bill.payment_status == 'partial' %}
+                                        <svg width="12" height="12" class="me-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                                        </svg>
+                                    {% else %}
+                                        <svg width="12" height="12" class="me-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                        </svg>
+                                    {% endif %}
+                                    {{ bill.payment_status.title() }}
+                                </span>
+                            </td>
+                            <td>{{ bill.due_date.strftime('%Y-%m-%d') if bill.due_date else 'N/A' }}</td>
+                            <td>
+                                <button onclick="openPaymentModal('{{ bill._id }}', '{{ bill.tenant_name }}', '{{ bill.outstanding_amount }}')" 
+                                        class="btn btn-primary btn-sm d-flex align-items-center">
+                                    <svg width="16" height="16" class="me-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                    </svg>
+                                    Record Payment
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Table Footer with Pagination -->
+            <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+                <div class="small text-muted">
+                    Showing <span class="fw-medium">{{ pagination.bills|length }}</span> of 
+                    <span class="fw-medium">{{ pagination.total_count }}</span> records
+                </div>
+                <div>
+                    {% if pagination.total_pages > 1 %}
+                        <nav aria-label="Billing pagination">
+                            <ul class="pagination pagination-sm mb-0">
+                                <!-- Previous page button -->
+                                <li class="page-item {% if pagination.page == 1 %}disabled{% endif %}">
+                                    <a class="page-link" href="{{ url_for('payments_dashboard', page=pagination.page-1, filter=request.args.get('filter', ''), search=request.args.get('search', '')) }}">
+                                        Previous
+                                    </a>
+                                </li>
+                                
+                                <!-- Page numbers -->
+                                {% for p in range(1, pagination.total_pages + 1) %}
+                                    {% if p == pagination.page %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ p }}</span>
+                                        </li>
+                                    {% elif p <= 3 or p >= pagination.total_pages - 2 or (p >= pagination.page - 1 and p <= pagination.page + 1) %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('payments_dashboard', page=p, filter=request.args.get('filter', ''), search=request.args.get('search', '')) }}">
+                                                {{ p }}
+                                            </a>
+                                        </li>
+                                    {% elif p == 4 or p == pagination.total_pages - 3 %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link">...</span>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                <!-- Next page button -->
+                                <li class="page-item {% if pagination.page == pagination.total_pages %}disabled{% endif %}">
+                                    <a class="page-link" href="{{ url_for('payments_dashboard', page=pagination.page+1, filter=request.args.get('filter', ''), search=request.args.get('search', '')) }}">
+                                        Next
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Summary Cards Row -->
+
+        <!-- In the summary cards section around line 126-134 -->
+       <!-- <div class="col-md-4 mb-4">
+            <div class="card border-success h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title text-success">Total Collected (All Time)</h5>
+                        <a href="{{ url_for('payments_dashboard', _=now) }}" class="btn btn-sm btn-outline-success" title="Refresh totals">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                                <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                            </svg>
+                        </a>
+                    </div>
+                    <p class="display-6 mb-0">{{ total_ever_collected}}</p>
+                </div>
+            </div>
+        </div>
+    -->
+        
+        {% else %}
+        <!-- Empty State Component -->
+        <div class="card text-center shadow p-5 mb-4">
+            <div class="mx-auto bg-primary bg-opacity-10 rounded-circle p-4 mb-4" style="width: 96px; height: 96px;">
+                <svg width="48" height="48" class="text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+            </div>
+            <h3 class="fs-4 fw-semibold mb-2">No Outstanding Bills</h3>
+            <p class="text-muted fs-5 mb-4">All water bills have been paid. Great job!</p>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary d-inline-flex align-items-center">
+                <svg width="20" height="20" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                Return to Dashboard
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Payment Modal Component -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title d-flex align-items-center" id="modalTitle">
+                    <svg width="24" height="24" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                    </svg>
+                    Record Payment
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <!-- Modal Body -->
+            <form id="paymentForm" method="POST">
+                <div class="modal-body p-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Amount Paid (KES)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">KES</span>
+                            <input type="number" name="amount_paid" step="0.01" min="0" required 
+                                   class="form-control">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Payment Method</label>
+                        <select name="payment_method" required class="form-select">
+                            <option value="">Select payment method</option>
+                            <option value="cash">💵 Cash</option>
+                            <option value="mpesa">📱 M-Pesa</option>
+                            <option value="bank">🏦 Bank Transfer</option>
+                            <option value="cheque">📄 Cheque</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Notes (Optional)</label>
+                        <textarea name="notes" rows="3" placeholder="Add any additional notes about this payment..."
+                                  class="form-control"></textarea>
+                    </div>
+                </div>
+                
+                <!-- Modal Footer -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary d-flex align-items-center">
+                        <svg width="16" height="16" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Record Payment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Spinner Component (Hidden by Default)
+<div id="loadingSpinner" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50" style="z-index: 1060; display: none;">
+    <div class="bg-white p-3 rounded-circle">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div> -->
+<script>
+    // Payment Modal Functions
+    function openPaymentModal(paymentId, tenantName, outstandingAmount) {
+        // Update modal title with tenant name
+        document.getElementById('modalTitle').innerHTML = `
+            <svg width="24" height="24" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+            </svg>
+            Record Payment for ${tenantName}
+        `;
+        
+        // Set form action URL with payment ID
+        document.getElementById('paymentForm').action = `/record_payment/${paymentId}`;
+        
+        // Set amount input constraints and placeholder
+        const amountInput = document.querySelector('input[name="amount_paid"]');
+        amountInput.max = outstandingAmount;
+        amountInput.placeholder = `Max: KES ${outstandingAmount}`;
+        amountInput.value = outstandingAmount; // Pre-fill with full amount
+        
+        // Show modal with Bootstrap
+        var myModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        myModal.show();
+        
+        // Set focus on amount input for better UX
+        setTimeout(() => amountInput.focus(), 500);
+    }
+    
+    // Close Payment Modal - useful for programmatic closing
+    function closePaymentModal() {
+        var myModal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
+        if (myModal) {
+            myModal.hide();
+        }
+        
+        // Reset form
+        document.getElementById('paymentForm').reset();
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Store the original summary card values
+        const originalSummary = {
+            totalBilled: parseFloat(document.querySelector('.card:nth-of-type(1) .fs-4.fw-bold').textContent.replace('KES ', '').trim()),
+            totalCollected: parseFloat(document.querySelector('.card:nth-of-type(2) .fs-4.fw-bold').textContent.replace('KES ', '').trim())
+        };
+        
+        // Hide loading spinner initially
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        if (loadingSpinner) {
+            loadingSpinner.style.display = 'none';
+        }
+        
+        // Check if we just returned from payment submission
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('payment_submitted')) {
+            // Hide spinner if we returned from payment submission
+            if (loadingSpinner) {
+                loadingSpinner.style.display = 'none';
+            }
+        }
+        
+        // Payment form submission handler
+        const paymentForm = document.getElementById('paymentForm');
+        if (paymentForm) {
+            paymentForm.addEventListener('submit', function(event) {
+                // Validate payment amount
+                const amountInput = document.querySelector('input[name="amount_paid"]');
+                const maxAmount = parseFloat(amountInput.max);
+                const enteredAmount = parseFloat(amountInput.value);
+                
+                if (enteredAmount <= 0) {
+                    alert('Payment amount must be greater than 0');
+                    event.preventDefault();
+                    return false;
+                }
+                
+                if (enteredAmount > maxAmount) {
+                    alert(`Payment amount cannot exceed KES ${maxAmount}`);
+                    event.preventDefault();
+                    return false;
+                }
+                
+                // Show loading spinner when form is submitted
+                if (loadingSpinner) {
+                    loadingSpinner.style.display = 'flex';
+                }
+                
+                return true;
+            });
+        }
+        
+        // Search and Filter Functionality
+        const searchInput = document.querySelector('input[type="text"][placeholder="Search records..."]');
+        const filterSelect = document.querySelector('select.form-select');
+        const tableRows = document.querySelectorAll('tbody tr');
+        
+        if (searchInput && filterSelect && tableRows.length > 0) {
+            // Search functionality
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                filterTable(searchTerm, filterSelect.value);
+            });
+            
+            // Filter functionality
+            filterSelect.addEventListener('change', function() {
+                filterTable(searchInput.value.toLowerCase(), this.value);
+            });
+            
+            function filterTable(searchTerm, filterValue) {
+                tableRows.forEach(row => {
+                    const tenantName = row.querySelector('td:nth-child(1)').textContent.toLowerCase();
+                    const houseNumber = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+                    const month = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+                    
+                    // Extract just the status text (Paid, Partial, Unpaid) without extra whitespace or icons
+                    const statusBadge = row.querySelector('td:nth-child(7) .badge');
+                    // Fix status text extraction to properly get the status
+                    let statusText = '';
+                    if (statusBadge) {
+                        // Get the last word in the badge text which should be the status
+                        const badgeText = statusBadge.textContent.trim();
+                        statusText = badgeText.toLowerCase();
+                        
+                        // Handle the specific status values
+                        if (statusText.includes('paid')) {
+                            if (statusText.includes('unpaid')) {
+                                statusText = 'unpaid';
+                            } else if (statusText.includes('partial')) {
+                                statusText = 'partial';
+                            } else {
+                                statusText = 'paid';
+                            }
+                        }
+                    }
+                    
+                    // Check if row matches search term
+                    const matchesSearch = searchTerm === '' || 
+                        tenantName.includes(searchTerm) || 
+                        houseNumber.includes(searchTerm) || 
+                        month.includes(searchTerm);
+                    
+                    // Check if row matches filter
+                    let matchesFilter = true;
+                    if (filterValue !== 'all') {
+                        // Use exact status matching instead of includes
+                        matchesFilter = (statusText === filterValue.toLowerCase());
+                    }
+                    
+                    // Show/hide row based on both conditions
+                    row.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
+                });
+                
+                // Update the count of visible records
+                const visibleCount = Array.from(tableRows).filter(row => row.style.display !== 'none').length;
+                const countElement = document.querySelector('.small.text-muted span.fw-medium');
+                if (countElement) {
+                    countElement.textContent = visibleCount;
+                }
+                
+                // Update only the outstanding balance card based on filtered data
+                updateOutstandingBalance();
+            }
+            
+            function updateOutstandingBalance() {
+                // Only calculate outstanding balance for visible rows
+                const visibleRows = Array.from(tableRows).filter(row => row.style.display !== 'none');
+                
+                // Calculate total outstanding amount
+                let totalOutstanding = 0;
+                
+                visibleRows.forEach(row => {
+                    // Extract outstanding amount from the row (column 6)
+                    const outstandingAmount = parseFloat(row.querySelector('td:nth-child(6)').textContent.replace('KES ', '').trim());
+                    totalOutstanding += isNaN(outstandingAmount) ? 0 : outstandingAmount;
+                });
+                
+                // Update only the outstanding balance card
+                const outstandingElement = document.querySelector('.card:nth-of-type(3) .fs-4.fw-bold');
+                if (outstandingElement) {
+                    outstandingElement.textContent = `KES ${totalOutstanding.toFixed(2)}`;
+                }
+            }
+        }
+        
+        // Keyboard accessibility for modal
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closePaymentModal();
+            }
+        });
+        
+        // Initialize tooltips if Bootstrap is available
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function(tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+    });
+</script>
+{% endblock %}
