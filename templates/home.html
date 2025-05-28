@@ -296,10 +296,10 @@
                 <h2 class="text-3xl md:text-4xl font-bold mb-4">Trusted by Utilities Countrywide</h2>
                 <p class="text-xl text-gray-600 max-w-3xl mx-auto">See what our customers have to say about our water billing system.</p>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <!-- Testimonial 1 -->
                 <div class="bg-white p-8 rounded-lg shadow-md">
-                    <div class="flex items-center mb-4">
+                    <div class="flex items-justify mb-4">
                         <div class="text-yellow-400 flex">
                             <i class="fas fa-star"></i>
                             <i class="fas fa-star"></i>
@@ -312,51 +312,31 @@
                     <div class="flex items-center">
                         <i class="fa-solid fa-user-tie"></i>
                         <div class="ml-4">
-                            <h4 class="font-bold">John Smith</h4>
-                            <p class="text-gray-600 text-sm">Utility Director, Metro Water</p>
+                            <h4 class="font-bold">John Mwaura</h4>
                         </div>
                     </div>
                 </div>
                 <!-- Testimonial 2 -->
                 <div class="bg-white p-8 rounded-lg shadow-md">
-                    <div class="flex items-center mb-4">
+                    <div class="flex items-justify mb-4">
                         <div class="text-yellow-400 flex">
                             <i class="fas fa-star"></i>
                             <i class="fas fa-star"></i>
                             <i class="fas fa-star"></i>
                             <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                        </div>
-                    </div>
-                    <p class="text-gray-600 mb-6">"Our customers love the online portal where they can view their usage, pay bills, and set up automatic payments. Customer complaints have decreased by 40% since implementation."</p>
-                    <div class="flex items-center">
-                        <i class="fa-solid fa-user-tie"></i>
-                        <div class="ml-4">
-                            <h4 class="font-bold">Sarah Johnson</h4>
-                            <p class="text-gray-600 text-sm">Customer Service Manager, Riverside Utilities</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Testimonial 3 -->
-                <div class="bg-white p-8 rounded-lg shadow-md">
-                    <div class="flex items-center mb-4">
-                        <div class="text-yellow-400 flex">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star-half-alt"></i>
+                            <i class="far fa-star"></i>
+
                         </div>
                     </div>
                     <p class="text-gray-600 mb-6">"The analytics and reporting features have given us unprecedented insights into consumption patterns, helping us identify leaks and optimize our water conservation programs."</p>
                     <div class="flex items-center">
                         <i class="fa-solid fa-user-tie"></i>
                         <div class="ml-4">
-                            <h4 class="font-bold">Michael Chen</h4>
-                            <p class="text-gray-600 text-sm">Operations Manager, Valley Water District</p>
+                            <h4 class="font-bold">Sarah Mwangi</h4>
                         </div>
                     </div>
                 </div>
+              
             </div>
         </div>
     </section>
@@ -366,70 +346,181 @@
 <section id="pricing" class="py-20 bg-white">
     <div class="container mx-auto px-4">
       <div class="text-center mb-16">
-        <h2 class="text-3xl md:text-4xl font-bold mb-4">One‑Time Lifetime Licenses</h2>
-        <p class="text-xl text-gray-600 max-w-2xl mx-auto">
-          Choose the plan that fits your property size—no monthly fees, ever.
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
+        <p class="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+          Choose between monthly subscriptions or one-time lifetime licenses. Start free, upgrade when you grow.
         </p>
+        
+        <!-- Pricing Toggle -->
+        <div class="inline-flex rounded-lg border border-gray-200 p-1 mb-8">
+          <button id="monthlyBtn" class="px-6 py-2 rounded-md font-medium bg-blue-600 text-white">Monthly</button>
+          <button id="lifetimeBtn" class="px-6 py-2 rounded-md font-medium text-gray-700 hover:text-gray-900">Lifetime</button>
+        </div>
       </div>
-      <div class="grid md:grid-cols-3 gap-8">
+      
+      <div class="grid md:grid-cols-5 gap-6 max-w-7xl mx-auto">
+        
+        <!-- Starter Plan -->
+        <div class="border rounded-lg p-6 shadow hover:shadow-lg transition">
+          <h3 class="text-xl font-bold text-gray-800 mb-2">Starter</h3>
+          <p class="text-gray-600 mb-4 text-sm">Up to 5 tenants</p>
+          <div class="mb-4">
+            <div class="monthly-price">
+              <div class="text-3xl font-extrabold">Free</div>
+              <p class="text-gray-500 text-sm">forever</p>
+            </div>
+            <div class="lifetime-price hidden">
+              <div class="text-3xl font-extrabold">1500</div>
+              <p class="text-gray-500 text-sm">one-time</p>
+            </div>
+          </div>
+          <ul class="text-gray-700 mb-6 space-y-2 text-sm">
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Up to 5 tenants</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Basic water billing</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>SMS notifications</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Basic reports</li>
+          </ul>
+          <a href="{{ url_for('signup') }}"
+             class="block bg-gray-600 hover:bg-gray-700 text-white text-center py-2 rounded-md font-medium text-sm">
+            Start Free
+          </a>
+        </div>
         
         <!-- Basic Plan -->
-        <div class="border rounded-lg p-8 shadow hover:shadow-lg transition">
-          <h3 class="text-2xl font-bold text-blue-600 mb-2">Basic</h3>
-          <p class="text-gray-600 mb-4">Up to 20 tenants</p>
-          <div class="text-4xl font-extrabold mb-4">Ksh 15,000</div>
-          <ul class="text-gray-700 mb-6 space-y-2 text-left">
-            <li><i class="fas fa-check text-green-500 mr-2"></i> Automated billing</li>
-            <li><i class="fas fa-check text-green-500 mr-2"></i> SMS alerts</li>
-            <li><i class="fas fa-check text-green-500 mr-2"></i> Analytics & charts</li>
-            <li><i class="fas fa-check text-green-500 mr-2"></i> Basic support</li>
+        <div class="border rounded-lg p-6 shadow hover:shadow-lg transition">
+          <h3 class="text-xl font-bold text-blue-600 mb-2">Basic</h3>
+          <p class="text-gray-600 mb-4 text-sm">Up to 20 tenants</p>
+          <div class="mb-4">
+            <div class="monthly-price">
+              <div class="text-3xl font-extrabold">Ksh 300</div>
+              <p class="text-gray-500 text-sm">per month</p>
+            </div>
+            <div class="lifetime-price hidden">
+              <div class="text-3xl font-extrabold">Ksh 10,000</div>
+              <p class="text-gray-500 text-sm">one-time</p>
+            </div>
+          </div>
+          <ul class="text-gray-700 mb-6 space-y-2 text-sm">
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Up to 20 tenants</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Water & rent billing</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>SMS notifications</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Excel import/export</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Payment tracking</li>
           </ul>
-          <a href="{{ url_for('login') }}"
-             class="block bg-blue-600 hover:bg-blue-700 text-white text-center py-3 rounded-md font-medium">
+          <a href="{{ url_for('signup') }}"
+             class="block bg-blue-600 hover:bg-blue-700 text-white text-center py-2 rounded-md font-medium text-sm">
             Get Basic
           </a>
         </div>
         
         <!-- Pro Plan -->
-        <div class="border-2 border-blue-600 rounded-lg p-8 shadow-lg transform scale-105">
-          <div class="bg-blue-600 text-white text-sm uppercase inline-block px-3 py-1 rounded-full mb-4">Most Popular</div>
-          <h3 class="text-2xl font-bold text-blue-600 mb-2">Pro</h3>
-          <p class="text-gray-600 mb-4">Up to 100 tenants</p>
-          <div class="text-4xl font-extrabold mb-4">Ksh 60,000</div>
-          <ul class="text-gray-700 mb-6 space-y-2 text-left">
-            <li><i class="fas fa-check text-green-500 mr-2"></i> Automated billing</li>
-            <li><i class="fas fa-check text-green-500 mr-2"></i> SMS alerts</li>
-            <li><i class="fas fa-check text-green-500 mr-2"></i> Analytics & charts</li>
-            <li><i class="fas fa-check text-green-500 mr-2"></i> Priority support</li>
+        <div class="border-2 border-blue-600 rounded-lg p-6 shadow-lg relative">
+          <div class="absolute -top-3 left-1/2 transform -translate-x-1/2">
+            <span class="bg-blue-600 text-white text-xs uppercase px-3 py-1 rounded-full">Most Popular</span>
+          </div>
+          <h3 class="text-xl font-bold text-blue-600 mb-2 mt-2">Pro</h3>
+          <p class="text-gray-600 mb-4 text-sm">Up to 100 tenants</p>
+          <div class="mb-4">
+            <div class="monthly-price">
+              <div class="text-3xl font-extrabold">Ksh 1,000</div>
+              <p class="text-gray-500 text-sm">per month</p>
+            </div>
+            <div class="lifetime-price hidden">
+              <div class="text-3xl font-extrabold">Ksh 20,000</div>
+              <p class="text-gray-500 text-sm">one-time</p>
+            </div>
+          </div>
+          <ul class="text-gray-700 mb-6 space-y-2 text-sm">
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Up to 100 tenants</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>All Basic features</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Advanced reporting</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Bulk operations</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Payment reminders</li>
           </ul>
-          <a href="{{ url_for('login') }}"
-             class="block bg-blue-600 hover:bg-blue-700 text-white text-center py-3 rounded-md font-medium">
+          <a href="{{ url_for('signup') }}"
+             class="block bg-blue-600 hover:bg-blue-700 text-white text-center py-2 rounded-md font-medium text-sm">
             Get Pro
           </a>
         </div>
         
         <!-- Enterprise Plan -->
-        <div class="border rounded-lg p-8 shadow hover:shadow-lg transition">
-          <h3 class="text-2xl font-bold text-blue-600 mb-2">Enterprise</h3>
-          <p class="text-gray-600 mb-4">100+ tenants</p>
-          <div class="text-4xl font-extrabold mb-4">Ksh 150,000</div>
-          <ul class="text-gray-700 mb-6 space-y-2 text-left">
-            <li><i class="fas fa-check text-green-500 mr-2"></i> Automated billing</li>
-            <li><i class="fas fa-check text-green-500 mr-2"></i> SMS alerts</li>
-            <li><i class="fas fa-check text-green-500 mr-2"></i> Analytics & charts</li>
-            <li><i class="fas fa-check text-green-500 mr-2"></i> Unlimited tenants</li>
-            <li><i class="fas fa-check text-green-500 mr-2"></i> Dedicated onboarding</li>
-            <li><i class="fas fa-check text-green-500 mr-2"></i> 24/7 support</li>
+        <div class="border rounded-lg p-6 shadow hover:shadow-lg transition">
+          <h3 class="text-xl font-bold text-purple-600 mb-2">Enterprise</h3>
+          <p class="text-gray-600 mb-4 text-sm">Up to 250 tenants</p>
+          <div class="mb-4">
+            <div class="monthly-price">
+              <div class="text-3xl font-extrabold">Ksh 2,500</div>
+              <p class="text-gray-500 text-sm">per month</p>
+            </div>
+            <div class="lifetime-price hidden">
+              <div class="text-3xl font-extrabold">Ksh 45,000</div>
+              <p class="text-gray-500 text-sm">one-time</p>
+              <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mt-1">Save 10 months!</span>
+            </div>
+          </div>
+          <ul class="text-gray-700 mb-6 space-y-2 text-sm">
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Up to 250 tenants</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>All Pro features</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Priority support</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Custom SMS sender ID</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>API access</li>
+          </ul>
+          <a href="{{ url_for('signup') }}"
+             class="block bg-purple-600 hover:bg-purple-700 text-white text-center py-2 rounded-md font-medium text-sm">
+            Get Enterprise
+          </a>
+        </div>
+        
+        <!-- Business Plan -->
+        <div class="border rounded-lg p-6 shadow hover:shadow-lg transition bg-gray-50">
+          <h3 class="text-xl font-bold text-gray-800 mb-2">Business</h3>
+          <p class="text-gray-600 mb-4 text-sm">Unlimited tenants</p>
+          <div class="mb-4">
+            <div class="monthly-price">
+              <div class="text-3xl font-extrabold">Ksh 10,000</div>
+              <p class="text-gray-500 text-sm">per month</p>
+            </div>
+            <div class="lifetime-price hidden">
+              <div class="text-3xl font-extrabold">Ksh 100,000</div>
+              <p class="text-gray-500 text-sm">one-time</p>
+              <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mt-1">Best value!</span>
+            </div>
+          </div>
+          <ul class="text-gray-700 mb-6 space-y-2 text-sm">
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Unlimited tenants</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>All Enterprise features</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Dedicated support</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>Custom features</li>
+            <li><i class="fas fa-check text-green-500 mr-2"></i>White labeling</li>
           </ul>
           <a href="#contact"
-             class="block bg-gray-800 hover:bg-gray-900 text-white text-center py-3 rounded-md font-medium">
+             class="block bg-gray-800 hover:bg-gray-900 text-white text-center py-2 rounded-md font-medium text-sm">
             Contact Sales
           </a>
         </div>
   
       </div>
+      
+      <!-- Additional Info -->
+      <div class="mt-12 text-center">
+        <div class="inline-flex items-center gap-8 text-sm text-gray-600">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-check-circle text-green-500"></i>
+            <span>No setup fees</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <i class="fas fa-check-circle text-green-500"></i>
+            <span>Cancel anytime (monthly plans)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <i class="fas fa-check-circle text-green-500"></i>
+            <span>Free migration assistance</span>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
+
   
 
     <!-- CTA Section -->
@@ -438,7 +529,7 @@
             <h2 class="text-3xl md:text-4xl font-bold mb-6">Ready to Transform Your Water Utility Management?</h2>
             <p class="text-xl mb-8 max-w-3xl mx-auto text-blue-100">Join hundreds of water utilities that have streamlined their operations with our comprehensive billing system.</p>
             <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
-                <a href="{{ url_for('login') }}" class="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 rounded-md font-medium text-lg transition">Get Started</a>
+                <a href="{{ url_for('signup') }}" class="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 rounded-md font-medium text-lg transition">Get Started</a>
             </div>
         </div>
     </section>
@@ -465,7 +556,7 @@
                                     </div>
                                     <div class="ml-4">
                                         <h3 class="text-lg font-semibold mb-1">Address</h3>
-                                        <p class="text-blue-100">123 Water Street, Nairobi, Kenya</p>
+                                        <p class="text-blue-100"> Nairobi, Kenya</p>
                                     </div>
                                 </div>
                                 
@@ -477,7 +568,7 @@
                                     </div>
                                     <div class="ml-4">
                                         <h3 class="text-lg font-semibold mb-1">Phone</h3>
-                                        <p class="text-blue-100">+254 700 000 000</p>
+                                        <p class="text-blue-100">+254 748507336</p>
                                     </div>
                                 </div>
                                 
@@ -489,7 +580,7 @@
                                     </div>
                                     <div class="ml-4">
                                         <h3 class="text-lg font-semibold mb-1">Email</h3>
-                                        <p class="text-blue-100">info@waterbillpro.com</p>
+                                        <p class="text-blue-100">info@waterbill.pro</p>
                                     </div>
                                 </div>
                             </div>
@@ -500,8 +591,10 @@
                         <!-- Contact Form -->
                         <div class="md:w-2/3 p-8">
                             <h2 class="text-2xl font-bold mb-6">Send Us a Message</h2>
-                            <form>
+                            <form class="contact-form aos-init aos-animate" data-aos="fade-left" action="https://formsubmit.co/eugenewanjau@gmail.com" method="POST">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <input type="hidden" name="_subject" value="New Customer Message">
+                                <input type="hidden" name="_captcha" value="false">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                     <div>
                                         <label for="name" class="block text-gray-700 font-medium mb-2">Full Name</label>
@@ -677,7 +770,34 @@
                 });
             }
         });
-    </script>
+        // Pricing toggle functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const monthlyBtn = document.getElementById('monthlyBtn');
+      const lifetimeBtn = document.getElementById('lifetimeBtn');
+      const monthlyPrices = document.querySelectorAll('.monthly-price');
+      const lifetimePrices = document.querySelectorAll('.lifetime-price');
+      
+      monthlyBtn.addEventListener('click', function() {
+        monthlyBtn.classList.add('bg-blue-600', 'text-white');
+        monthlyBtn.classList.remove('text-gray-700');
+        lifetimeBtn.classList.remove('bg-blue-600', 'text-white');
+        lifetimeBtn.classList.add('text-gray-700');
+        
+        monthlyPrices.forEach(el => el.classList.remove('hidden'));
+        lifetimePrices.forEach(el => el.classList.add('hidden'));
+      });
+      
+      lifetimeBtn.addEventListener('click', function() {
+        lifetimeBtn.classList.add('bg-blue-600', 'text-white');
+        lifetimeBtn.classList.remove('text-gray-700');
+        monthlyBtn.classList.remove('bg-blue-600', 'text-white');
+        monthlyBtn.classList.add('text-gray-700');
+        
+        lifetimePrices.forEach(el => el.classList.remove('hidden'));
+        monthlyPrices.forEach(el => el.classList.add('hidden'));
+      });
+    });
+</script>
 </body>
 </html>
 
