@@ -79,12 +79,12 @@
                                     <input id="till" 
                                            name="till" 
                                            type="text" 
-                                           maxlength="6" 
-                                           placeholder="Enter 6-digit till number"   
+                                           maxlength="10" 
+                                           placeholder="Enter  till number"   
                                            class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                            oninput="validateTill(this)"
                                            required>
-                                    <p id="till_feedback" class="text-xs mt-1 text-gray-500">Enter 6-digit Till Number</p>
+                                    <p id="till_feedback" class="text-xs mt-1 text-gray-500">Enter  Till Number</p>
                                 </div>
                             </div>
                             
@@ -404,8 +404,8 @@
             // Validate payment method fields
             if (elements.payment.till.option.checked) {
                 const tillValue = elements.payment.till.field.value.trim();
-                if (!/^\d{6}$/.test(tillValue)) {
-                    errors.push('Till number must be exactly 6 digits');
+                if (!/^\d{6,10}$/.test(tillValue)) {
+                    errors.push('Till number must be atleast 6 digits');
                 }
             } else if (elements.payment.paybill.option.checked) {
                 const businessNumber = elements.payment.paybill.businessNumber.value.trim();
