@@ -1,0 +1,478 @@
+{% extends "base.html" %}
+
+{% block title %}Rent Billing Dashboard{% endblock %}
+
+{% block content %}
+<!-- Main Container with Rent-Themed Background -->
+<div class="min-vh-100 bg-light py-4">
+    <div class="container">
+        <!-- Header Card Component -->
+        <div class="card mb-4 border-start border-primary border-4 shadow">
+            <div class="card-body p-4">
+                <div class="row align-items-center">
+                    <div class="col-md-8 d-flex align-items-center mb-3 mb-md-0">
+                        <div class="bg-primary bg-opacity-10 p-3 rounded-circle me-3">
+                            <svg class="text-primary" width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="fs-2 fw-bold">Rent Billing Dashboard</h1>
+                            <p class="text-muted">Manage rent payments and billing records</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <div class="d-flex justify-content-end align-items-center">
+                            <!-- Generate Rent Bills Button -->
+                            <button class="btn btn-sm btn-success me-3" onclick="generateRentBills()">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="me-1">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                                Generate Rent Bills
+                            </button>
+                            
+                            <a href="{{ url_for('dashboard') }}" 
+                               class="btn btn-primary d-inline-flex align-items-center">
+                                <svg width="20" height="20" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                                </svg>
+                                <span>Back to Dashboard</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mb-4">
+            <!-- Total Billed Card -->
+            <div class="col-md-4 mb-3 mb-md-0">
+                <div class="card h-100 border-top border-primary border-4 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-primary bg-opacity-10 p-3 rounded-circle me-3">
+                                <svg width="24" height="24" class="text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="small fw-medium text-muted mb-0">Total Billed (All Time)</p>
+                                <p class="fs-4 fw-bold mb-0">KES {{ "%.2f"|format(total_ever_billed) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Total Collected Card -->
+            <div class="col-md-4 mb-3 mb-md-0">
+                <div class="card h-100 border-top border-success border-4 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="bg-success bg-opacity-10 p-3 rounded-circle me-3">
+                                <svg width="24" height="24" class="text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                     
+                            <div>
+                                <p class="small fw-medium text-muted mb-0">Total Collected (All Time)</p>
+                                <!-- make sure the backend inttergrates well-->
+                                <p class="fs-4 fw-bold mb-0">KES {{ "%.2f"|format(total_ever_collected) }}</p>
+                            </div>
+                            <div>
+                                <!--add this route-->
+                                <a href="{{ url_for('rent_dashboard', _=now) }}" class="btn btn-sm btn-outline-success" title="Refresh totals">
+                                    <svg width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                                        <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Outstanding Balance Card -->
+            <div class="col-md-4">
+                <div class="card h-100 border-top border-danger border-4 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-danger bg-opacity-10 p-3 rounded-circle me-3">
+                                <svg width="24" height="24" class="text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="small fw-medium text-muted mb-0">Outstanding Balance</p>
+                                <p class="fs-4 fw-bold mb-0">KES {{ "%.2f"|format(bills|sum(attribute='outstanding_amount')) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if bills %}
+        <!-- Bills Table Card Component -->
+        <div class="card mb-4 shadow">
+            <!-- Table Header -->
+            <div class="card-header bg-primary text-white p-3">
+                <h2 class="fs-5 fw-semibold mb-0 d-flex align-items-center">
+                    <svg width="24" height="24" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Rent Payment Records
+                </h2>
+            </div>
+            
+            <!-- Table Filters & Controls -->
+            <div class="bg-light p-3 border-bottom">
+                <form method="GET" action="{{ url_for('rent_dashboard') }}">
+                    <div class="row align-items-center">
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <div class="d-flex align-items-center">
+                                <span class="text-muted me-2 small fw-medium">Filter:</span>
+                                <select name="filter" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    <option value="all" {% if request.args.get('filter') == 'all' %}selected{% endif %}>All Records</option>
+                                    <option value="unpaid" {% if request.args.get('filter') == 'unpaid' %}selected{% endif %}>Unpaid Only</option>
+                                    <option value="partial" {% if request.args.get('filter') == 'partial' %}selected{% endif %}>Partial Payments</option>
+                                    <option value="paid" {% if request.args.get('filter') == 'paid' %}selected{% endif %}>Paid Only</option>
+                                    <option value="unpaid_partial" {% if request.args.get('filter', 'unpaid_partial') == 'unpaid_partial' %}selected{% endif %}>Unpaid & Partial</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" class="text-muted" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                </span>
+                                <input type="text" name="search" placeholder="Search records..." class="form-control form-control-sm" value="{{ request.args.get('search', '') }}">
+                                <button type="submit" class="btn btn-sm btn-primary">Search</button>
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <a href="{{ url_for('rent_dashboard') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Table Content -->
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>
+                                <div class="d-flex align-items-center">
+                                    <svg width="16" height="16" class="me-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    </svg>
+                                    Tenant
+                                </div>
+                            </th>
+                            <th>
+                                <div class="d-flex align-items-center">
+                                    <svg width="16" height="16" class="me-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+                                    </svg>
+                                    House
+                                </div>
+                            </th>
+                            <th>
+                                <div class="d-flex align-items-center">
+                                    <svg width="16" height="16" class="me-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Month
+                                </div>
+                            </th>
+                            <th>Rent Amount</th>
+                            <th>Paid</th>
+                            <th>Outstanding</th>
+                            <th>Status</th>
+                            <th>Due Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bill in bills %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary bg-opacity-10 rounded-circle p-2 me-2">
+                                        <svg width="16" height="16" class="text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                        </svg>
+                                    </div>
+                                    <a href="{{ url_for('tenant_details', tenant_id=bill.tenant_id) }}" class="tenant-link">
+                                        {{ bill.tenant_name }}
+                                    </a>
+                                </div>
+                            </td>
+                            <td>{{ bill.house_number }}</td>
+                            <td>{{ bill.month_year }}</td>
+                            <td>KES {{ "%.2f"|format(bill.bill_amount) }}</td>
+                            <td>KES {{ "%.2f"|format(bill.amount_paid or 0) }}</td>
+                            <td>KES {{ "%.2f"|format(bill.outstanding_amount) }}</td>
+                            <td>
+                                {% if bill.payment_status == 'paid' %}
+                                <span class="badge bg-success">Paid</span>
+                                {% elif bill.payment_status == 'partial' %}
+                                <span class="badge bg-warning">Partial</span>
+                                {% else %}
+                                <span class="badge bg-danger">Unpaid</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if bill.due_date %}
+                                <span class="{% if bill.due_date < now_date and bill.payment_status != 'paid' %}text-danger fw-bold{% endif %}">
+                                    {{ bill.due_date.strftime('%Y-%m-%d') }}
+                                </span>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex">
+                                    <button class="btn btn-sm btn-primary me-2" 
+                                            onclick="openPaymentModal('{{ bill._id }}', '{{ bill.tenant_name }}', {{ bill.outstanding_amount }})">
+                                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if pagination.total_pages > 1 %}
+            <div class="card-footer bg-white p-3">
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center mb-0">
+                        <!-- Previous Page -->
+                        <li class="page-item {% if pagination.page == 1 %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('rent_dashboard', page=pagination.page-1, filter=request.args.get('filter', 'unpaid_partial'), search=request.args.get('search', '')) }}">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        
+                        <!-- Page Numbers -->
+                        {% for page_num in range(1, pagination.total_pages + 1) %}
+                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('rent_dashboard', page=page_num, filter=request.args.get('filter', 'unpaid_partial'), search=request.args.get('search', '')) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                        
+                        <!-- Next Page -->
+                        <li class="page-item {% if pagination.page == pagination.total_pages %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('rent_dashboard', page=pagination.page+1, filter=request.args.get('filter', 'unpaid_partial'), search=request.args.get('search', '')) }}">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <!-- Empty State -->
+        <div class="card mb-4 shadow">
+            <div class="card-body p-5 text-center">
+                <div class="mb-4">
+                    <svg width="64" height="64" fill="none" stroke="currentColor" class="text-muted" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <h3 class="fs-5 fw-semibold">No Rent Bills Found</h3>
+                <p class="text-muted">There are no rent bills matching your criteria.</p>
+                <button class="btn btn-primary" onclick="generateRentBills()">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="me-2">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Generate Rent Bills
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('record_payment', payment_id='placeholder') }}" method="POST" id="paymentForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <!-- Modal Header -->
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalTitle">
+                        <svg width="24" height="24" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                        </svg>
+                        Record Payment
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                
+                <!-- Modal Body -->
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="amount_paid" class="form-label">Amount Paid (KES)</label>
+                        <input type="number" step="0.01" min="0" name="amount_paid" id="amount_paid" 
+                               class="form-control" required>
+                        <div class="form-text">Outstanding amount: KES <span id="outstandingAmount">0.00</span></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="payment_method" class="form-label">Payment Method</label>
+                        <select name="payment_method" id="payment_method" class="form-select" required>
+                            <option value="mpesa">M-Pesa</option>
+                            <option value="cash">Cash</option>
+                            <option value="bank">Bank Transfer</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea name="notes" rows="3" placeholder="Add any additional notes about this payment..."
+                                  class="form-control"></textarea>
+                    </div>
+                </div>
+                
+                <!-- Modal Footer -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary d-flex align-items-center">
+                        <svg width="16" height="16" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Record Payment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    // Generate Rent Bills Function
+    function generateRentBills() {
+        if (confirm('Generate rent bills for all tenants for the current month?')) {
+            window.location.href = "{{ url_for('generate_rent_bills') }}";
+        }
+    }
+    
+    // Payment Modal Functions
+    function openPaymentModal(paymentId, tenantName, outstandingAmount) {
+        // Update modal title with tenant name
+        document.getElementById('modalTitle').innerHTML = `
+            <svg width="24" height="24" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+            </svg>
+            Record Payment for ${tenantName}
+        `;
+        
+        // Set form action URL with payment ID
+        const form = document.getElementById('paymentForm');
+        form.action = form.action.replace('placeholder', paymentId);
+        
+        // Set outstanding amount
+        document.getElementById('outstandingAmount').textContent = outstandingAmount.toFixed(2);
+        document.getElementById('amount_paid').value = outstandingAmount.toFixed(2);
+        
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        modal.show();
+    }
+    
+    // Filter table rows based on search term and payment status
+    function filterRows() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const filterStatus = document.getElementById('filterStatus').value;
+        const tableRows = document.querySelectorAll('tbody tr');
+        
+        tableRows.forEach(row => {
+            const tenantName = row.querySelector('td:first-child').textContent.toLowerCase();
+            const houseNumber = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+            const status = row.querySelector('td:nth-child(7) .badge').textContent.toLowerCase();
+            
+            // Check if row matches search term
+            const matchesSearch = searchTerm === '' || 
+                                 tenantName.includes(searchTerm) || 
+                                 houseNumber.includes(searchTerm);
+            
+            // Check if row matches filter status
+            let matchesFilter = true;
+            if (filterStatus === 'unpaid') {
+                matchesFilter = status === 'unpaid';
+            } else if (filterStatus === 'partial') {
+                matchesFilter = status === 'partial';
+            } else if (filterStatus === 'paid') {
+                matchesFilter = status === 'paid';
+            } else if (filterStatus === 'unpaid_partial') {
+                matchesFilter = status === 'unpaid' || status === 'partial';
+            }
+            
+            // Show/hide row based on matches
+            row.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
+        });
+    }
+    
+    // Initialize event listeners when document is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        const originalSummary = {
+            totalBilled: parseFloat(document.querySelector('.card:nth-of-type(1) .fs-4.fw-bold').textContent.replace('KES ', '').trim()),
+            totalCollected: parseFloat(document.querySelector('.card:nth-of-type(2) .fs-4.fw-bold').textContent.replace('KES ', '').trim())
+        };
+        
+        // Add event listeners for search and filter inputs
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', filterRows);
+        }
+        
+        const filterStatus = document.getElementById('filterStatus');
+        if (filterStatus) {
+            filterStatus.addEventListener('change', filterRows);
+        }
+        
+        // Initialize tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+    
+    // Handle form submission for payment recording
+    document.getElementById('paymentForm').addEventListener('submit', function(event) {
+        const amountPaid = parseFloat(document.getElementById('amount_paid').value);
+        const outstandingAmount = parseFloat(document.getElementById('outstandingAmount').textContent);
+        
+        // Validate payment amount
+        if (amountPaid <= 0) {
+            alert('Please enter a valid payment amount greater than zero.');
+            event.preventDefault();
+            return false;
+        }
+        
+        // Optional: Warn if payment exceeds outstanding amount
+        if (amountPaid > outstandingAmount) {
+            if (!confirm('The payment amount exceeds the outstanding balance. Do you want to continue?')) {
+                event.preventDefault();
+                return false;
+            }
+        }
+        
+        return true;
+    });
+</script>
+{% endblock %}

@@ -30,10 +30,8 @@
           
           <div class="mb-3">
             <label for="previous_reading" class="form-label">Previous Reading (m³)</label>
-            <input type="number" class="form-control" id="previous_reading" name="previous_reading" 
-                   value="{% if latest_reading %}{{ latest_reading.current_reading }}{% else %}0{% endif %}" 
-                   step="0.01" readonly>
-            <div class="form-text">This is automatically filled from the last recorded reading.</div>
+            <input type="number" id="previous_reading" name="previous_reading"  class="form-control" >
+            <div class="form-text"> last recorded reading.</div>
           </div>
           
           <div class="mb-3">
@@ -128,8 +126,8 @@
       <p><strong>House Number:</strong> {{ tenant.house_number }}</p>
       <p><strong>Total Readings:</strong> {{ readings|length }}</p>
       {% if readings and readings|length > 0 %}
-        {% set latest_reading = readings[0] if readings[0].date_recorded > readings[-1].date_recorded else readings[-1] %}
-        <p><strong>Latest Bill:</strong> Ksh {{ latest_reading.bill_amount }}</p>
+        {% set last_reading = readings[0] %}
+        <p><strong>Latest Bill:</strong> Ksh {{ last_reading.bill_amount }}</p>
       {% endif %}
     </div>
   <div class="card-body">
@@ -211,6 +209,7 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+
   document.addEventListener('DOMContentLoaded', function() {
     // Safely parse JSON data from Flask
     let labels = [];
@@ -321,6 +320,23 @@
       }
     });
   });
-
+  const tenantId = "{{ tenant._id }}";
+  const previousReadingInput = document.getElementById('previous_reading');
+  fetch(`/api/tenant/${tenantId}/readings`)
+                    .then(response => response.json())
+                    .then(data => {
+                      if (data && data.length > 0) {
+                        // Get the most recent reading (last item in the array)
+                        const lastReading = data[0];
+                        previousReadingInput.value = lastReading.current_reading;
+                      } else {
+                        // No previous readings, start from 0
+                        previousReadingInput.value = '0';
+                      }
+                    })
+                    .catch(error => {
+                      console.error('Error fetching readings:', error);
+                      previousReadingInput.value = '';
+                    });
 </script>
 {% endblock %}

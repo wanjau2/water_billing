@@ -1,53 +1,32 @@
 from pymongo import MongoClient
-import os
-
-uri = os.getenv("MONGO_URI")
-
-try:
-    client = MongoClient(uri)
-    client.admin.command('ping')
-    print("Connected successfully to MongoDB.")
-except Exception as e:
-    print(f"An error occurred: {e}")
-"""
-from pymongo import MongoClient
-import os
+from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
-import dns.resolver
+import os
 
-# Load environment variables from .env file
 load_dotenv()
+uri = os.getenv("MONGODB_URI")
 
-# Get MongoDB URI from environment variables
-uri = os.getenv("MONGO_URI")
-print(f"Using MongoDB URI: {uri}")
-
-# Test DNS resolution
 try:
-    print("Testing DNS resolution...")
-    cluster_domain = uri.split('@')[1].split('/')[0]
-    print(f"Cluster domain: {cluster_domain}")
-    
-    # Try to resolve the SRV record
-    try:
-        dns_result = dns.resolver.resolve(f"_mongodb._tcp.{cluster_domain}", 'SRV')
-        print(f"DNS resolution successful: {dns_result}")
-    except Exception as dns_err:
-        print(f"DNS resolution failed: {dns_err}")
-    
-    # Try to connect to MongoDB
-    print("Attempting MongoDB connection...")
-    client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+    client = MongoClient(uri, server_api=ServerApi('1'))
     client.admin.command('ping')
-    print("Connected successfully to MongoDB.")
+    print("MongoDB connection successful!")
     
-    # List available databases
-    print("Available databases:")
-    for db_name in client.list_database_names():
-        print(f"- {db_name}")
-        
+    # Test a simple database operation
+    db = client.test_database
+    collection = db.test_collection
+    
+    # Insert a test document
+    test_doc = {"test": "data", "timestamp": "2024"}
+    result = collection.insert_one(test_doc)
+    print(f"Test document inserted with ID: {result.inserted_id}")
+    
+    # Read it back
+    found_doc = collection.find_one({"_id": result.inserted_id})
+    print(f"Retrieved document: {found_doc}")
+    
+    # Clean up
+    collection.delete_one({"_id": result.inserted_id})
+    print("Test document cleaned up")
+    
 except Exception as e:
-    print(f"An error occurred: {e}")
-    print("Please check your MongoDB Atlas account to ensure the cluster is running")
-    print("and that your network allows connections to MongoDB Atlas.")
-"""
+    print("MongoDB connection failed:", e)

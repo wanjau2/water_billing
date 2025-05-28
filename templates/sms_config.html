@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}SMS Configuration{% endblock %}
+{% block title %}Account Settings{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -39,36 +39,87 @@
                 </div>
             </div>
 
-            <!--<div class="card mt-4">
+            <!-- User Profile Settings -->
+            <div class="card mt-4">
                 <div class="card-header bg-info text-white">
-                    <h4 class="mb-0">TalkSasa SMS Integration</h4>
+                    <h4 class="mb-0">Account Information</h4>
                 </div>
                 <div class="card-body">
-                    <p>This system uses TalkSasa for sending SMS notifications to tenants. The TalkSasa API key and Sender ID are configured through environment variables.</p>
-                    
-
-
-                    <div class="mt-3">
-                        <h5>Environment Variables</h5>
-                        <ul>
-                            <li><strong>TALKSASA_API_KEY:</strong> 
-                                {% if talksasa_api_key %}
-                                    <span class="badge bg-success">Set</span>
-                                {% else %}
-                                    <span class="badge bg-danger">Not Set</span>
-                                {% endif %}
-                            </li>
-                            <li><strong>TALKSASA_SENDER_ID:</strong> 
-                                {% if talksasa_sender_id %}
-                                    <span class="badge bg-success">Set ({{ talksasa_sender_id }})</span>
-                                {% else %}
-                                    <span class="badge bg-danger">Not Set</span>
-                                {% endif %}
-                            </li>
-                        </ul>
-                    </div>
+                    <form method="POST" action="{{ url_for('update_profile') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   value="{{ admin.name if admin else '' }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Phone Number</label>
+                            <input type="number" class="form-control" id="phone" name="phone" 
+                                   value="{{ admin.phone if admin else '' }}" required>
+                        </div>
+                        
+                        
+                        <!-- Dynamic payment method field based on admin's payment_method -->
+                        {% if admin and admin.payment_method == 'paybill' %}
+                        <div class="mb-3">
+                            <label for="business_number" class="form-label">PayBill Business Number</label>
+                            <input type="text" class="form-control" id="business_number" name="business_number" 
+                                   value="{{ admin.business_number if admin else '' }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="account_name" class="form-label">Account Name</label>
+                            <input type="text" class="form-control" id="account_name" name="account_name" 
+                                   value="{{ admin.account_name if admin else '' }}" required>
+                        </div>
+                        {% else %}
+                        <!-- Default to Till Number for existing accounts or till payment method -->
+                        <div class="mb-3">
+                            <label for="till" class="form-label">Till Number</label>
+                            <input type="number" class="form-control" id="till" name="till" maxlength="6"
+                                   value="{{ admin.till if admin else '' }}" required>
+                        </div>
+                        {% endif %}
+                        
+                        <button type="submit" class="btn btn-info text-white">Update Profile</button>
+                    </form>
                 </div>
-            </div> -->
+            </div>
+
+            <!-- Password Change Section -->
+            <div class="card mt-4">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">Change Password</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('change_password') }}" id="change_password">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-3">
+                            <label for="current_password" class="form-label">Current Password</label>
+                            <input type="password" class="form-control" id="current_password" name="current_password" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="new_password" class="form-label">New Password</label>
+                            <input type="password" class="form-control" id="new_password" name="new_password" 
+                                   pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}" 
+                                   title="Must contain at least one number, one uppercase and lowercase letter, and at least 8 characters" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">Confirm New Password</label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-text">Password must contain at least 8 characters, including uppercase, lowercase letters and numbers.</div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-warning">Change Password</button>
+                    </form>
+                </div>
+            </div>
 
             <div class="card mt-4">
                 <div class="card-header bg-secondary text-white">
@@ -96,4 +147,20 @@
         </div>
     </div>
 </div>
+
+<!-- JavaScript for password validation -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const newPassword = document.getElementById('new_password');
+    const confirmPassword = document.getElementById('confirm_password');
+    const passwordForm = document.getElementById('change_password');
+    
+    passwordForm.addEventListener('submit', function(event) {
+        if (newPassword.value !== confirmPassword.value) {
+            event.preventDefault();
+            alert('Passwords do not match!');
+        }
+    });
+});
+</script>
 {% endblock %}

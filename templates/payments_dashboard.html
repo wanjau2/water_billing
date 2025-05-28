@@ -292,27 +292,7 @@
             </div>
         </div>
         
-        <!-- Summary Cards Row -->
 
-        <!-- In the summary cards section around line 126-134 -->
-       <!-- <div class="col-md-4 mb-4">
-            <div class="card border-success h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="card-title text-success">Total Collected (All Time)</h5>
-                        <a href="{{ url_for('payments_dashboard', _=now) }}" class="btn btn-sm btn-outline-success" title="Refresh totals">
-                            <svg width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
-                                <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
-                                <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
-                            </svg>
-                        </a>
-                    </div>
-                    <p class="display-6 mb-0">{{ total_ever_collected}}</p>
-                </div>
-            </div>
-        </div>
-    -->
-        
         {% else %}
         <!-- Empty State Component -->
         <div class="card text-center shadow p-5 mb-4">
@@ -366,7 +346,6 @@
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Payment Method</label>
                         <select name="payment_method" required class="form-select">
-                            <option value="">Select payment method</option>
                             <option value="cash">💵 Cash</option>
                             <option value="mpesa">📱 M-Pesa</option>
                             <option value="bank">🏦 Bank Transfer</option>
@@ -448,7 +427,7 @@
         const originalSummary = {
             totalBilled: parseFloat(document.querySelector('.card:nth-of-type(1) .fs-4.fw-bold').textContent.replace('KES ', '').trim()),
             totalCollected: parseFloat(document.querySelector('.card:nth-of-type(2) .fs-4.fw-bold').textContent.replace('KES ', '').trim())
-        };
+        }; 
         
         // Hide loading spinner initially
         const loadingSpinner = document.getElementById('loadingSpinner');

@@ -53,16 +53,70 @@
                         </div>
                         
                         <!-- Till Number Input -->
+                        <!-- Payment Method Selection -->
                         <div>
-                            <label for="till" class="block text-sm font-medium text-gray-700 mb-1">Till Number</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fas fa-cash-register text-gray-400"></i>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                            <div class="flex space-x-4 mb-3">
+                                <div class="flex items-center">
+                                    <input id="till_option" name="payment_method" type="radio" value="till" 
+                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                    <label for="till_option" class="ml-2 block text-sm text-gray-700">Till Number</label>
                                 </div>
-                                <input id="till" name="till" type="text" required 
-                                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="Enter your till number">
+                                <div class="flex items-center">
+                                    <input id="paybill_option" name="payment_method" type="radio" value="paybill" 
+                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                    <label for="paybill_option" class="ml-2 block text-sm text-gray-700">PayBill</label>
+                                </div>
                             </div>
+                            
+                            <!-- Till Number Input (initially hidden) -->
+                            <div id="till_input" class="hidden">
+                                <label for="till" class="block text-sm font-medium text-gray-700 mb-1">Till Number</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i class="fas fa-cash-register text-gray-400"></i>
+                                    </div>
+                                    <input id="till" 
+                                           name="till" 
+                                           type="text" 
+                                           maxlength="6" 
+                                           placeholder="Enter 6-digit till number"   
+                                           class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                           oninput="validateTill(this)"
+                                           required>
+                                    <p id="till_feedback" class="text-xs mt-1 text-gray-500">Enter 6-digit Till Number</p>
+                                </div>
+                            </div>
+                            
+                            <!-- PayBill Fields (initially hidden) -->
+                            <!-- PayBill Fields (initially hidden) -->
+                            <div id="paybill_input" class="hidden space-y-3">
+                                <div>
+                                    <label for="business_number" class="block text-sm font-medium text-gray-700 mb-1">Business Number</label>
+                                    <div class="relative">
+                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <i class="fas fa-building text-gray-400"></i>
+                                        </div>
+                                        <input id="business_number" name="business_number" type="number" 
+                                            class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            placeholder="Enter business number">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="account_name" class="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+                                    <div class="relative">
+                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <i class="fas fa-user text-gray-400"></i>
+                                        </div>
+                                        <!-- FIXED: Changed name from "business_number" to "account_name" -->
+                                        <input id="account_name" name="account_name" type="text" 
+                                            class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            placeholder="Enter Account Name">
+                                    </div>
+                                </div>
+                            </div>
+
+                        <!-- Till Number Input (Moved below PayBill Fields) -->
                         </div>
                         
                         <!-- Cost of Units Input (Moved below Till Number) -->
@@ -181,93 +235,226 @@
     </footer>
 
     <!-- JavaScript for form validation and password visibility -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const togglePassword = document.getElementById('togglePassword');
-            const password = document.getElementById('password');
-            const confirmPassword = document.getElementById('confirm-password');
-            const passwordStrength = document.getElementById('password-strength');
-            const passwordStrengthText = document.getElementById('password-strength-text');
-            const passwordMatch = document.getElementById('password-match');
-            const signupForm = document.getElementById('signupForm');
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+    // Cache DOM elements
+    const elements = {
+        form: document.getElementById('signupForm'),
+        password: {
+            input: document.getElementById('password'),
+            toggle: document.getElementById('togglePassword'),
+            strength: {
+                bar: document.getElementById('password-strength'),
+                text: document.getElementById('password-strength-text')
+            }
+        },
+        confirmPassword: {
+            input: document.getElementById('confirm-password'),
+            match: document.getElementById('password-match')
+        },
+        payment: {
+            till: {
+                option: document.getElementById('till_option'),
+                input: document.getElementById('till_input'),
+                field: document.getElementById('till')
+            },
+            paybill: {
+                option: document.getElementById('paybill_option'),
+                input: document.getElementById('paybill_input'),
+                businessNumber: document.getElementById('business_number'),
+                accountName: document.getElementById('account_name')
+            }
+        },
+        name: document.getElementById('name'),
+        cost: document.getElementById('cost'),
+        terms: document.getElementById('terms')
+    };
+
+    // Initialize payment method toggle
+    initPaymentMethodToggle();
+    
+    // Initialize password visibility toggle
+    initPasswordToggle();
+    
+    // Initialize password strength checker
+    initPasswordStrengthChecker();
+    
+    // Initialize password match checker
+    initPasswordMatchChecker();
+    
+    // Initialize form validation
+    initFormValidation();
+    
+    // Function to initialize payment method toggle
+    function initPaymentMethodToggle() {
+        // Set default state
+        if (elements.payment.till.option.checked) {
+            showTillInput();
+        } else if (elements.payment.paybill.option.checked) {
+            showPaybillInput();
+        } else {
+            // Default to till if nothing is selected
+            elements.payment.till.option.checked = true;
+            showTillInput();
+        }
+        
+        // Add event listeners
+        elements.payment.till.option.addEventListener('change', function() {
+            if (this.checked) showTillInput();
+        });
+        
+        elements.payment.paybill.option.addEventListener('change', function() {
+            if (this.checked) showPaybillInput();
+        });
+        
+        function showTillInput() {
+            elements.payment.till.input.classList.remove('hidden');
+            elements.payment.paybill.input.classList.add('hidden');
+            elements.payment.till.field.setAttribute('required', '');
+            elements.payment.paybill.businessNumber.removeAttribute('required');
+            elements.payment.paybill.accountName.removeAttribute('required');
+        }
+        
+        function showPaybillInput() {
+            elements.payment.paybill.input.classList.remove('hidden');
+            elements.payment.till.input.classList.add('hidden');
+            elements.payment.till.field.removeAttribute('required');
+            elements.payment.paybill.businessNumber.setAttribute('required', '');
+            elements.payment.paybill.accountName.setAttribute('required', '');
+        }
+    }
+    
+    // Function to initialize password visibility toggle
+    function initPasswordToggle() {
+        elements.password.toggle.addEventListener('click', function() {
+            const type = elements.password.input.getAttribute('type') === 'password' ? 'text' : 'password';
+            elements.password.input.setAttribute('type', type);
             
-            // Toggle password visibility
-            togglePassword.addEventListener('click', function() {
-                const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
-                password.setAttribute('type', type);
-                
-                // Toggle eye icon
-                const eyeIcon = this.querySelector('i');
-                eyeIcon.classList.toggle('fa-eye');
-                eyeIcon.classList.toggle('fa-eye-slash');
-            });
+            // Toggle eye icon
+            const eyeIcon = this.querySelector('i');
+            eyeIcon.classList.toggle('fa-eye');
+            eyeIcon.classList.toggle('fa-eye-slash');
+        });
+    }
+    
+    // Function to initialize password strength checker
+    function initPasswordStrengthChecker() {
+        elements.password.input.addEventListener('input', function() {
+            const value = this.value;
+            let strength = 0;
             
-            // Password strength checker
-            password.addEventListener('input', function() {
-                const value = password.value;
-                let strength = 0;
-                
-                // Check length
-                if (value.length >= 8) strength += 25;
-                
-                // Check for lowercase letters
-                if (value.match(/[a-z]+/)) strength += 25;
-                
-                // Check for uppercase letters
-                if (value.match(/[A-Z]+/)) strength += 25;
-                
-                // Check for numbers
-                if (value.match(/[0-9]+/)) strength += 25;
-                
-                // Update strength indicator
-                passwordStrength.style.width = strength + '%';
-                
-                // Update color based on strength
-                if (strength < 50) {
-                    passwordStrength.className = 'bg-red-500 h-1.5 rounded-full';
-                    passwordStrengthText.textContent = 'Password strength: Weak';
-                    passwordStrengthText.className = 'text-xs mt-1 text-red-500';
-                } else if (strength < 75) {
-                    passwordStrength.className = 'bg-yellow-500 h-1.5 rounded-full';
-                    passwordStrengthText.textContent = 'Password strength: Medium';
-                    passwordStrengthText.className = 'text-xs mt-1 text-yellow-600';
-                } else {
-                    passwordStrength.className = 'bg-green-500 h-1.5 rounded-full';
-                    passwordStrengthText.textContent = 'Password strength: Strong';
-                    passwordStrengthText.className = 'text-xs mt-1 text-green-500';
-                }
-            });
+            // Check length
+            if (value.length >= 8) strength += 25;
+            
+            // Check for lowercase letters
+            if (value.match(/[a-z]+/)) strength += 25;
+            
+            // Check for uppercase letters
+            if (value.match(/[A-Z]+/)) strength += 25;
+            
+            // Check for numbers
+            if (value.match(/[0-9]+/)) strength += 25;
+            
+            // Update strength indicator
+            elements.password.strength.bar.style.width = strength + '%';
+            
+            // Update color and text based on strength
+            if (strength < 50) {
+                elements.password.strength.bar.className = 'bg-red-500 h-1.5 rounded-full';
+                elements.password.strength.text.textContent = 'Password strength: Weak';
+                elements.password.strength.text.className = 'text-xs mt-1 text-red-500';
+            } else if (strength < 75) {
+                elements.password.strength.bar.className = 'bg-yellow-500 h-1.5 rounded-full';
+                elements.password.strength.text.textContent = 'Password strength: Medium';
+                elements.password.strength.text.className = 'text-xs mt-1 text-yellow-600';
+            } else {
+                elements.password.strength.bar.className = 'bg-green-500 h-1.5 rounded-full';
+                elements.password.strength.text.textContent = 'Password strength: Strong';
+                elements.password.strength.text.className = 'text-xs mt-1 text-green-500';
+            }
+        });
+    }
+    
+    // Function to initialize password match checker
+    function initPasswordMatchChecker() {
+        elements.confirmPassword.input.addEventListener('input', checkPasswordMatch);
+        elements.password.input.addEventListener('input', checkPasswordMatch);
+        
+        function checkPasswordMatch() {
+            if (elements.password.input.value !== elements.confirmPassword.input.value) {
+                elements.confirmPassword.match.classList.remove('hidden');
+            } else {
+                elements.confirmPassword.match.classList.add('hidden');
+            }
+        }
+    }
+    
+    // Function to initialize form validation
+    function initFormValidation() {
+        elements.form.addEventListener('submit', function(event) {
+            // Create an array to collect validation errors
+            const errors = [];
             
             // Check if passwords match
-            confirmPassword.addEventListener('input', function() {
-                if (password.value !== confirmPassword.value) {
-                    passwordMatch.classList.remove('hidden');
-                } else {
-                    passwordMatch.classList.add('hidden');
-                }
-            });
+            if (elements.password.input.value !== elements.confirmPassword.input.value) {
+                errors.push('Passwords do not match');
+                elements.confirmPassword.match.classList.remove('hidden');
+            }
             
-            // Form validation
-            signupForm.addEventListener('submit', function(event) {
-                // Check if passwords match
-                if (password.value !== confirmPassword.value) {
-                    event.preventDefault();
-                    passwordMatch.classList.remove('hidden');
-                    return;
+            // Validate payment method fields
+            if (elements.payment.till.option.checked) {
+                const tillValue = elements.payment.till.field.value.trim();
+                if (!/^\d{6}$/.test(tillValue)) {
+                    errors.push('Till number must be exactly 6 digits');
+                }
+            } else if (elements.payment.paybill.option.checked) {
+                const businessNumber = elements.payment.paybill.businessNumber.value.trim();
+                const accountName = elements.payment.paybill.accountName.value.trim();
+                
+                if (!businessNumber) {
+                    errors.push('Please enter a valid business number');
                 }
                 
-                // Check if all fields are filled
-                const name = document.getElementById('name').value;
-                const till = document.getElementById('till').value;
-                const cost = document.getElementById('cost').value;
-                const terms = document.getElementById('terms').checked;
-                
-                if (!name || !till || !password.value || !confirmPassword.value || !cost || !terms) {
-                    event.preventDefault();
-                    alert('Please fill in all fields and accept the terms and conditions');
+                if (!accountName) {
+                    errors.push('Please enter an account name');
                 }
-            });
+            } else {
+                errors.push('Please select a payment method');
+            }
+            
+            // Check if all required fields are filled
+            if (!elements.name.value.trim()) {
+                errors.push('Please enter your full name');
+            }
+            
+            if (!elements.password.input.value) {
+                errors.push('Please enter a password');
+            }
+            
+            if (!elements.confirmPassword.input.value) {
+                errors.push('Please confirm your password');
+            }
+            
+            if (!elements.cost.value) {
+                errors.push('Please enter cost per unit');
+            }
+            
+            if (!elements.terms.checked) {
+                errors.push('Please accept the terms and conditions');
+            }
+            
+            // If there are validation errors, prevent form submission and show the first error
+            if (errors.length > 0) {
+                event.preventDefault();
+                alert(errors[0]);
+                return false;
+            }
+            
+            // Form is valid, allow submission
+            return true;
         });
-    </script>
+    }
+});
+</script>
 </body>
 </html>

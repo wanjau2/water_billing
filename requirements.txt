@@ -9,6 +9,7 @@ Flask-Bcrypt
 Flask-PyMongo
 gunicorn
 dnspython
+pymongo[srv]
 XlsxWriter
 google-api-core==2.24.2
 google-api-python-client==2.169.0

@@ -3,6 +3,8 @@ import logging
 import urllib.parse
 import re
 import requests
+import dns.resolver
+
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -43,12 +45,11 @@ RATE_PER_UNIT = float(os.environ.get("RATE_PER_UNIT", 100))
 DEFAULT_PER_PAGE = int(os.environ.get("DEFAULT_PER_PAGE", 10))
 # MongoDB connection parameters
 MONGO_URI = os.getenv("MONGO_URI")
-DATABASE_NAME = os.getenv("DATABASE_NAME", "Cluster0")
+DATABASE_NAME = os.getenv("DATABASE_NAME")
 
 # Create Flask app
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
-app.config['MONGO_URI'] = MONGO_URI
 # Initialize logging to file
 handler = logging.FileHandler('app.log')
 handler.setLevel(logging.INFO)
@@ -84,6 +85,8 @@ cache = Cache(app)
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["200 per day", "50 per hour"],app=app,storage_uri="memory://")
 
+dns.resolver.default_resolver=dns.resolver.Resolver(configure=True)
+dns.resolver.default_resolver.nameservers = ['8.8.8.8']
 # Initialize MongoDB connection using the same approach as testmongo.py
 try:
     # Create a new client and connect to the server
@@ -186,7 +189,8 @@ def initialize_houses_collection():
                             "current_tenant_id": tenant["_id"],
                             "current_tenant_name": tenant["name"],
                             "admin_id": admin_id,
-                            "created_at": datetime.utcnow()
+                            "created_at": datetime.utcnow(),
+                            "rent": 0
                         }
                         mongo.db.houses.insert_one(house_data)
                         app.logger.info(f"Added house {house_number} for admin {admin_id} to houses collection")
@@ -225,8 +229,8 @@ def migrate_existing_readings_to_payments():
                     'due_date': reading_date + timedelta(days=30),
                     'month_year': month_year,
                     'reading_id': reading['_id'],
-                    'payment_date': None,
-                    'payment_method': None,
+                    'last_payment_date': None,
+                    'last_payment_method': None,
                     'notes': 'Migrated from existing reading',
                     'created_at': reading_date,
                     'updated_at': datetime.now()
@@ -242,6 +246,151 @@ def migrate_existing_readings_to_payments():
         app.logger.error(f"Migration error: {str(e)}")
         return False
 
+# Add this migration function
+# Enhanced migration function (around line 240)
+def migrate_to_meter_readings():
+    """Migrate data from water_readings and house_readings to meter_readings."""
+    try:
+        # Create meter_readings collection with proper indexing
+        if 'meter_readings' not in mongo.db.list_collection_names():
+            mongo.db.create_collection('meter_readings')
+            
+        # Create indexes for optimal performance
+        mongo.db.meter_readings.create_index([
+            ('tenant_id', 1),
+            ('admin_id', 1),
+            ('date_recorded', -1)
+        ], name='tenant_admin_date_idx')
+        
+        mongo.db.meter_readings.create_index([
+            ('house_number', 1),
+            ('admin_id', 1),
+            ('date_recorded', -1)
+        ], name='house_admin_date_idx')
+        
+        mongo.db.meter_readings.create_index([
+            ('house_id', 1),
+            ('date_recorded', -1)
+        ], name='house_id_date_idx')
+        
+        # Add compound index for payment queries
+        mongo.db.meter_readings.create_index([
+            ('admin_id', 1),
+            ('reading_type', 1),
+            ('date_recorded', -1)
+        ], name='admin_type_date_idx')
+        
+        # Migrate water_readings data
+        water_readings = list(mongo.db.water_readings.find({}))
+        for reading in water_readings:
+            reading['source_collection'] = 'water_readings'
+            reading['reading_type'] = 'tenant_billing'
+            
+        # Migrate house_readings data
+        house_readings = list(mongo.db.house_readings.find({}))
+        for reading in house_readings:
+            reading['source_collection'] = 'house_readings'
+            reading['reading_type'] = 'house_history'
+            
+        # Insert all readings into meter_readings (avoid duplicates)
+        all_readings = water_readings + house_readings
+        if all_readings:
+            # Remove duplicates based on key fields
+            unique_readings = []
+            seen = set()
+            for reading in all_readings:
+                key = (str(reading.get('tenant_id', '')), 
+                      str(reading.get('house_number', '')), 
+                      str(reading.get('date_recorded', '')))
+                if key not in seen:
+                    seen.add(key)
+                    unique_readings.append(reading)
+            
+            mongo.db.meter_readings.insert_many(unique_readings)
+            
+        app.logger.info(f"Migrated {len(all_readings)} readings to meter_readings collection")
+        return True
+        
+    except Exception as e:
+        app.logger.error(f"Migration failed: {str(e)}")
+        return False
+
+@app.route('/migrate_timestamps', methods=['POST','GET'])
+@login_required
+def migrate_timestamps():
+    """One-time migration to add timestamps to existing date-only records"""
+    try:
+        admin_id = get_admin_id()
+        
+        # Find records with date-only values (assuming they don't have time component)
+        records_to_update = list(mongo.db.meter_readings.find({
+            "admin_id": admin_id,
+            "$expr": {
+                "$eq": [
+                    {"$dateToString": {"format": "%H:%M:%S", "date": "$date_recorded"}},
+                    "00:00:00"
+                ]
+            }
+        }))
+        
+        updated_count = 0
+        
+        for record in records_to_update:
+            # Add random minutes/seconds to spread out same-day readings
+            import random
+            original_date = record['date_recorded']
+            
+            # Add random time between 8 AM and 6 PM for realistic spread
+            random_hour = random.randint(8, 18)
+            random_minute = random.randint(0, 59)
+            random_second = random.randint(0, 59)
+            
+            new_timestamp = original_date.replace(
+                hour=random_hour,
+                minute=random_minute,
+                second=random_second
+            )
+            
+            # Update the record
+            mongo.db.meter_readings.update_one(
+                {"_id": record["_id"]},
+                {"$set": {"date_recorded": new_timestamp}}
+            )
+            updated_count += 1
+        
+        flash(f"Updated {updated_count} records with proper timestamps", "success")
+        
+    except Exception as e:
+        app.logger.error(f"Error in timestamp migration: {str(e)}")
+        flash(f"Migration error: {str(e)}", "danger")
+    
+    return redirect(url_for('dashboard'))
+
+# Add migration route for admin use
+@app.route('/migrate_collections', methods=['POST'])
+@login_required
+def migrate_collections():
+    """Admin route to migrate to meter_readings collection."""
+    try:
+        admin_id = get_admin_id()
+        
+        # Only allow super admin or specific admin
+        admin = mongo.db.admins.find_one({"_id": admin_id})
+        if not admin or not admin.get('is_super_admin', False):
+            flash('Unauthorized access', 'danger')
+            return redirect(url_for('dashboard'))
+        
+        success = migrate_to_meter_readings()
+        
+        if success:
+            flash('Successfully migrated to meter_readings collection', 'success')
+        else:
+            flash('Migration failed. Check logs for details.', 'danger')
+            
+    except Exception as e:
+        flash(f'Migration error: {str(e)}', 'danger')
+        
+    return redirect(url_for('dashboard'))
 
 def migrate_existing_data():
     """Migrate existing data to include admin_id field"""
@@ -312,6 +461,8 @@ def get_admin_id():
 
 
 # Function to send SMS with TalkSasa
+#@celery.task(rate_limit='50/h')  
+# # 50 per hour
 def send_message(recipient, message, sender=None, retries=3):
     if not TALKSASA_API_KEY:
         return {"error": "SMS service not configured"}
@@ -406,9 +557,11 @@ def get_rate_per_unit(admin_id):
     admin = mongo.db.admins.find_one({"_id": admin_id})
     return admin.get('rate_per_unit', RATE_PER_UNIT) if admin else RATE_PER_UNIT
 
-def create_payment_record(admin_id, tenant_id, house_id, bill_amount, reading_id, month_year):
+def create_payment_record(admin_id, tenant_id, house_id, bill_amount, reading_id=None, month_year=None, bill_type=None):
     """Create a new payment record when a water reading is recorded"""
     try:
+        current_time = datetime.now()  # Full timestamp
+
         payment_data = {
             'admin_id': ObjectId(admin_id),
             'tenant_id': ObjectId(tenant_id),
@@ -419,11 +572,12 @@ def create_payment_record(admin_id, tenant_id, house_id, bill_amount, reading_id
             'due_date': datetime.now() + timedelta(days=30),  # 30 days to pay
             'month_year': month_year,
             'reading_id': ObjectId(reading_id),
-            'payment_date': None,
-            'payment_method': None,
+            'bill_type': bill_type,
+            'last_payment_date': None,
+            'last_payment_method': None,
             'notes': '',
-            'created_at': datetime.now(),
-            'updated_at': datetime.now()
+            'created_at': current_time,
+            'updated_at': current_time
         }
         
         result = mongo.db.payments.insert_one(payment_data)
@@ -433,8 +587,8 @@ def create_payment_record(admin_id, tenant_id, house_id, bill_amount, reading_id
         app.logger.error(f"Error creating payment record: {str(e)}")
         return None
 
-def get_unpaid_bills(admin_id, tenant_id=None):
-    """Get all unpaid bills for admin or specific tenant"""
+def get_unpaid_bills(admin_id, tenant_id=None, bill_type=None):
+    """Get all unpaid bills for admin or specific tenant with optional bill_type filter"""
     try:
         query = {
             'admin_id': ObjectId(admin_id),
@@ -444,17 +598,23 @@ def get_unpaid_bills(admin_id, tenant_id=None):
         if tenant_id:
             query['tenant_id'] = ObjectId(tenant_id)
             
+        if bill_type:
+            query['bill_type'] = bill_type
+            
         unpaid_bills = list(mongo.db.payments.find(query).sort('due_date', 1))
         return unpaid_bills
     except Exception as e:
         app.logger.error(f"Error fetching unpaid bills: {str(e)}")
         return []
-
-def get_unpaid_bills_paginated(admin_id, page=1, per_page=10, filter_status=None, search_term=None):
-    """Get paginated unpaid bills with optional filtering"""
+def get_unpaid_bills_paginated(admin_id, page=1, per_page=10, filter_status=None, search_term=None, bill_type=None):
+    """Get paginated unpaid bills with optional filtering and bill_type"""
     try:
         # Start with basic query
         query = {'admin_id': ObjectId(admin_id)}
+        
+        # Add bill_type filter if specified
+        if bill_type:
+            query['bill_type'] = bill_type
         
         # Add payment status filter
         if filter_status == 'all':
@@ -555,8 +715,6 @@ def get_unpaid_bills_paginated(admin_id, page=1, per_page=10, filter_status=None
         app.logger.error(f"Error fetching paginated bills: {str(e)}")
         return {'bills': [], 'page': 1, 'per_page': per_page, 'total_count': 0, 'total_pages': 0}
 
-
-
 def get_unpaid_bills_with_aggregation(admin_id, tenant_id=None):
     """Get unpaid bills with outstanding amounts calculated in MongoDB"""
     try:
@@ -623,8 +781,8 @@ def update_payment_status(payment_id, amount_paid, payment_method, notes=""):
         update_data = {
             'amount_paid': new_total_paid,
             'payment_status': status,
-            'payment_date': datetime.now(),
-            'payment_method': payment_method,
+            'last_payment_date': datetime.now(),
+            'last_payment_method': payment_method,
             'notes': notes,
             'updated_at': datetime.now()
         }
@@ -639,20 +797,45 @@ def update_payment_status(payment_id, amount_paid, payment_method, notes=""):
         app.logger.error(f"Error updating payment: {str(e)}")
         return False
 
-def calculate_total_arrears(admin_id, tenant_id):
-    """Calculate total arrears for a tenant"""
+def calculate_total_arrears(admin_id, tenant_id, bill_type=None, exclude_current_month=None):
+    """Calculate total arrears for a tenant excluding current month's bill"""
     try:
-        unpaid_bills = get_unpaid_bills(admin_id, tenant_id)
-        total_arrears = 0
+        # Build query to exclude fully paid bills
+        query = {
+            'admin_id': ObjectId(admin_id),
+            'tenant_id': ObjectId(tenant_id),
+            'payment_status': {'$in': ['unpaid', 'partial']}
+        }
         
-        for bill in unpaid_bills:
-            outstanding = bill['bill_amount'] - bill.get('amount_paid', 0)
-            total_arrears += outstanding
+        # Add bill_type filter if specified
+        if bill_type:
+            query['bill_type'] = bill_type
             
-        return total_arrears
+        # Exclude current month's bill from arrears calculation
+        if exclude_current_month:
+            query['month_year'] = {'$ne': exclude_current_month}
+        
+        # Get unpaid/partial bills (excluding current month)
+        unpaid_bills = list(mongo.db.payments.find(query))
+        total_arrears = 0.0
+        
+        # Calculate outstanding amounts with improved precision
+        for bill in unpaid_bills:
+            bill_amount = float(bill.get('bill_amount', 0))
+            amount_paid = float(bill.get('amount_paid', 0))
+            outstanding = bill_amount - amount_paid
+            
+            # Only count positive outstanding amounts with precision threshold
+            if outstanding > 0.01:
+                total_arrears += outstanding
+        
+        # Round to 2 decimal places for currency precision
+        return round(total_arrears, 2)
+        
     except Exception as e:
-        app.logger.error(f"Error calculating arrears: {str(e)}")
-        return 0
+        app.logger.error(f"Error calculating arrears for tenant {tenant_id}: {str(e)}")
+        return 0.0
+
 
 def get_all_bills(admin_id, tenant_id=None):
     """Get all bills for admin or specific tenant regardless of payment status"""
@@ -706,9 +889,6 @@ def add_security_headers(response):
     response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https://via.placeholder.com; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net data:;"
     return response
     
-
-
-
 # Routes
 # Add a route to trigger migration (remove after running once)
 @app.route('/migrate_payments')
@@ -754,61 +934,121 @@ def signup():
         return redirect(url_for('dashboard'))
         
     if request.method == 'POST':
-        name = request.form.get('name', '').strip()
-        till = request.form.get('till', '').strip()
-        password = request.form.get('password', '')
-        confirm_password = request.form.get('confirm-password', '')
-        cost = request.form.get('cost', type=float)
-        
-        # Validate inputs
-        if not all([name, till, password, confirm_password, cost]):
-            flash('All fields are required', 'danger')
-            return render_template('signup.html')
-            
-        if password != confirm_password:
-            flash('Passwords do not match', 'danger')
-            return render_template('signup.html')
-            
-        # Check if till already exists
-        existing_admin = mongo.db.admins.find_one({"till": till})
-        if existing_admin:
-            flash('An account with this till number already exists', 'danger')
-            return render_template('signup.html')
-            
-        # Create new admin with isolated data structure
-        hashed_password = generate_password_hash(password)
-        new_admin = {
-            "name": name,
-            "till": till,
-            "username": name,  
-            "password": hashed_password,
-            "rate_per_unit": cost,
-            "created_at": datetime.utcnow(),
-            "tenants": [],  # Empty array to store this admin's tenants
-            "houses": [],   # Empty array to store this admin's houses
-            "readings": []  # Empty array to store this admin's readings
-        }
-        
         try:
+            # Get form data with proper error handling
+            name = request.form.get('name', '').strip()
+            password = request.form.get('password', '')
+            confirm_password = request.form.get('confirm-password', '')
+            payment_method = request.form.get('payment_method', '').strip()
+            
+            # Handle cost conversion with error handling
+            cost_str = request.form.get('cost', '').strip()
+            try:
+                cost = float(cost_str) if cost_str else None
+            except (ValueError, TypeError):
+                flash('Please enter a valid cost per unit', 'danger')
+                return render_template('signup.html')
+            
+            # Basic validation
+            if not all([name, password, confirm_password, cost, payment_method]):
+                flash('All fields are required', 'danger')
+                return render_template('signup.html')
+                
+            if password != confirm_password:
+                flash('Passwords do not match', 'danger')
+                return render_template('signup.html')
+            
+            if cost <= 0:
+                flash('Cost per unit must be greater than 0', 'danger')
+                return render_template('signup.html')
+            
+            # Initialize payment details
+            payment_details = {}
+            
+            # Validate payment method and related fields
+            if payment_method == 'till':
+                till = request.form.get('till', '').strip()
+                if not till or not re.match(r'^\d{6}$', till):
+                    flash('Till number must be exactly 6 digits', 'danger')
+                    return render_template('signup.html')
+                
+                # Check if till already exists
+                existing_admin = mongo.db.admins.find_one({"till": till})
+                if existing_admin:
+                    flash('An account with this till number already exists', 'danger')
+                    return render_template('signup.html')
+                    
+                payment_details = {
+                    'payment_method': 'till',
+                    'till': till
+                }
+                
+            elif payment_method == 'paybill':
+                business_number = request.form.get('business_number', '').strip()
+                account_name = request.form.get('account_name', '').strip()
+                
+                if not business_number or not business_number.isdigit():
+                    flash('Business number must be a valid number', 'danger')
+                    return render_template('signup.html')
+                    
+                if not account_name:
+                    flash('Account name is required', 'danger')
+                    return render_template('signup.html')
+                
+                # Check if business number already exists
+                existing_admin = mongo.db.admins.find_one({"business_number": business_number})
+                if existing_admin:
+                    flash('An account with this business number already exists', 'danger')
+                    return render_template('signup.html')
+                    
+                payment_details = {
+                    'payment_method': 'paybill',
+                    'business_number': business_number,
+                    'account_name': account_name
+                }
+            else:
+                flash('Please select a valid payment method', 'danger')
+                return render_template('signup.html')
+            
+            # Create new admin with isolated data structure
+            hashed_password = generate_password_hash(password)
+            new_admin = {
+                "name": name,
+                "username": name,  
+                "password": hashed_password,
+                "rate_per_unit": cost,
+                "created_at": datetime.utcnow(),
+                "tenants": [],  # Empty array to store this admin's tenants
+                "houses": [],   # Empty array to store this admin's houses
+                "readings": [],  # Empty array to store this admin's readings
+                **payment_details  # Add payment details to admin document
+            }
+            
             # Insert the new admin
             result = mongo.db.admins.insert_one(new_admin)
             
-            # Create SMS config for this admin
-            sms_config = {
-                "admin_id": result.inserted_id,
-                "rate_per_unit": cost,
-                "created_at": datetime.utcnow()
-            }
-            mongo.db.sms_config.insert_one(sms_config)
-            
-            flash('Account created successfully! You can now log in.', 'success')
-            return redirect(url_for('login'))
+            if result.inserted_id:
+                # Create SMS config for this admin
+                sms_config = {
+                    "admin_id": result.inserted_id,
+                    "rate_per_unit": cost,
+                    "created_at": datetime.utcnow()
+                }
+                mongo.db.sms_config.insert_one(sms_config)
+                
+                flash('Account created successfully! You can now log in.', 'success')
+                return redirect(url_for('login'))
+            else:
+                flash('Failed to create account. Please try again.', 'danger')
+                return render_template('signup.html')
+                
         except Exception as e:
-            app.logger.error(f"Error creating account: {e}")
+            app.logger.error(f"Error creating account: {str(e)}")
             flash('An error occurred while creating your account. Please try again.', 'danger')
+            return render_template('signup.html')
             
     return render_template('signup.html')
-
+    
 @app.route('/logout')
 def logout():
     session.pop('admin_id', None)
@@ -901,7 +1141,7 @@ def dashboard():
         }}
     ]
     
-    readings = list(mongo.db.water_readings.aggregate(readings_pipeline))
+    readings = list(mongo.db.meter_readings.aggregate(readings_pipeline))
     
     # Format readings for template
     formatted_readings = []
@@ -926,7 +1166,7 @@ def dashboard():
 @login_required
 def tenant_details(tenant_id):
     # Convert string ID to ObjectId
-    admin_id = ObjectId(session['admin_id'])
+    admin_id = get_admin_id()
 
     tenant_id_obj = ObjectId(tenant_id)
     tenant = mongo.db.tenants.find_one({"_id": tenant_id_obj, "admin_id": admin_id})    
@@ -939,8 +1179,8 @@ def tenant_details(tenant_id):
     skip = (page - 1) * per_page
 
     # For table display, use descending order
-    readings_count = mongo.db.water_readings.count_documents({"tenant_id": tenant_id_obj, "admin_id": admin_id})    
-    readings = list(mongo.db.water_readings.find(
+    readings_count = mongo.db.meter_readings.count_documents({"tenant_id": tenant_id_obj, "admin_id": admin_id})    
+    readings = list(mongo.db.meter_readings.find(
             {"tenant_id": tenant_id_obj, "admin_id": admin_id}
         ).sort("date_recorded", -1).skip(skip).limit(per_page))
     
@@ -957,7 +1197,7 @@ def tenant_details(tenant_id):
     }
 
     # For chart data, fetch readings in chronological order
-    chart_readings = list(mongo.db.water_readings.find(
+    chart_readings = list(mongo.db.meter_readings.find(
             {"tenant_id": tenant_id_obj, "admin_id": admin_id}
         ).sort("date_recorded", 1))
 
@@ -965,10 +1205,11 @@ def tenant_details(tenant_id):
     usage_data = [r['usage'] for r in chart_readings]
     bill_data = [r['bill_amount'] for r in chart_readings]
 
-    # Get latest reading for the form
-    latest_reading = None
-    if readings:
-        latest_reading = max(readings, key=lambda x: x['date_recorded'])
+    # Get latest reading separately from pagination
+    latest_reading = mongo.db.meter_readings.find_one(
+        {"tenant_id": tenant_id_obj, "admin_id": admin_id},
+        sort=[("date_recorded", -1)]
+    )
     
     return render_template(
         'tenant_details.html',
@@ -980,60 +1221,69 @@ def tenant_details(tenant_id):
         bill_data=bill_data,
         latest_reading=latest_reading,
         datetime=datetime
-
     )
 
 @app.route('/api/tenant/<tenant_id>/readings')
 @login_required
 def tenant_readings_data(tenant_id):
-    admin_id = ObjectId(session['admin_id'])
-    tenant_id_obj = ObjectId(tenant_id)
-    tenant = mongo.db.tenants.find_one({"_id": tenant_id_obj, "admin_id": admin_id})    
+    """Get tenant readings data from meter_readings collection."""
+    try:
+        admin_id = get_admin_id()
+        tenant_id_obj = ObjectId(tenant_id)
+        tenant = mongo.db.tenants.find_one({"_id": tenant_id_obj, "admin_id": admin_id})    
 
-    if not tenant:
-        return jsonify({"error": "Tenant not found"}), 404
-    
-    house_number = tenant.get('house_number')
-    
-    # First, check if there are any readings for this tenant
-    tenant_readings = list(mongo.db.water_readings.find(
-        {"tenant_id": tenant_id_obj, "admin_id": admin_id}
-    ).sort("date_recorded", 1))
-    
-    # If no tenant readings, check for house readings
-    if not tenant_readings and house_number:
-        # Look for the latest reading for this house number WITH admin_id filter
-        house_reading = mongo.db.house_readings.find_one(
-            {"house_number": house_number, "admin_id": admin_id},
-            sort=[("date_recorded", -1)]
-        )
+        if not tenant:
+            return jsonify({"error": "Tenant not found"}), 404
         
-        if house_reading:
-            # Convert the house reading to the expected format
-            data = [{
-                'date': house_reading['date_recorded'].strftime('%Y-%m-%d'),
-                'previous_reading': house_reading['previous_reading'],
-                'current_reading': house_reading['current_reading'],
-                'usage': house_reading['usage'],
-                'bill_amount': house_reading['bill_amount'],
-                'sms_status': house_reading.get('sms_status', 'not_sent')
-            }]
-            return jsonify(data)
-    
-    # If we have tenant readings or no house readings, return the tenant readings
-    data = []
-    for reading in tenant_readings:
-        data.append({
-            'date': reading['date_recorded'].strftime('%Y-%m-%d'),
-            'previous_reading': reading['previous_reading'],
-            'current_reading': reading['current_reading'],
-            'usage': reading['usage'],
-            'bill_amount': reading['bill_amount'],
-            'sms_status': reading.get('sms_status', 'not_sent')
-        })
-    
-    return jsonify(data)
-
+        house_number = tenant.get('house_number')
+        
+        # Get all readings for this tenant from meter_readings
+        # Sort by date_recorded descending (newest first)
+        tenant_readings = list(mongo.db.meter_readings.find(
+            {"tenant_id": tenant_id_obj, "admin_id": admin_id}
+        ).sort("date_recorded", -1))
+        
+        # If no tenant readings, check for house readings by house_number
+        if not tenant_readings and house_number:
+            house_readings = list(mongo.db.meter_readings.find(
+                {"house_number": house_number, "admin_id": admin_id}
+            ).sort("date_recorded", -1).limit(1))
+            
+            if house_readings:
+                house_reading = house_readings[0]
+                data = [{
+                    'date': house_reading['date_recorded'].strftime('%Y-%m-%d'),
+                    'time': house_reading['date_recorded'].strftime('%H:%M:%S'),
+                    'datetime': house_reading['date_recorded'].strftime('%Y-%m-%d %H:%M:%S'),
+                    'timestamp': house_reading['date_recorded'].isoformat(),
+                    'previous_reading': house_reading['previous_reading'],
+                    'current_reading': house_reading['current_reading'],
+                    'usage': house_reading['usage'],
+                    'bill_amount': house_reading['bill_amount'],
+                    'sms_status': house_reading.get('sms_status', 'not_sent')
+                }]
+                return jsonify(data)
+        
+        # Return tenant readings from meter_readings
+        data = []
+        for reading in tenant_readings:
+            data.append({
+                'date': reading['date_recorded'].strftime('%Y-%m-%d'),
+                'time': reading['date_recorded'].strftime('%H:%M:%S'),
+                'datetime': reading['date_recorded'].strftime('%Y-%m-%d %H:%M:%S'),
+                'timestamp': reading['date_recorded'].isoformat(),
+                'previous_reading': reading['previous_reading'],
+                'current_reading': reading['current_reading'],
+                'usage': reading['usage'],
+                'bill_amount': reading['bill_amount'],
+                'sms_status': reading.get('sms_status', 'not_sent')
+            })
+        
+        return jsonify(data)
+        
+    except Exception as e:
+        app.logger.error(f"Error getting tenant readings data: {str(e)}")
+        return jsonify({"error": "Failed to fetch readings"}), 500
 @app.route('/add_tenant', methods=['POST'])
 @login_required
 def add_tenant():
@@ -1126,7 +1376,8 @@ def add_tenant():
                 "current_tenant_id": tenant_id,
                 "current_tenant_name": name,
                 "admin_id": admin_id,
-                "created_at": datetime.utcnow()
+                "created_at": datetime.utcnow(),
+                "rent": 0
             }
             mongo.db.houses.insert_one(new_house)
             
@@ -1145,6 +1396,335 @@ def add_tenant():
         flash('An error occurred while adding the tenant', 'danger')
     
     return redirect(url_for('dashboard'))
+
+@app.route('/houses', methods=['GET'])
+@login_required
+def houses():
+    """Display houses management page with all houses"""
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    
+    # Get pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', DEFAULT_PER_PAGE, type=int), 100)  # Limit max per_page
+    search_query = request.args.get('search', '').strip()
+    status = request.args.get('status', '').strip()
+    
+    # Build query for houses
+    query = {"admin_id": admin_id}
+    if search_query:
+        escaped_query = re.escape(search_query)
+        query["house_number"] = {"$regex": escaped_query, "$options": "i"}
+    
+    # Add status filter
+    if status == 'occupied':
+        query["is_occupied"] = True
+    elif status == 'vacant':
+        query["is_occupied"] = False
+    
+    # Use aggregation pipeline for better performance
+    pipeline = [
+        {"$match": query},
+        {"$facet": {
+            "houses": [
+                {"$sort": {"house_number": 1}},
+                {"$skip": (page - 1) * per_page},
+                {"$limit": per_page}
+            ],
+            "total": [{"$count": "count"}]
+        }}
+    ]
+    
+    result = list(mongo.db.houses.aggregate(pipeline))[0]
+    houses = result['houses']
+    total_count = result['total'][0]['count'] if result['total'] else 0
+    
+    # Add string ID for template compatibility
+    for house in houses:
+        house['id'] = str(house['_id'])
+        # Get tenant info if house is occupied
+        if house.get('is_occupied') and house.get('current_tenant_id'):
+            tenant = mongo.db.tenants.find_one({"_id": house["current_tenant_id"]})
+            if tenant:
+                house['tenant_name'] = tenant.get('name', 'Unknown')
+                house['tenant_id'] = str(tenant['_id'])
+            else:
+                house['tenant_name'] = house.get('current_tenant_name', 'Unknown')
+                house['tenant_id'] = None
+    
+    # Create pagination object
+    total_pages = (total_count + per_page - 1) // per_page
+    pagination = {
+        'page': page,
+        'per_page': per_page,
+        'total': total_count,
+        'pages': total_pages,
+        'has_prev': page > 1,
+        'has_next': page < total_pages,
+        'items': houses
+    }
+    
+    return render_template(
+        'houses.html',
+        houses=houses,
+        pagination=pagination,
+        search_query=search_query,
+        status=status
+    )
+
+
+@app.route('/add_house', methods=['POST'])
+@login_required
+def add_house():
+    """Add a new house with validation."""
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    
+    # Get form data
+    house_number = request.form.get('house_number', '').strip()
+    rent = request.form.get('rent', '0').strip()
+    
+    # Validate inputs
+    if not house_number:
+        flash('House number is required', 'danger')
+        return redirect(url_for('houses'))
+    
+    try:
+        # Convert rent to float
+        rent = float(rent)
+        if rent < 0:
+            raise ValueError("Rent cannot be negative")
+            
+        # Check if house number already exists for this admin
+        existing_house = mongo.db.houses.find_one({
+            "house_number": house_number,
+            "admin_id": admin_id
+        })
+        
+        if existing_house:
+            flash(f'House number {house_number} already exists', 'danger')
+            return redirect(url_for('houses'))
+        
+        # Create new house
+        house_id = ObjectId()
+        new_house = {
+            "_id": house_id,
+            "house_number": house_number,
+            "is_occupied": False,
+            "current_tenant_id": None,
+            "current_tenant_name": None,
+            "admin_id": admin_id,
+            "created_at": datetime.utcnow(),
+            "rent": rent
+        }
+        
+        # Insert house
+        mongo.db.houses.insert_one(new_house)
+        
+        flash('House added successfully', 'success')
+        
+    except ValueError as e:
+        flash(f'Error: {str(e)}', 'danger')
+    except Exception as e:
+        app.logger.error(f"Error adding house: {e}")
+        flash('An error occurred while adding the house', 'danger')
+    
+    return redirect(url_for('houses'))
+
+@app.route('/edit_house/<house_id>', methods=['POST'])
+@login_required
+def edit_house(house_id):
+    """Edit house with validation."""
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    
+    # Get form data
+    house_number = request.form.get('house_number', '').strip()
+    rent = request.form.get('rent', '0').strip()
+    
+    # Validate inputs
+    if not house_number:
+        flash('House number is required', 'danger')
+        return redirect(url_for('houses'))
+    
+    try:
+        # Convert rent to float
+        rent = float(rent)
+        if rent < 0:
+            raise ValueError("Rent cannot be negative")
+            
+        house_id_obj = ObjectId(house_id)
+        house = mongo.db.houses.find_one({"_id": house_id_obj, "admin_id": admin_id})
+        
+        if not house:
+            flash('House not found', 'danger')
+            return redirect(url_for('houses'))
+        
+        old_house_number = house.get('house_number', '')
+        
+        # If house number is changing, check if it already exists
+        if house_number != old_house_number:
+            existing_house = mongo.db.houses.find_one({
+                "house_number": house_number,
+                "admin_id": admin_id,
+                "_id": {"$ne": house_id_obj}
+            })
+            
+            if existing_house:
+                flash(f'House number {house_number} already exists', 'danger')
+                return redirect(url_for('houses'))
+            
+            # Update tenant's house_number if house is occupied
+            if house.get('is_occupied') and house.get('current_tenant_id'):
+                mongo.db.tenants.update_one(
+                    {"_id": house["current_tenant_id"]},
+                    {"$set": {"house_number": house_number}}
+                )
+        
+        # Update house
+        mongo.db.houses.update_one(
+            {"_id": house_id_obj},
+            {"$set": {
+                "house_number": house_number,
+                "rent": rent
+            }}
+        )
+        
+        flash('House updated successfully', 'success')
+        
+    except ValueError as e:
+        flash(f'Error: {str(e)}', 'danger')
+    except Exception as e:
+        app.logger.error(f"Error updating house: {e}")
+        flash('An error occurred while updating the house', 'danger')
+    
+    return redirect(url_for('houses'))
+
+@app.route('/delete_house/<house_id>', methods=['POST'])
+@login_required
+def delete_house(house_id):
+    """Delete house if it's not occupied."""
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    
+    try:
+        house_id_obj = ObjectId(house_id)
+        house = mongo.db.houses.find_one({"_id": house_id_obj, "admin_id": admin_id})
+        
+        if not house:
+            flash('House not found', 'danger')
+            return redirect(url_for('houses'))
+        
+        # Check if house is occupied
+        if house.get('is_occupied'):
+            flash('Cannot delete an occupied house. Please transfer or remove the tenant first.', 'danger')
+            return redirect(url_for('houses'))
+        
+        # Delete house
+        mongo.db.houses.delete_one({"_id": house_id_obj, "admin_id": admin_id})
+        
+        flash('House deleted successfully', 'success')
+        
+    except Exception as e:
+        app.logger.error(f"Error deleting house: {e}")
+        flash('An error occurred while deleting the house', 'danger')
+    
+    return redirect(url_for('houses'))
+
+@app.route('/assign_tenant/<house_id>', methods=['POST'])
+@login_required
+def assign_tenant(house_id):
+    """Assign a tenant to a house."""
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    
+    # Get form data
+    tenant_id = request.form.get('tenant_id', '').strip()
+    
+    # Validate inputs
+    if not tenant_id:
+        flash('Tenant is required', 'danger')
+        return redirect(url_for('houses'))
+    
+    try:
+        house_id_obj = ObjectId(house_id)
+        tenant_id_obj = ObjectId(tenant_id)
+        
+        house = mongo.db.houses.find_one({"_id": house_id_obj, "admin_id": admin_id})
+        tenant = mongo.db.tenants.find_one({"_id": tenant_id_obj, "admin_id": admin_id})
+        
+        if not house:
+            flash('House not found', 'danger')
+            return redirect(url_for('houses'))
+            
+        if not tenant:
+            flash('Tenant not found', 'danger')
+            return redirect(url_for('houses'))
+        
+        # Check if house is already occupied
+        if house.get('is_occupied'):
+            flash('House is already occupied. Please transfer or remove the current tenant first.', 'danger')
+            return redirect(url_for('houses'))
+        
+        # Check if tenant already has a house
+        if tenant.get('house_number'):
+            old_house = mongo.db.houses.find_one({
+                "house_number": tenant["house_number"],
+                "admin_id": admin_id
+            })
+            
+            if old_house:
+                # Update old house
+                mongo.db.houses.update_one(
+                    {"_id": old_house["_id"]},
+                    {"$set": {
+                        "is_occupied": False,
+                        "current_tenant_id": None,
+                        "current_tenant_name": None
+                    }}
+                )
+        
+        # Update house
+        mongo.db.houses.update_one(
+            {"_id": house_id_obj},
+            {"$set": {
+                "is_occupied": True,
+                "current_tenant_id": tenant_id_obj,
+                "current_tenant_name": tenant["name"]
+            }}
+        )
+        
+        # Update tenant
+        mongo.db.tenants.update_one(
+            {"_id": tenant_id_obj},
+            {"$set": {
+                "house_number": house["house_number"],
+                "house_id": house_id_obj
+            }}
+        )
+        
+        flash(f'Tenant {tenant["name"]} assigned to house {house["house_number"]} successfully', 'success')
+        
+    except Exception as e:
+        app.logger.error(f"Error assigning tenant: {e}")
+        flash('An error occurred while assigning the tenant', 'danger')
+    
+    return redirect(url_for('houses'))
 
 @app.route('/transfer_tenant/<tenant_id>', methods=['GET', 'POST'])
 @login_required
@@ -1170,129 +1750,137 @@ def transfer_tenant(tenant_id):
         
         # Also include houses that don't exist in the houses collection yet
         # This is optional and depends on how you want to handle new houses
-        
-        if request.method == 'POST':
-            new_house = request.form.get('new_house')
-            
-            if not new_house:
-                flash('Please select a new house', 'danger')
-                return render_template('transfer_tenant.html', tenant=tenant, houses=available_houses)
+        unpaid_bills = get_unpaid_bills(admin_id, tenant_id_obj)
+
+        if unpaid_bills:
+            total_arrears = calculate_total_arrears(admin_id, tenant_id_obj)
+            flash(f'Cannot transfer tenant with unpaid bills. Outstanding amount: KSh{total_arrears:.2f}. Please settle all bills before transferring.', 'danger')
+            return redirect(url_for('dashboard'))
+        else:
+            if request.method == 'POST':
+                new_house = request.form.get('new_house')
                 
-            if new_house == current_house:
-                flash('New house cannot be the same as current house', 'warning')
-                return render_template('transfer_tenant.html', tenant=tenant, houses=available_houses)
-            
-            # Check if the new house exists in houses collection
-            new_house_doc = mongo.db.houses.find_one({
-                "house_number": new_house, 
-                "admin_id": admin_id
-            })
-            
-            # If new house exists and is occupied, prevent transfer
-            if new_house_doc and new_house_doc.get("is_occupied"):
-                # Get tenant name from house document
-                occupied_tenant_name = new_house_doc.get("current_tenant_name", "Unknown")
+                if not new_house:
+                    flash('Please select a new house', 'danger')
+                    return render_template('transfer_tenant.html', tenant=tenant, houses=available_houses)
+                    
+                if new_house == current_house:
+                    flash('New house cannot be the same as current house', 'warning')
+                    return render_template('transfer_tenant.html', tenant=tenant, houses=available_houses)
                 
-                # If tenant name not in house document, try to find it from tenants collection
-                if occupied_tenant_name == "Unknown" and "current_tenant_id" in new_house_doc:
-                    tenant_doc = mongo.db.tenants.find_one({"_id": new_house_doc["current_tenant_id"]})
-                    if tenant_doc:
-                        occupied_tenant_name = tenant_doc.get("name", "Unknown")
-                
-                flash(f'House {new_house} is already occupied by {occupied_tenant_name}. Please select a different house.', 'danger')
-                return render_template('transfer_tenant.html', tenant=tenant, houses=available_houses)
-            
-            # Get current house document
-            current_house_doc = mongo.db.houses.find_one({
-                "house_number": current_house,
-                "admin_id": admin_id
-            })
-            
-            # Get all readings for this tenant
-            readings = list(mongo.db.water_readings.find({"tenant_id": tenant_id_obj, "admin_id": admin_id}))
-            
-            # Create a house_readings collection if it doesn't exist
-            if 'house_readings' not in mongo.db.list_collection_names():
-                mongo.db.create_collection('house_readings')
-            
-            # For each reading, store it in the house_readings collection associated with the old house
-            for reading in readings:
-                # Check if this reading already exists in house_readings
-                existing = mongo.db.house_readings.find_one({
-                    "house_number": current_house,
-                    "date_recorded": reading['date_recorded']
+                # Check if the new house exists in houses collection
+                new_house_doc = mongo.db.houses.find_one({
+                    "house_number": new_house, 
+                    "admin_id": admin_id
                 })
                 
-                if not existing:
-                    # Create a new house reading record for the old house
-                    house_reading = {
+                # If new house exists and is occupied, prevent transfer
+                if new_house_doc and new_house_doc.get("is_occupied"):
+                    # Get tenant name from house document
+                    occupied_tenant_name = new_house_doc.get("current_tenant_name", "Unknown")
+                    
+                    # If tenant name not in house document, try to find it from tenants collection
+                    if occupied_tenant_name == "Unknown" and "current_tenant_id" in new_house_doc:
+                        tenant_doc = mongo.db.tenants.find_one({"_id": new_house_doc["current_tenant_id"]})
+                        if tenant_doc:
+                            occupied_tenant_name = tenant_doc.get("name", "Unknown")
+                    
+                    flash(f'House {new_house} is already occupied by {occupied_tenant_name}. Please select a different house.', 'danger')
+                    return render_template('transfer_tenant.html', tenant=tenant, houses=available_houses)
+                
+                # Get current house document
+                current_house_doc = mongo.db.houses.find_one({
+                    "house_number": current_house,
+                    "admin_id": admin_id
+                })
+                
+                # Get all readings for this tenant
+                readings = list(mongo.db.meter_readings.find({"tenant_id": tenant_id_obj, "admin_id": admin_id}))
+                
+                # Create a house_readings collection if it doesn't exist
+                """if 'house_readings' not in mongo.db.list_collection_names():
+                    mongo.db.create_collection('house_readings')"""
+                
+                # For each reading, store it in the house_readings collection associated with the old house
+                for reading in readings:
+                    # Check if this reading already exists in house_readings
+                    existing = mongo.db.meter_readings.find_one({
+                        "house_id": current_house_doc["_id"],
                         "house_number": current_house,
-                        "previous_reading": reading['previous_reading'],
-                        "current_reading": reading['current_reading'],
-                        "usage": reading['usage'],
-                        "bill_amount": reading['bill_amount'],
-                        "date_recorded": reading['date_recorded'],
-                        "created_from_tenant": tenant_name,
-                        "admin_id": admin_id
-                    }
+                        "date_recorded": reading['date_recorded']
+                    })
                     
-                    # Add house_id if available
-                    if current_house_doc:
-                        house_reading["house_id"] = current_house_doc["_id"]
-                    
-                    mongo.db.house_readings.insert_one(house_reading)
-            
-            # Update old house to mark as unoccupied
-            if current_house_doc:
-                mongo.db.houses.update_one(
-                    {"_id": current_house_doc["_id"]},
-                    {"$set": {
-                        "is_occupied": False,
-                        "current_tenant_id": None,
-                        "current_tenant_name": None
-                    }}
-                )
-            
-            # If new house doesn't exist in houses collection, create it
-            if not new_house_doc:
-                new_house_id = ObjectId()
-                new_house_doc = {
-                    "_id": new_house_id,
-                    "house_number": new_house,
-                    "is_occupied": True,
-                    "current_tenant_id": tenant_id_obj,
-                    "current_tenant_name": tenant_name,
-                    "admin_id": admin_id,
-                    "created_at": datetime.utcnow()
-                }
-                mongo.db.houses.insert_one(new_house_doc)
-            else:
-                new_house_id = new_house_doc["_id"]
-                # Update new house to mark as occupied
-                mongo.db.houses.update_one(
-                    {"_id": new_house_id},
-                    {"$set": {
+                    if not existing:
+                        # Create a new house reading record for the old house
+                        house_reading = {
+                            "house_number": current_house,
+                            "previous_reading": reading['previous_reading'],
+                            "current_reading": reading['current_reading'],
+                            "usage": reading['usage'],
+                            "bill_amount": reading['bill_amount'],
+                            "date_recorded": reading['date_recorded'],
+                            "created_from_tenant": tenant_name,
+                            "admin_id": admin_id
+                        }
+                        
+                        # Add house_id if available
+                        if current_house_doc:
+                            house_reading["house_id"] = current_house_doc["_id"]
+                        
+                        mongo.db.meter_readings.insert_one(house_reading)
+                
+                # Update old house to mark as unoccupied
+                if current_house_doc:
+                    mongo.db.houses.update_one(
+                        {"_id": current_house_doc["_id"]},
+                        {"$set": {
+                            "is_occupied": False,
+                            "current_tenant_id": None,
+                            "current_tenant_name": None
+                        }}
+                    )
+                
+                # If new house doesn't exist in houses collection, create it
+                if not new_house_doc:
+                    new_house_id = ObjectId()
+                    new_house_doc = {
+                        "_id": new_house_id,
+                        "house_number": new_house,
                         "is_occupied": True,
                         "current_tenant_id": tenant_id_obj,
-                        "current_tenant_name": tenant_name
+                        "current_tenant_name": tenant_name,
+                        "admin_id": admin_id,
+                        "created_at": datetime.utcnow(),
+                        "rent": 0
+                    }
+                    mongo.db.houses.insert_one(new_house_doc)
+                else:
+                    new_house_id = new_house_doc["_id"]
+                    # Update new house to mark as occupied
+                    mongo.db.houses.update_one(
+                        {"_id": new_house_id},
+                        {"$set": {
+                            "is_occupied": True,
+                            "current_tenant_id": tenant_id_obj,
+                            "current_tenant_name": tenant_name
+                        }}
+                    )
+                
+                # Now update the tenant's house number and house_id
+                mongo.db.tenants.update_one(
+                    {"_id": tenant_id_obj},
+                    {"$set": {
+                        "house_number": new_house,
+                        "house_id": new_house_id
                     }}
                 )
-            
-            # Now update the tenant's house number and house_id
-            mongo.db.tenants.update_one(
-                {"_id": tenant_id_obj},
-                {"$set": {
-                    "house_number": new_house,
-                    "house_id": new_house_id
-                }}
-            )
-            
-            # Clear the tenant's readings since they're now in a new house
-            mongo.db.water_readings.delete_many({"tenant_id": tenant_id_obj})
-            
-            flash(f'Tenant "{tenant_name}" has been transferred from house {current_house} to house {new_house}. Reading history for both houses has been preserved.', 'success')
-            return redirect(url_for('dashboard'))
-            
+                
+                # Clear the tenant's readings since they're now in a new house
+                mongo.db.meter_readings.delete_many({"tenant_id": tenant_id_obj})
+                
+                flash(f'Tenant "{tenant_name}" has been transferred from house {current_house} to house {new_house}. Reading history for both houses has been preserved.', 'success')
+                return redirect(url_for('dashboard'))
+                
         return render_template('transfer_tenant.html', tenant=tenant, houses=available_houses)
         
     except Exception as e:
@@ -1301,11 +1889,11 @@ def transfer_tenant(tenant_id):
         return redirect(url_for('dashboard'))
 
 def get_last_house_reading(house_number, admin_id):
-    """Get the last reading for a specific house number."""
+    """Get the last reading for a specific house number from meter_readings."""
     if not house_number:
         return None
         
-    last_reading = mongo.db.house_readings.find_one(
+    last_reading = mongo.db.meter_readings.find_one(
         {"house_number": house_number, "admin_id": admin_id},
         sort=[("date_recorded", -1)]
     )
@@ -1379,25 +1967,30 @@ def record_reading():
         bill_amount = usage * rate_per_unit
         
         # Create reading records
-        current_time = datetime.utcnow()
+        current_time = datetime.now()  # This includes full datetime with microseconds
         
         # Create tenant reading record (for billing purposes)
         reading_data = {
             "tenant_id": tenant_id_obj,
             "house_number": house_number,
-            "house_id": house_id,  # Add house_id to tenant readings
+            "house_id": house_id,
             "previous_reading": previous_reading,
             "current_reading": current_reading,
             "usage": usage,
             "bill_amount": bill_amount,
             "date_recorded": current_time,
             "sms_status": "pending",
-            "admin_id": admin_id
+            "admin_id": admin_id,
+            "tenant_name": tenant['name'],
+            "current_tenant_id": tenant_id_obj,
+            "reading_type": "standard_billing",
+            "source_collection": "meter_readings"
         }
-        
-        # Insert reading
-        result = mongo.db.water_readings.insert_one(reading_data)
+    
+        # Single insert to meter_readings
+        result = mongo.db.meter_readings.insert_one(reading_data)
         reading_id = result.inserted_id
+    
         
         # Create payment record for this bill - FIXED
         month_year = current_time.strftime('%Y-%m')
@@ -1416,58 +2009,64 @@ def record_reading():
             app.logger.error("Failed to create payment record")
         
         # Create house reading record (for historical tracking)
-        house_reading = {
-            "house_number": house_number,
-            "house_id": house_id,  # Add house_id to house readings
-            "previous_reading": previous_reading,
-            "current_reading": current_reading,
-            "usage": usage,
-            "bill_amount": bill_amount,
-            "date_recorded": current_time,
-            "tenant_name": tenant['name'],
-            "tenant_id": tenant_id_obj,
-            "current_tenant_id": tenant_id_obj,  # Explicitly store current tenant ID
-            "admin_id": admin_id
-        }
-        mongo.db.house_readings.insert_one(house_reading)
+
         
         # Prepare and send SMS with arrears information - ENHANCED
         admin = mongo.db.admins.find_one({"_id": admin_id})
         admin_name = admin.get('name', 'Your Landlord') if admin else 'Your Landlord'
         admin_phone = admin.get('phone', 'N/A') if admin else 'N/A'
-        till_number = admin.get('till', 'N/A') if admin else 'N/A'
         
-        # Calculate arrears - ADDED
-        total_arrears = calculate_total_arrears(admin_id, tenant_id_obj)
+        # Get payment details based on admin's payment method
+        payment_info = ""
+        if admin:
+            if admin.get('payment_method') == 'till':
+                till_number = admin.get('till', 'N/A')
+                payment_info = f"Pay via Till: {till_number}"
+            elif admin.get('payment_method') == 'paybill':
+                business_number = admin.get('business_number', 'N/A')
+                account_name = admin.get('account_name', 'N/A')
+                payment_info = f"Pay via PayBill: {business_number}, Account: {account_name}"
+            else:
+                # Fallback for existing accounts without payment_method
+                till_number = admin.get('till', 'N/A')
+                payment_info = f"Pay via Till: {till_number}"
         
-        # Create SMS message with arrears info - ENHANCED
-        if total_arrears > 0:
-            message = (
-                f"Water Bill Alert: {tenant['name']}, House {house_number}. "
-                f"Current bill: KES {bill_amount:.2f}. "
-                f"Outstanding arrears: KES {total_arrears:.2f}. "
-                f"Total due: KES {bill_amount + total_arrears:.2f}. "
-                f"Pay via Till: {till_number} or {admin_name} - {admin_phone}"
-            )
-        else:
-            message = (
-                f"Water Bill Alert: {tenant['name']}, House {house_number}. "
-                f"Current bill: KES {bill_amount:.2f}. "
-                f"Pay via Till: {till_number} or {admin_name} - {admin_phone}"
-            )
+            # In record_reading function around line 1972
+            current_date = datetime.now()
+            current_month_year = current_date.strftime('%Y-%m')
+
+            # Calculate arrears excluding current month's bill
+            total_arrears = calculate_total_arrears(admin_id, tenant_id_obj, bill_type='water', exclude_current_month=current_month_year)
+
+            if total_arrears > 1:
+                message = (
+                    f"Water Bill Alert: {tenant['name']}, House {house_number}. "
+                    f"Current bill: KES {bill_amount:.2f}. "
+                    f"Outstanding arrears: KES {total_arrears:.2f}. "
+                    f"Total due: KES {bill_amount + total_arrears:.2f}. "
+                    f"{payment_info} "
+                    f"From {admin_name} - {admin_phone}"
+                )
+            else:
+                message = (
+                    f"Water Bill Alert: {tenant['name']}, House {house_number}.\n "
+                    f"Current bill: KES {bill_amount:.2f}. \n"
+                    f"{payment_info}\n"
+                    f" From {admin_name} - {admin_phone}"
+                )
         
         # Send SMS (assuming send_message function exists)
         try:
             response = send_message(tenant['phone'], message)
             
             if "error" in response:
-                mongo.db.water_readings.update_one(
+                mongo.db.meter_readings.update_one(
                     {"_id": reading_id},
                     {"$set": {"sms_status": f"failed: {response['error']}"}}
                 )
                 flash(f"Reading recorded but SMS failed: {response['error']}", "warning")
             else:
-                mongo.db.water_readings.update_one(
+                mongo.db.meter_readings.update_one(
                     {"_id": reading_id},
                     {"$set": {"sms_status": "sent"}}
                 )
@@ -1475,7 +2074,7 @@ def record_reading():
                 
         except Exception as sms_error:
             app.logger.error(f"SMS error: {sms_error}")
-            mongo.db.water_readings.update_one(
+            mongo.db.meter_readings.update_one(
                 {"_id": reading_id},
                 {"$set": {"sms_status": f"failed: {str(sms_error)}"}}
             )
@@ -1555,13 +2154,17 @@ def record_tenant_reading(tenant_id):
             "usage": usage,
             "bill_amount": bill_amount,
             "date_recorded": reading_date,
-            "admin_id": admin_id
+            "admin_id": admin_id,
+            "tenant_name": tenant['name'],
+            "current_tenant_id": tenant_id_obj,
+            "reading_type": "tenant_specific",
+            "source_collection": "meter_readings"
         }
-        
-        # Insert tenant reading
-        result = mongo.db.water_readings.insert_one(reading_data)
+    
+        # Single insert to meter_readings
+        result = mongo.db.meter_readings.insert_one(reading_data)
         reading_id = result.inserted_id
-        
+    
         # Create payment record for this bill - FIXED
         month_year = reading_date.strftime('%Y-%m')
         payment_id = create_payment_record(
@@ -1570,66 +2173,71 @@ def record_tenant_reading(tenant_id):
             house_id=house_id,  # Fixed: use house_id
             bill_amount=bill_amount,
             reading_id=reading_id,  # Fixed: use reading_id
-            month_year=month_year
+            month_year=month_year,
+            bill_type='water'  # Explicitly set bill_type
         )
         
         if payment_id:
             app.logger.info(f"Payment record created with ID: {payment_id}")
+            cache.delete_memoized(get_billing_summary, admin_id)
+            cache.delete_memoized(get_billing_summary, str(admin_id))
         else:
             app.logger.error("Failed to create payment record")
         
-        # Create house reading record (for house history)
-        house_reading_data = {
-            "house_number": house_number,
-            "house_id": house_id,
-            "current_tenant_id": tenant_id_obj,
-            "current_tenant_name": tenant['name'],
-            "previous_reading": previous_reading,
-            "current_reading": current_reading,
-            "usage": usage,
-            "bill_amount": bill_amount,
-            "date_recorded": reading_date,
-            "admin_id": admin_id
-        }
-        
-        # Insert house reading
-        mongo.db.house_readings.insert_one(house_reading_data)
+
 
         admin = mongo.db.admins.find_one({"_id": admin_id})
         admin_name = admin.get('name', 'Your Landlord') if admin else 'Your Landlord'
         admin_phone = admin.get('phone', 'N/A') if admin else 'N/A'
-        till_number = admin.get('till', 'N/A') if admin else 'N/A'
         
-        # Calculate arrears and create enhanced SMS message - ADDED
-        total_arrears = calculate_total_arrears(admin_id, tenant_id_obj)
+        # Get payment details based on admin's payment method
+        payment_info = ""
+        if admin:
+            if admin.get('payment_method') == 'till':
+                till_number = admin.get('till', 'N/A')
+                payment_info = f"Pay via Till: {till_number}"
+            elif admin.get('payment_method') == 'paybill':
+                business_number = admin.get('business_number', 'N/A')
+                account_name = admin.get('account_name', 'N/A')
+                payment_info = f"Pay via PayBill: {business_number}, Account: {account_name}"
+            else:
+                # Fallback for existing accounts without payment_method
+                till_number = admin.get('till', 'N/A')
+                payment_info = f"Pay via Till: {till_number}"
         
-        if total_arrears > 0:
-            message = (
-                f"Water Bill Alert: {tenant['name']}, House {house_number}. "
-                f"Current bill: KES {bill_amount:.2f}. "
-                f"Outstanding arrears: KES {total_arrears:.2f}. "
-                f"Total due: KES {bill_amount + total_arrears:.2f}. "
-                f"Pay via Till: {till_number} or {admin_name} - {admin_phone}"
-            )
-        else:
-            message = (
-                f"Water Bill Alert: {tenant['name']}, House {house_number}. "
-                f"Current bill: KES {bill_amount:.2f}. "
-                f"Pay via Till: {till_number} or {admin_name} - {admin_phone}"
-            )
+            # FIXED: Calculate arrears excluding current month's water bill
+            current_date = datetime.now().time()
+            month_year = current_date.strftime('%Y-%m')
+
+            # FIXED: Use tenant_id_obj instead of tenant_id string
+            total_arrears = calculate_total_arrears(admin_id, tenant_id_obj, bill_type="water", exclude_current_month=month_year)
+            if total_arrears > 1:
+                message = (
+                    f"Water Bill Alert: {tenant['name']}, House {house_number}. "
+                    f"Current bill: KES {bill_amount:.2f}. "
+                    f"Outstanding arrears: KES {total_arrears:.2f}. "
+                    f"Total due: KES {bill_amount + total_arrears:.2f}. "
+                    f"{payment_info} From {admin_name} - {admin_phone}"
+                )
+            else:
+                message = (
+                    f"Water Bill Alert: {tenant['name']}, House {house_number}. "
+                    f"Current bill: KES {bill_amount:.2f}. "
+                    f"{payment_info} From {admin_name} - {admin_phone}"
+                )
         
         # Send SMS notification
         try:
             response = send_message(tenant['phone'], message)
             
             if "error" in response:
-                mongo.db.water_readings.update_one(
+                mongo.db.meter_readings.update_one(
                     {"_id": reading_id},
                     {"$set": {"sms_status": f"failed: {response['error']}"}}
                 )
                 flash(f"Reading recorded but SMS failed: {response['error']}", "warning")
             else:
-                mongo.db.water_readings.update_one(
+                mongo.db.meter_readings.update_one(
                     {"_id": reading_id},
                     {"$set": {"sms_status": "sent"}}
                 )
@@ -1637,7 +2245,7 @@ def record_tenant_reading(tenant_id):
                 
         except Exception as sms_error:
             app.logger.error(f"SMS error: {sms_error}")
-            mongo.db.water_readings.update_one(
+            mongo.db.meter_readings.update_one(
                 {"_id": reading_id},
                 {"$set": {"sms_status": f"failed: {str(sms_error)}"}}
             )
@@ -1652,16 +2260,220 @@ def record_tenant_reading(tenant_id):
     
     return redirect(url_for('tenant_details', tenant_id=tenant_id))
 
-@cache.memoize(timeout=3600)  # Cache for 1 hour
-def get_billing_summary(admin_id):
+@app.route('/generate_rent_bills', methods=['GET'])
+@login_required
+def generate_rent_bills():
+    """Generate rent bills for all tenants for the current month with proper rent retrieval"""
+    try:
+        admin_id = get_admin_id()
+        admin = mongo.db.admins.find_one({"_id": admin_id})
+        admin_name = admin.get('name', 'Your Landlord') if admin else 'Your Landlord'
+        admin_phone = admin.get('phone', 'N/A') if admin else 'N/A'
+        
+        # Get payment method details
+        payment_method = admin.get('payment_method', 'till')
+        if payment_method == 'till':
+            payment_info = admin.get('till', 'N/A')
+            payment_text = f"Pay via Till: {payment_info}"
+        else:
+            paybill = admin.get('business_number', 'N/A')
+            account = admin.get('account_number', 'N/A')
+            payment_text = f"Pay via PayBill: {paybill}, Account: {account}"
+        
+        # Get all active tenants for this admin
+        tenants = list(mongo.db.tenants.find({"admin_id": admin_id}))
+        
+        if not tenants:
+            flash("No active tenants found", "warning")
+            return redirect(url_for('rent_dashboard'))
+        
+        # Get current month and year
+        current_date = datetime.now()
+        month_year = current_date.strftime('%Y-%m')
+        
+        # Check if bills already exist for this month
+        existing_bills = list(mongo.db.payments.find({
+            "admin_id": admin_id,
+            "month_year": month_year,
+            "bill_type": "rent"
+        }))
+        
+        if existing_bills:
+            flash(f"Rent bills for {month_year} have already been generated", "warning")
+            return redirect(url_for('rent_dashboard'))
+        
+        bills_generated = 0
+        sms_sent = 0
+        
+        for tenant in tenants:
+            tenant_id = tenant["_id"]
+            house_number = tenant.get("house_number")
+            
+            if not house_number:
+                app.logger.warning(f"Tenant {tenant.get('name')} has no house number")
+                continue
+            
+            # Find house document with explicit rent field projection
+            house = mongo.db.houses.find_one(
+                {"house_number": house_number, "admin_id": admin_id},
+                {"_id": 1, "rent": 1, "house_number": 1}  # Explicit projection
+            )
+            
+            if not house:
+                app.logger.warning(f"House {house_number} not found for tenant {tenant.get('name')}")
+                continue
+            
+            house_id = house["_id"]
+            
+            # Get rent amount with multiple fallback options
+            rent_amount = None
+            
+            # Priority 1: Rent from houses collection
+            if house.get("rent") and house["rent"] > 0:
+                rent_amount = float(house["rent"])
+            # Priority 2: Rent from tenant record
+            elif tenant.get("rent_amount") and tenant["rent_amount"] > 0:
+                rent_amount = float(tenant["rent_amount"])
+            # Priority 3: Default rent from admin settings
+            elif admin.get("default_rent") and admin["default_rent"] > 0:
+                rent_amount = float(admin["default_rent"])
+            
+            if not rent_amount or rent_amount <= 0:
+                app.logger.warning(f"No valid rent amount found for tenant {tenant.get('name')}, house {house_number}")
+                continue
+            
+            # Create payment record for rent
+            payment_id = create_payment_record(
+                admin_id=admin_id,
+                tenant_id=tenant_id,
+                house_id=house_id,
+                bill_amount=rent_amount,
+                month_year=month_year,
+                bill_type="rent"
+            )
+            
+            if payment_id:
+                bills_generated += 1
+
+                tenant_id_obj = ObjectId(tenant_id)
+                tenant = mongo.db.tenants.find_one({"_id": tenant_id})
+                # Calculate arrears (excluding current bill)
+                total_arrears = calculate_total_arrears(admin_id, tenant_id_obj, bill_type="rent")
+                
+                # Create SMS message with arrears info
+                if total_arrears > 1:  # Use smaller threshold for precision
+                    message = (
+                        f"Rent Bill Alert: {tenant['name']}, House {house_number}. "
+                        f"Current bill: KES {rent_amount:.2f}. "
+                        f"Outstanding arrears: KES {total_arrears:.2f}. "
+                        f"Total due: KES {rent_amount + total_arrears:.2f}. "
+                        f"{payment_text} From {admin_name} - {admin_phone}"
+                    )
+                else:
+                    message = (
+                        f"Rent Bill Alert: {tenant['name']}, House {house_number}. "
+                        f"Current bill: KES {rent_amount:.2f}. "
+                        f"{payment_text} From {admin_name} - {admin_phone}"
+                    )
+                
+                # Send SMS
+                try:
+                    if tenant.get('phone'):
+                        response = send_message(tenant['phone'], message)
+                        
+                        if "error" not in response:
+                            sms_sent += 1
+                        else:
+                            app.logger.error(f"SMS error for tenant {tenant['name']}: {response.get('error')}")
+                    else:
+                        app.logger.warning(f"No phone number for tenant {tenant['name']}")
+                        
+                except Exception as sms_error:
+                    app.logger.error(f"SMS error for tenant {tenant['name']}: {sms_error}")
+        
+        # Invalidate billing summary cache
+        cache.delete_memoized(get_billing_summary, admin_id)
+        cache.delete_memoized(get_billing_summary, str(admin_id))
+        
+        if bills_generated > 0:
+            flash(f"Generated {bills_generated} rent bills. {sms_sent} SMS notifications sent.", "success")
+        else:
+            flash("No rent bills were generated. Please check tenant and house configurations.", "warning")
+        
+    except Exception as e:
+        app.logger.error(f"Error generating rent bills: {str(e)}")
+        flash(f"Error generating rent bills: {str(e)}", "danger")
+    
+    return redirect(url_for('rent_dashboard'))
+
+@app.route('/rent_dashboard', methods=['GET', 'POST'])
+@login_required
+def rent_dashboard():
+    """Display rent dashboard with all rent bills"""
+    try:
+        # Get admin_id from session with ObjectId conversion
+        admin_id = get_admin_id()
+
+        # Get pagination parameters from request
+        page = request.args.get('page', 1, type=int)
+        filter_status = request.args.get('filter', 'unpaid_partial')
+        search_term = request.args.get('search', '')
+        
+        # Get billing summary using aggregation pipeline with bill_type filter
+        billing_summary = get_billing_summary(admin_id, bill_type='rent')
+        pagination = get_unpaid_bills_paginated(
+            admin_id, page=page, per_page=10, 
+            filter_status=filter_status, search_term=search_term,
+            bill_type='rent'
+        )
+        
+        # Enrich with tenant and house information if not already done in aggregation
+        enriched_bills = []
+        for bill in pagination['bills']:
+            # Check if tenant_name and house_number are already in the bill (from aggregation)
+            if 'tenant_name' not in bill or 'house_number' not in bill:
+                tenant = mongo.db.tenants.find_one({'_id': bill['tenant_id']})
+                house = mongo.db.houses.find_one({'_id': bill['house_id']})
+                
+                bill['tenant_name'] = tenant['name'] if tenant else 'Unknown'
+                bill['house_number'] = house['house_number'] if house else 'Unknown'
+            
+            bill['outstanding_amount'] = bill['bill_amount'] - bill.get('amount_paid', 0)
+            enriched_bills.append(bill)
+        
+        return render_template('rent_dashboard.html', 
+                               bills=enriched_bills, 
+                               total_ever_billed=billing_summary['total_ever_billed'],
+                               total_ever_collected=billing_summary['total_ever_collected'],
+                               pagination=pagination,
+                               now=datetime.now().timestamp(),
+                               now_date=datetime.now())
+        
+    except KeyError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    except Exception as e:
+        app.logger.error(f"Error in rent dashboard: {str(e)}")
+        flash(f'Error loading rent dashboard: {str(e)}', 'danger')
+        return redirect(url_for('dashboard'))
+
+@cache.memoize(timeout=3)  # Cache for 1 hour
+def get_billing_summary(admin_id, bill_type=None):
     """Get billing summary using MongoDB aggregation pipeline"""
     try:
         # Ensure admin_id is an ObjectId
         if isinstance(admin_id, str):
             admin_id = ObjectId(admin_id)
+        
+        # Start with basic match criteria
+        match_criteria = {'admin_id': admin_id}
+        
+        # Add bill_type filter if specified
+        if bill_type:
+            match_criteria['bill_type'] = bill_type
             
         pipeline = [
-            {'$match': {'admin_id': admin_id}},
+            {'$match': match_criteria},
             {'$group': {
                 '_id': None,
                 'total_ever_billed': {'$sum': '$bill_amount'},
@@ -1684,7 +2496,7 @@ def payments_dashboard():
     """Display payments dashboard with all unpaid bills"""
     try:
         # Get admin_id from session with ObjectId conversion
-        admin_id = ObjectId(session['admin_id'])
+        admin_id = get_admin_id()
 
         # Get pagination parameters from request
         page = request.args.get('page', 1, type=int)
@@ -1692,10 +2504,12 @@ def payments_dashboard():
         search_term = request.args.get('search', '')
         
         # Get billing summary using aggregation pipeline
-        billing_summary = get_billing_summary(admin_id)
+        billing_summary = get_billing_summary(admin_id, bill_type='water')
         pagination = get_unpaid_bills_paginated(
             admin_id, page=page, per_page=10, 
-            filter_status=filter_status, search_term=search_term
+            filter_status=filter_status, search_term=search_term,
+            bill_type='water'
+
         )
         
         # Enrich with tenant and house information if not already done in aggregation
@@ -1716,7 +2530,10 @@ def payments_dashboard():
                                bills=enriched_bills, 
                                total_ever_billed=billing_summary['total_ever_billed'],
                                total_ever_collected=billing_summary['total_ever_collected'],
-                               pagination=pagination)
+                               pagination=pagination,
+                               now=datetime.now().timestamp())
+                            
+
         
     except KeyError:
         flash('Session expired. Please login again.', 'danger')
@@ -1729,7 +2546,7 @@ def payments_dashboard():
 @app.route('/record_payment/<payment_id>', methods=['POST'])
 @login_required
 def record_payment(payment_id):
-    """Record a payment for a specific bill"""
+    """Record a payment for a specific bill with proper status updates"""
     try:
         amount_paid = float(request.form.get('amount_paid', 0))
         payment_method = request.form.get('payment_method', 'cash')
@@ -1737,28 +2554,93 @@ def record_payment(payment_id):
         
         if amount_paid <= 0:
             flash('Payment amount must be greater than 0', 'danger')
-            return redirect(url_for('payments_dashboard'))
+            return redirect(request.referrer or url_for('payments_dashboard'))
         
-        success = update_payment_status(payment_id, amount_paid, payment_method, notes)
+        # Get the current payment record
+        payment = mongo.db.payments.find_one({"_id": ObjectId(payment_id)})
         
-        if success:
-            admin_id = ObjectId(session.get('admin_id'))
-            if admin_id:
-                # Explicitly invalidate the cached billing summary
-                cache.delete_memoized(get_billing_summary, admin_id)
-                # Also invalidate with string version of admin_id for consistency
-                cache.delete_memoized(get_billing_summary, str(admin_id))
-            flash('Payment recorded successfully', 'success')
+        if not payment:
+            flash('Payment record not found', 'danger')
+            return redirect(request.referrer or url_for('payments_dashboard'))
+        
+        # Verify admin ownership
+        admin_id = ObjectId(session.get('admin_id'))
+        if payment.get('admin_id') != admin_id:
+            flash('Unauthorized access to payment record', 'danger')
+            return redirect(request.referrer or url_for('payments_dashboard'))
+        
+        # Calculate new payment amounts
+        current_amount_paid = payment.get('amount_paid', 0)
+        bill_amount = payment['bill_amount']
+        new_total_paid = current_amount_paid + amount_paid
+        
+        # Prevent overpayment
+        if new_total_paid > bill_amount:
+            overpayment = new_total_paid - bill_amount
+            flash(f'Payment amount exceeds bill amount by KES {overpayment:.2f}. Please enter a smaller amount.', 'warning')
+            return redirect(request.referrer or url_for('payments_dashboard'))
+        
+        # Determine new payment status
+        if new_total_paid >= bill_amount:
+            payment_status = 'paid'
+            new_total_paid = bill_amount  # Ensure exact match
+        elif new_total_paid > 0:
+            payment_status = 'partial'
         else:
-            flash('Error recording payment', 'danger')
+            payment_status = 'unpaid'
+        
+        # Update payment record with comprehensive tracking
+        update_result = mongo.db.payments.update_one(
+            {"_id": ObjectId(payment_id)},
+            {
+                "$set": {
+                    "amount_paid": round(new_total_paid, 2),
+                    "payment_status": payment_status,
+                    "last_payment_date": datetime.now(),
+                    "last_payment_method": payment_method,
+                    "updated_at": datetime.now()
+                },
+                "$push": {
+                    "payment_history": {
+                        "amount": round(amount_paid, 2),
+                        "method": payment_method,
+                        "date": datetime.now(),
+                        "notes": notes,
+                        "recorded_by": admin_id
+                    }
+                },
+                "$inc": {
+                    "payment_count": 1
+                }
+            }
+        )
+        
+        if update_result.modified_count > 0:
+            # Invalidate cached billing summary
+            cache.delete_memoized(get_billing_summary, admin_id)
+            cache.delete_memoized(get_billing_summary, str(admin_id))
+            cache.delete_memoized(get_billing_summary, admin_id, 'water')
+            cache.delete_memoized(get_billing_summary, str(admin_id), 'water')
+
+            # Send SMS notification if bill is fully paid
+            # Create success message based on payment status
+            if payment_status == 'paid':
+                flash(f'Payment of KES {amount_paid:.2f} recorded successfully. Bill is now fully paid.', 'success')
+            else:
+                outstanding = bill_amount - new_total_paid
+                flash(f'Partial payment of KES {amount_paid:.2f} recorded. Outstanding balance: KES {outstanding:.2f}', 'info')
+        else:
+            flash('Error updating payment record', 'danger')
             
     except ValueError:
-        flash('Invalid payment amount', 'danger')
+        flash('Invalid payment amount. Please enter a valid number.', 'danger')
     except Exception as e:
         app.logger.error(f"Error recording payment: {str(e)}")
         flash(f'Error processing payment: {str(e)}', 'danger')
     
-    return redirect(url_for('payments_dashboard'))
+    # Redirect back to the referring page
+    return redirect(request.referrer or url_for('payments_dashboard'))
+
 
 @app.route('/tenant_payments/<tenant_id>')
 @login_required
@@ -1784,8 +2666,8 @@ def tenant_payments(tenant_id):
             # Format dates
             if payment.get('due_date'):
                 payment['due_date'] = payment['due_date'].strftime('%Y-%m-%d')
-            if payment.get('payment_date'):
-                payment['payment_date'] = payment['payment_date'].strftime('%Y-%m-%d')
+            if payment.get('last_payment_date'):
+                payment['last_payment_date'] = payment['last_payment_date'].strftime('%Y-%m-%d')
             if payment.get('created_at'):
                 payment['created_at'] = payment['created_at'].strftime('%Y-%m-%d')
         
@@ -1814,7 +2696,7 @@ def export_tenant_data(tenant_id):
             return redirect(url_for('dashboard'))
         
         # Get tenant's reading history
-        readings = list(mongo.db.water_readings.find({
+        readings = list(mongo.db.meter_readings.find({
             "tenant_id": tenant_id_obj,
             "admin_id": admin_id
         }).sort("date_recorded", 1))
@@ -1916,7 +2798,10 @@ def export_tenant_data(tenant_id):
 @login_required
 def sms_config():
     # Get admin_id from session
-    admin_id = ObjectId(session['admin_id'])
+    admin_id = get_admin_id()
+    
+    # Get admin information
+    admin = mongo.db.admins.find_one({"_id": admin_id})
     
     # Add admin_id to query
     config = mongo.db.sms_config.find_one({"admin_id": admin_id})
@@ -1949,9 +2834,138 @@ def sms_config():
 
     return render_template('sms_config.html', 
                           config=config,
+                          admin=admin,  # Pass admin info to template
                           rate_per_unit=RATE_PER_UNIT,
                           talksasa_api_key=TALKSASA_API_KEY,
                           talksasa_sender_id=TALKSASA_SENDER_ID)
+
+# Add these routes after the sms_config route
+
+@app.route('/update_profile', methods=['POST'])
+@login_required
+def update_profile():
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    
+    # Get admin to check payment method
+    admin = mongo.db.admins.find_one({"_id": admin_id})
+    if not admin:
+        flash('Admin not found', 'danger')
+        return redirect(url_for('login'))
+    
+    # Get form data
+    name = request.form.get('name', '').strip()
+    phone = request.form.get('phone', '').strip()
+
+    update_data = {
+        "name": name,
+        "username": name, 
+        # Also update username to match name
+        "phone": phone,
+        "updated_at": datetime.utcnow()
+    }
+    
+    # Handle payment method specific fields
+    if admin.get('payment_method') == 'paybill':
+        business_number = request.form.get('business_number', '').strip()
+        account_name = request.form.get('account_name', '').strip()
+        
+        if not all([name, business_number, account_name]):
+            flash('All fields are required', 'danger')
+            return redirect(url_for('sms_config'))
+        
+        # Check if paybill already exists with another admin
+        existing_admin = mongo.db.admins.find_one({
+            "business_number": business_number, 
+            "account_name": account_name,
+            "_id": {"$ne": admin_id}
+        })
+        if existing_admin:
+            flash('An account with this PayBill configuration already exists', 'danger')
+            return redirect(url_for('sms_config'))
+        
+        update_data.update({
+            "business_number": business_number,
+            "account_name": account_name
+        })
+    else:
+        # Default to till method
+        till = request.form.get('till', '').strip()
+        
+        if not all([name, till]):
+            flash('All fields are required', 'danger')
+            return redirect(url_for('sms_config'))
+        
+        # Check if till already exists with another admin
+        existing_admin = mongo.db.admins.find_one({"till": till, "_id": {"$ne": admin_id}})
+        if existing_admin:
+            flash('An account with this till number already exists', 'danger')
+            return redirect(url_for('sms_config'))
+        
+        update_data["till"] = till
+    
+    try:
+        # Update admin profile
+        mongo.db.admins.update_one(
+            {"_id": admin_id},
+            {"$set": update_data}
+        )
+        flash('Profile updated successfully!', 'success')
+    except Exception as e:
+        app.logger.error(f"Error updating profile: {e}")
+        flash(f'Error updating profile: {str(e)}', 'danger')
+    
+    return redirect(url_for('sms_config'))
+
+
+@app.route('/change_password', methods=['POST'])
+@login_required
+def change_password():
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    
+    # Get form data
+    current_password = request.form.get('current_password', '')
+    new_password = request.form.get('new_password', '')
+    confirm_password = request.form.get('confirm_password', '')
+    
+    # Validate inputs
+    if not all([current_password, new_password, confirm_password]):
+        flash('All fields are required', 'danger')
+        return redirect(url_for('sms_config'))
+    
+    if new_password != confirm_password:
+        flash('New passwords do not match', 'danger')
+        return redirect(url_for('sms_config'))
+    
+    # Verify current password
+    admin = mongo.db.admins.find_one({"_id": admin_id})
+    if not admin or not check_password_hash(admin['password'], current_password):
+        flash('Current password is incorrect', 'danger')
+        return redirect(url_for('sms_config'))
+    
+    try:
+        # Update password
+        mongo.db.admins.update_one(
+            {"_id": admin_id},
+            {"$set": {
+                "password": generate_password_hash(new_password),
+                "updated_at": datetime.utcnow()
+            }}
+        )
+        flash('Password changed successfully!', 'success')
+    except Exception as e:
+        app.logger.error(f"Error changing password: {e}")
+        flash(f'Error changing password: {str(e)}', 'danger')
+    
+    return redirect(url_for('sms_config'))
+
 
 @app.route('/edit_tenant/<tenant_id>', methods=['POST'])
 @login_required
@@ -1998,105 +3012,112 @@ def edit_tenant(tenant_id):
             if existing_tenant:
                 flash(f'Phone number already exists for tenant: {existing_tenant["name"]}', 'danger')
                 return redirect(url_for('tenant_details', tenant_id=tenant_id))
-        
-        # If house number is changing, check availability
-        if house_number != old_house_number:
-            # Check if new house exists and is available
-            new_house = mongo.db.houses.find_one({
-                "house_number": house_number,
-                "admin_id": admin_id
-            })
-            
-            if new_house and new_house.get("is_occupied"):
-                # Get tenant name from house document
-                tenant_name = new_house.get("current_tenant_name", "Unknown")
-                
-                # If tenant name not in house document, try to find it from tenants collection
-                if tenant_name == "Unknown" and "current_tenant_id" in new_house:
-                    tenant_doc = mongo.db.tenants.find_one({"_id": new_house["current_tenant_id"]})
-                    if tenant_doc:
-                        tenant_name = tenant_doc.get("name", "Unknown")
-                        
-                flash(f'House {house_number} is already occupied by {tenant_name}', 'danger')
-                return redirect(url_for('tenant_details', tenant_id=tenant_id))
-            
-            # Update old house to be unoccupied
-            if old_house_number:
-                old_house = mongo.db.houses.find_one({
-                    "house_number": old_house_number,
+        unpaid_bills = get_unpaid_bills(admin_id, tenant_id_obj)
+
+        if unpaid_bills:
+            total_arrears = calculate_total_arrears(admin_id, tenant_id_obj)
+            flash(f'Cannot edit tenant with unpaid bills. Outstanding amount: KSh{total_arrears:.2f}. Please settle all bills before making changes.', 'danger')
+            return redirect(url_for('dashboard'))
+        else:
+            # If house number is changing, check availability
+            if house_number != old_house_number:
+                # Check if new house exists and is available
+                new_house = mongo.db.houses.find_one({
+                    "house_number": house_number,
                     "admin_id": admin_id
                 })
                 
-                if old_house:
+                if new_house and new_house.get("is_occupied"):
+                    # Get tenant name from house document
+                    tenant_name = new_house.get("current_tenant_name", "Unknown")
+                    
+                    # If tenant name not in house document, try to find it from tenants collection
+                    if tenant_name == "Unknown" and "current_tenant_id" in new_house:
+                        tenant_doc = mongo.db.tenants.find_one({"_id": new_house["current_tenant_id"]})
+                        if tenant_doc:
+                            tenant_name = tenant_doc.get("name", "Unknown")
+                            
+                    flash(f'House {house_number} is already occupied by {tenant_name}', 'danger')
+                    return redirect(url_for('tenant_details', tenant_id=tenant_id))
+                
+                # Update old house to be unoccupied
+                if old_house_number:
+                    old_house = mongo.db.houses.find_one({
+                        "house_number": old_house_number,
+                        "admin_id": admin_id
+                    })
+                    
+                    if old_house:
+                        mongo.db.houses.update_one(
+                            {"_id": old_house["_id"]},
+                            {"$set": {
+                                "is_occupied": False,
+                                "current_tenant_id": None,
+                                "current_tenant_name": None
+                            }}
+                        )
+                
+                # Create or update new house
+                if new_house:
+                    # Update existing house
                     mongo.db.houses.update_one(
-                        {"_id": old_house["_id"]},
+                        {"_id": new_house["_id"]},
                         {"$set": {
-                            "is_occupied": False,
-                            "current_tenant_id": None,
-                            "current_tenant_name": None
+                            "is_occupied": True,
+                            "current_tenant_id": tenant_id_obj,
+                            "current_tenant_name": name
                         }}
                     )
-            
-            # Create or update new house
-            if new_house:
-                # Update existing house
-                mongo.db.houses.update_one(
-                    {"_id": new_house["_id"]},
-                    {"$set": {
+                    
+                    # Store house_id in tenant document
+                    house_id = new_house["_id"]
+                else:
+                    # Create new house
+                    house_id = ObjectId()
+                    new_house_doc = {
+                        "_id": house_id,
+                        "house_number": house_number,
                         "is_occupied": True,
                         "current_tenant_id": tenant_id_obj,
-                        "current_tenant_name": name
+                        "current_tenant_name": name,
+                        "admin_id": admin_id,
+                        "created_at": datetime.utcnow(),
+                        "rent": 0
+                    }
+                    mongo.db.houses.insert_one(new_house_doc)
+                
+                # Update tenant with new house info
+                mongo.db.tenants.update_one(
+                    {"_id": tenant_id_obj},
+                    {"$set": {
+                        "name": name,
+                        "phone": formatted_phone,
+                        "house_number": house_number,
+                        "house_id": house_id
+                    }}
+                )
+            else:
+                # House is not changing, just update tenant info
+                mongo.db.tenants.update_one(
+                    {"_id": tenant_id_obj},
+                    {"$set": {
+                        "name": name,
+                        "phone": formatted_phone
                     }}
                 )
                 
-                # Store house_id in tenant document
-                house_id = new_house["_id"]
-            else:
-                # Create new house
-                house_id = ObjectId()
-                new_house_doc = {
-                    "_id": house_id,
+                # Update house with current tenant name (in case name changed)
+                house = mongo.db.houses.find_one({
                     "house_number": house_number,
-                    "is_occupied": True,
-                    "current_tenant_id": tenant_id_obj,
-                    "current_tenant_name": name,
-                    "admin_id": admin_id,
-                    "created_at": datetime.utcnow()
-                }
-                mongo.db.houses.insert_one(new_house_doc)
+                    "admin_id": admin_id
+                })
+                
+                if house:
+                    mongo.db.houses.update_one(
+                        {"_id": house["_id"]},
+                        {"$set": {"current_tenant_name": name}}
+                    )
             
-            # Update tenant with new house info
-            mongo.db.tenants.update_one(
-                {"_id": tenant_id_obj},
-                {"$set": {
-                    "name": name,
-                    "phone": formatted_phone,
-                    "house_number": house_number,
-                    "house_id": house_id
-                }}
-            )
-        else:
-            # House is not changing, just update tenant info
-            mongo.db.tenants.update_one(
-                {"_id": tenant_id_obj},
-                {"$set": {
-                    "name": name,
-                    "phone": formatted_phone
-                }}
-            )
-            
-            # Update house with current tenant name (in case name changed)
-            house = mongo.db.houses.find_one({
-                "house_number": house_number,
-                "admin_id": admin_id
-            })
-            
-            if house:
-                mongo.db.houses.update_one(
-                    {"_id": house["_id"]},
-                    {"$set": {"current_tenant_name": name}}
-                )
-        
         flash('Tenant updated successfully', 'success')
         
     except ValueError as e:
@@ -2112,8 +3133,14 @@ def edit_tenant(tenant_id):
 @login_required
 def delete_tenant(tenant_id):
     # Get admin_id from session
-    admin_id = ObjectId(session['admin_id'])
-    
+    admin_id = get_admin_id()
+    tenant_id_obj = ObjectId(tenant_id)
+    unpaid_bills = get_unpaid_bills(admin_id, tenant_id_obj)
+    if unpaid_bills:
+        total_arrears = calculate_total_arrears(admin_id, tenant_id_obj)
+        flash(f'Cannot delete tenant with unpaid bills. Outstanding amount: KSh{total_arrears:.2f}. Please settle all bills before deletion.', 'danger')
+        return redirect(url_for('dashboard'))
+
     tenant_id_obj = ObjectId(tenant_id)
     # Add admin_id to query
     tenant = mongo.db.tenants.find_one({"_id": tenant_id_obj, "admin_id": admin_id})
@@ -2146,7 +3173,7 @@ def delete_tenant(tenant_id):
 @login_required
 def test_sms():
     # Get admin_id from session
-    admin_id = ObjectId(session['admin_id'])
+    admin_id = get_admin_id()
     
     phone = request.form.get('test_phone', '').strip()
     message = request.form.get('test_message', '').strip()
@@ -2449,8 +3476,8 @@ def import_tenants():
                         'due_date': datetime.utcnow() + timedelta(days=30),
                         'month_year': month_year,
                         'reading_id': reading_id,
-                        'payment_date': None,
-                        'payment_method': None,
+                        'last_payment_date': None,
+                        'last_payment_method': None,
                         'notes': '',
                         'created_at': datetime.utcnow(),
                         'updated_at': datetime.utcnow()
@@ -2477,7 +3504,7 @@ def import_tenants():
             mongo.db.houses.insert_many(houses_to_create)
             
         if readings_to_insert:
-            mongo.db.water_readings.insert_many(readings_to_insert)
+            mongo.db.meter_readings.insert_many(readings_to_insert)
             
         # Insert payment records if any
         if 'payments_to_insert' in locals() and payments_to_insert:
@@ -2514,7 +3541,7 @@ def export_data():
     pipeline = [
         {"$match": {"admin_id": admin_id}},
         {"$lookup": {
-            "from": "water_readings",
+            "from": "meter_readings",
             "let": {"tenant_id": "$_id"},
             "pipeline": [
                 {"$match": {
@@ -2684,62 +3711,3 @@ if __name__ == '__main__':
         print(f"Database initialization error: {e}")
     
     app.run(debug=True, host='0.0.0.0', port=5000)
-
-
-
-"""
-# Admin password reset routes
-@app.route('/forgot_password', methods=['GET', 'POST'])
-def forgot_password():
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        if not username:
-            flash('Username is required', 'danger')
-            return render_template('forgot_password.html')
-        
-        admin = mongo.db.admins.find_one({"username": username})
-        if admin:
-            s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-            token = s.dumps(username, salt='password-reset-salt')
-            reset_link = url_for('reset_password', token=token, _external=True)
-            flash(f'Reset link (for demo purposes): {reset_link}', 'info')
-            app.logger.info(f"Password reset link generated for {username}")
-        else:
-            flash('No admin with that username found', 'danger')
-    return render_template('forgot_password.html')
-
-@app.route('/reset_password/<token>', methods=['GET', 'POST'])
-def reset_password(token):
-    s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-    try:
-        username = s.loads(token, salt='password-reset-salt', max_age=3600)
-    except SignatureExpired:
-        flash('The reset link has expired', 'danger')
-        return redirect(url_for('forgot_password'))
-    except BadSignature:
-        flash('Invalid reset link', 'danger')
-        return redirect(url_for('forgot_password'))
-
-    admin = mongo.db.admins.find_one({"username": username})
-    if not admin:
-        flash('Invalid user', 'danger')
-        return redirect(url_for('forgot_password'))
-
-    if request.method == 'POST':
-        new_password = request.form.get('new_password', '')
-        confirm_password = request.form.get('confirm_password', '')
-        if not new_password or not confirm_password:
-            flash('All fields are required', 'danger')
-            return render_template('reset_password.html', token=token)
-        if new_password != confirm_password:
-            flash('Passwords do not match', 'danger')
-            return render_template('reset_password.html', token=token)
-        
-        mongo.db.admins.update_one(
-            {"username": username},
-            {"$set": {"password": generate_password_hash(new_password)}}
-        )
-        flash('Password has been reset successfully', 'success')
-        return redirect(url_for('login'))
-    return render_template('reset_password.html', token=token)
-"""

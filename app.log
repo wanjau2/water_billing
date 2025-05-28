@@ -916,3 +916,58 @@ Error in payments dashboard: Encountered unknown tag 'endblock'. You probably ma
 Error in payments dashboard: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'elif' or 'else' or 'endif'. The innermost block that needs to be closed is 'if'.
 Error in payments dashboard: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'elif' or 'else' or 'endif'. The innermost block that needs to be closed is 'if'.
 Error in payments dashboard: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'elif' or 'else' or 'endif'. The innermost block that needs to be closed is 'if'.
+Error initializing houses collection: operation cancelled
+Migration error: SSL handshake failed: ac-2hq3yv1-shard-00-01.bvu9fcw.mongodb.net:27017: _ssl.c:1011: The handshake operation timed out (configured timeouts: connectTimeoutMS: 20000.0ms)
+No admins found for migration
+Error fetching tenant payments: Object of type ObjectId is not JSON serializable
+Error fetching tenant payments: Object of type ObjectId is not JSON serializable
+Error fetching tenant payments: Object of type ObjectId is not JSON serializable
+Error sending message on attempt 1: You have exceeded your sending limit.
+Error sending message on attempt 2: You have exceeded your sending limit.
+Error sending message on attempt 3: You have exceeded your sending limit.
+SMS error for tenant wanjau: You have exceeded your sending limit.
+Error sending message on attempt 1: You have exceeded your sending limit.
+Error sending message on attempt 2: You have exceeded your sending limit.
+Error sending message on attempt 3: You have exceeded your sending limit.
+SMS error for tenant eugene wanjau: You have exceeded your sending limit.
+Error sending message on attempt 1: You have exceeded your sending limit.
+Error sending message on attempt 2: You have exceeded your sending limit.
+Error sending message on attempt 3: You have exceeded your sending limit.
+Error sending message on attempt 1: You have exceeded your sending limit.
+Error sending message on attempt 2: You have exceeded your sending limit.
+Error sending message on attempt 3: You have exceeded your sending limit.
+No admins found for migration
+Error recording reading for tenant 68359cb1b9d1e4cc8f183ea3: name 'rent_amount' is not defined
+Error recording reading for tenant 68359cb1b9d1e4cc8f183ea3: name 'rent_amount' is not defined
+Error recording reading for tenant 68359cb1b9d1e4cc8f183ea3: name 'rent_amount' is not defined
+Error recording reading for tenant 68359cb1b9d1e4cc8f183ea3: name 'rent_amount' is not defined
+Error recording reading for tenant 68359cb1b9d1e4cc8f183ea3: name 'rent_amount' is not defined
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+MongoDB did not initialize—check MONGO_URI!
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+MongoDB did not initialize—check MONGO_URI!
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+MongoDB did not initialize—check MONGO_URI!
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+MongoDB did not initialize—check MONGO_URI!
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+MongoDB did not initialize—check MONGO_URI!
+MongoDB configuration error: The DNS query name does not exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+MongoDB did not initialize—check MONGO_URI!
+MongoDB configuration error: None of DNS query names exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net., _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+MongoDB did not initialize—check MONGO_URI!
+No admins found for migration
+MongoDB configuration error: None of DNS query names exist: _mongodb._tcp.waterbilling.0tl3nmb.mongodb.net., _mongodb._tcp.waterbilling.0tl3nmb.mongodb.net.
+MongoDB did not initialize—check MONGO_URI!
+MongoDB configuration error: None of DNS query names exist: _mongodb._tcp.waterbilling.0tl3nmb.mongodb.net., _mongodb._tcp.waterbilling.0tl3nmb.mongodb.net.
+MongoDB did not initialize—check MONGO_URI!
+MongoDB configuration error: None of DNS query names exist: _mongodb._tcp.cluster0.bvu9fcw.mongodb.net., _mongodb._tcp.cluster0.bvu9fcw.mongodb.net.
+MongoDB did not initialize—check MONGO_URI!
+No admins found for migration
+Error in payments dashboard: 'bill' is undefined
+Error in payments dashboard: 'sum' is undefined
+Error in payments dashboard: 'format' is undefined
+Error in payments dashboard: 'format' is undefined
+Error in payments dashboard: str object has no element Undefined
+Error in payments dashboard: No filter named 'bills.bill_amount'.
+Error recording payment: 'function' object has no attribute 'make_cache_key'

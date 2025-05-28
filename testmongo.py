@@ -1,18 +1,21 @@
-
-from pymongo.mongo_client import MongoClient
+# test_mongo.py
+from pymongo import MongoClient
 from pymongo.server_api import ServerApi
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
+
 load_dotenv()
-uri = os.getenv("MONGODB_URI")
 
+MONGO_URI = os.getenv("MONGO_URI")
+DATABASE_NAME = os.getenv("DATABASE_NAME")
 
-# Create a new client and connect to the server
-client = MongoClient(uri, server_api=ServerApi('1'))
-
-# Send a ping to confirm a successful connection
 try:
+    client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
     client.admin.command('ping')
-    print("Pinged your deployment. You successfully connected to MongoDB!")
+    print("Successfully connected to MongoDB!")
+    
+    # List databases
+    print("Available databases:", client.list_database_names())
+    
 except Exception as e:
-    print(e)
+    print(f"Connection failed: {type(e)._name_}: {e}")
