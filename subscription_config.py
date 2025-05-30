@@ -39,7 +39,7 @@ SUBSCRIPTION_TIERS = {
             'Payment reminders'
         ],
         'monthly_price': 1000,
-        'lifetime_price': 35000  # 10 months equivalent
+        'lifetime_price': 55000  # 10 months equivalent
     },
     'business': {
         'name': 'business',
@@ -53,7 +53,7 @@ SUBSCRIPTION_TIERS = {
             'API access (coming soon)'
         ],
         'monthly_price': 2500,
-        'lifetime_price': 55000  # 10 months equivalent
+        'lifetime_price': 90000  # 10 months equivalent
     },
     'enterprise': {
         'name': 'Enterprise',
@@ -67,7 +67,7 @@ SUBSCRIPTION_TIERS = {
             'White labeling (coming soon)'
         ],
         'monthly_price': 10000,
-        'lifetime_price': 150000  # 10 months equivalent
+        'lifetime_price': 250000  # 10 months equivalent
     }
 }
 
