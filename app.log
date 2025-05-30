@@ -971,3 +971,14 @@ Error in payments dashboard: 'format' is undefined
 Error in payments dashboard: str object has no element Undefined
 Error in payments dashboard: No filter named 'bills.bill_amount'.
 Error recording payment: 'function' object has no attribute 'make_cache_key'
+Error loading subscription page: 'starter'
+Error getting M-Pesa token: 400 Client Error: Bad Request for url: https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials
+Error getting M-Pesa token: 400 Client Error: Bad Request for url: https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials
+Error getting M-Pesa token: 400 Client Error: Bad Request for url: https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials
+No valid rent amount found for tenant eugene wanjau, house BE6
+No valid rent amount found for tenant eugene wanjau, house BE4
+Error fetching tenant payments: Object of type ObjectId is not JSON serializable
+Error fetching tenant payments: Object of type ObjectId is not JSON serializable
+Error fetching tenant payments: Object of type ObjectId is not JSON serializable
+Error fetching tenant payments: cannot access local variable 'payment' where it is not associated with a value
+Error fetching tenant payments: cannot access local variable 'payment' where it is not associated with a value

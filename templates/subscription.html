@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+{% block title %}Subscription Management{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Subscription Management</h1>
+    
+    <!-- Current Plan -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4>Current Plan: {{ current_tier.name }} 
+                        <span class="badge bg-light text-dark">
+                            {{ subscription_type|title }}
+                        </span>
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <p><strong>Status:</strong> 
+                                <span class="badge {% if subscription_status == 'active' %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ subscription_status|upper }}
+                                </span>
+                            </p>
+                            {% if subscription_type == 'monthly' %}
+                            <p><strong>Expires:</strong> 
+                                {{ subscription_end_date.strftime('%Y-%m-%d') if subscription_end_date else 'N/A' }}
+                                {% if days_remaining %}
+                                <small class="text-muted">({{ days_remaining }} days remaining)</small>
+                                {% endif %}
+                            </p>
+                            <p><strong>Auto-Renew:</strong> 
+                                <div class="form-check form-switch d-inline-block">
+                                    <input class="form-check-input" type="checkbox" id="autoRenewSwitch" 
+                                           {% if auto_renew %}checked{% endif %}>
+                                </div>
+                            </p>
+                            {% else %}
+                            <p><strong>Type:</strong> <span class="badge bg-success">Lifetime</span></p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <h5>Usage:</h5>
+                            <p>Tenants: {{ tenant_count }} / 
+                                {% if current_tier.max_tenants == -1 %}
+                                Unlimited
+                                {% else %}
+                                {{ current_tier.max_tenants }}
+                                {% endif %}
+                            </p>
+                            
+                            {% if current_tier.max_tenants != -1 %}
+                            <div class="progress mb-2">
+                                <div class="progress-bar {% if tenant_count >= current_tier.max_tenants %}bg-danger{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ (tenant_count / current_tier.max_tenants * 100)|int }}%">
+                                    {{ (tenant_count / current_tier.max_tenants * 100)|int }}%
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <h5>Current Features:</h5>
+                            <ul class="list-unstyled">
+                                {% for feature in current_tier.features[:3] %}
+                                <li><i class="bi bi-check-circle text-success"></i> {{ feature }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Available Plans -->
+    <h2 class="mb-3">Available Plans</h2>
+    <div class="row">
+        {% for tier_key, tier in subscription_tiers.items() %}
+        <div class="col-md mb-4">
+            <div class="card h-100 {% if tier_key == current_subscription_tier %}border-primary border-2{% endif %}">
+                <div class="card-header text-center {% if tier_key == current_subscription_tier %}bg-primary text-white{% endif %}">
+                    <h5 class="mb-0">{{ tier.name }}</h5>
+                    {% if tier_key == current_subscription_tier %}
+                    <small>Current Plan</small>
+                    {% endif %}
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <div class="text-center mb-3">
+                        <h3 class="card-title mb-0">
+                            {% if tier.monthly_price == 0 %}
+                            Free
+                            {% else %}
+                            KES {{ "{:,}".format(tier.monthly_price) }}
+                            {% endif %}
+                        </h3>
+                        <small class="text-muted">per month</small>
+                        
+                        {% if tier.lifetime_price > 0 %}
+                        <div class="mt-2">
+                            <span class="badge bg-success">Lifetime: KES {{ "{:,}".format(tier.lifetime_price) }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <ul class="list-unstyled flex-grow-1">
+                        {% for feature in tier.features %}
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success"></i> {{ feature }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    
+                    {% if tier_key != current_subscription_tier or subscription_type == 'monthly' %}
+                    <div class="mt-auto">
+                        {% if tier.monthly_price == 0 %}
+                        <form method="POST" action="{{ url_for('initiate_subscription_payment') }}" class="subscription-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="tier" value="{{ tier_key }}">
+                            <input type="hidden" name="payment_type" value="monthly">
+                            <button type="submit" class="btn btn-primary w-100">
+                                {% if tier.monthly_price < current_tier.monthly_price %}Switch to Free{% else %}Activate{% endif %}
+                            </button>
+                        </form>
+                        {% else %}
+                        <button type="button" class="btn btn-primary w-100 mb-2" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#paymentModal{{ tier_key }}">
+                            {% if tier.monthly_price > current_tier.monthly_price %}Upgrade{% else %}Change Plan{% endif %}
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Payment Modal for each tier -->
+        {% if tier.monthly_price > 0 %}
+        <div class="modal fade" id="paymentModal{{ tier_key }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Subscribe to {{ tier.name }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form class="subscription-form" data-tier="{{ tier_key }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="mb-3">
+                                <label class="form-label">Select Payment Type</label>
+                                <div class="form-check">
+                                    <input class="form-check-input payment-type-radio" type="radio" 
+                                           name="payment_type_{{ tier_key }}" value="monthly" 
+                                           id="monthly_{{ tier_key }}" checked>
+                                    <label class="form-check-label" for="monthly_{{ tier_key }}">
+                                        Monthly - KES {{ "{:,}".format(tier.monthly_price) }}
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input payment-type-radio" type="radio" 
+                                           name="payment_type_{{ tier_key }}" value="lifetime" 
+                                           id="lifetime_{{ tier_key }}">
+                                    <label class="form-check-label" for="lifetime_{{ tier_key }}">
+                                        Lifetime - KES {{ "{:,}".format(tier.lifetime_price) }}
+                                        <span class="badge bg-success">Save {{ ((tier.monthly_price * 12 - tier.lifetime_price) / (tier.monthly_price * 12) * 100)|int }}%</span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="phone_{{ tier_key }}" class="form-label">M-Pesa Phone Number</label>
+                                <input type="tel" class="form-control" id="phone_{{ tier_key }}" 
+                                       name="phone_number" value="{{ admin_phone }}" required>
+                                <small class="text-muted">You'll receive an M-Pesa prompt on this number</small>
+                            </div>
+                            
+                            <div class="alert alert-info">
+                                <small>
+                                    <strong>Note:</strong> You'll receive an M-Pesa STK push notification. 
+                                    Enter your M-Pesa PIN to complete the payment.
+                                </small>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary proceed-payment" 
+                                data-tier="{{ tier_key }}">
+                            Proceed to Payment
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    
+    <!-- Payment History -->
+    {% if payment_history %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <h3>Recent Payments</h3>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Plan</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Receipt</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in payment_history %}
+                        <tr>
+                            <td>{{ payment.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ payment.tier|title }}</td>
+                            <td>{{ payment.payment_type|title }}</td>
+                            <td>KES {{ "{:,}".format(payment.amount) }}</td>
+                            <td>
+                                <span class="badge bg-{% if payment.status == 'completed' %}success{% elif payment.status == 'pending' %}warning{% else %}danger{% endif %}">
+                                    {{ payment.status|title }}
+                                </span>
+                            </td>
+                            <td>{{ payment.receipt_number if payment.receipt_number else '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Payment Progress Modal -->
+<div class="modal fade" id="paymentProgressModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-body text-center p-4">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h5>Processing Payment...</h5>
+                <p class="text-muted">Please check your phone for the M-Pesa prompt and enter your PIN.</p>
+                <p class="text-muted">This may take a few seconds...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle auto-renew toggle
+    const autoRenewSwitch = document.getElementById('autoRenewSwitch');
+    if (autoRenewSwitch) {
+        autoRenewSwitch.addEventListener('change', function() {
+            fetch('{{ url_for("toggle_auto_renew") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                } else {
+                    alert('Error: ' + data.error);
+                    this.checked = !this.checked;
+                }
+            });
+        });
+    }
+    
+    // Handle payment processing
+    document.querySelectorAll('.proceed-payment').forEach(button => {
+        button.addEventListener('click', function() {
+            const tier = this.dataset.tier;
+            const modal = document.getElementById(`paymentModal${tier}`);
+            const form = modal.querySelector('.subscription-form');
+            const paymentType = modal.querySelector(`input[name="payment_type_${tier}"]:checked`).value;
+            const phoneNumber = modal.querySelector(`#phone_${tier}`).value;
+            
+            // Close current modal
+            const bsModal = bootstrap.Modal.getInstance(modal);
+            bsModal.hide();
+            
+            // Show progress modal
+            const progressModal = new bootstrap.Modal(document.getElementById('paymentProgressModal'));
+            progressModal.show();
+            
+            // Submit payment
+            fetch('{{ url_for("initiate_subscription_payment") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: `tier=${tier}&payment_type=${paymentType}&phone_number=${phoneNumber}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Start polling for payment status
+                    if (data.checkout_request_id) {
+                        pollPaymentStatus(data.checkout_request_id, progressModal);
+                    } else {
+                        // Free tier activated immediately
+                        progressModal.hide();
+                        alert(data.message);
+                        window.location.reload();
+                    }
+                } else {
+                    progressModal.hide();
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                progressModal.hide();
+                alert('Error processing payment. Please try again.');
+                console.error(error);
+            });
+        });
+    });
+    
+    // Poll payment status
+    function pollPaymentStatus(checkoutRequestId, progressModal) {
+        let attempts = 0;
+        const maxAttempts = 60; // 5 minutes max
+        
+        const interval = setInterval(() => {
+            attempts++;
+            
+            fetch(`{{ url_for("check_payment_status", checkout_request_id="") }}${checkoutRequestId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'completed') {
+                    clearInterval(interval);
+                    progressModal.hide();
+                    alert('Payment successful! Your subscription has been activated.');
+                    window.location.reload();
+                } else if (data.status === 'failed') {
+                    clearInterval(interval);
+                    progressModal.hide();
+                    alert('Payment failed. Please try again.');
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    progressModal.hide();
+                    alert('Payment timeout. Please check your payment history.');
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Status check error:', error);
+            });
+        }, 5000); // Check every 5 seconds
+    }
+});
+</script>
+{% endblock %}

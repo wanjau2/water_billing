@@ -126,7 +126,7 @@
       <p><strong>House Number:</strong> {{ tenant.house_number }}</p>
       <p><strong>Total Readings:</strong> {{ readings|length }}</p>
       {% if readings and readings|length > 0 %}
-        {% set last_reading = readings[0] %}
+        {% set last_reading = readings[-1] %}
         <p><strong>Latest Bill:</strong> Ksh {{ last_reading.bill_amount }}</p>
       {% endif %}
     </div>
@@ -327,7 +327,7 @@
                     .then(data => {
                       if (data && data.length > 0) {
                         // Get the most recent reading (last item in the array)
-                        const lastReading = data[0];
+                        const lastReading = data[data.length - 1];
                         previousReadingInput.value = lastReading.current_reading;
                       } else {
                         // No previous readings, start from 0

@@ -4,7 +4,8 @@ import urllib.parse
 import re
 import requests
 import dns.resolver
-
+from mpesa_integration import MpesaAPI
+from subscription_config import SUBSCRIPTION_TIERS, MPESA_CONFIG
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -126,6 +127,15 @@ def is_db_connected():
     except Exception:
         return False
 
+# Initialize M-Pesa API
+mpesa = MpesaAPI(
+    consumer_key=os.getenv('MPESA_CONSUMER_KEY', MPESA_CONFIG['CONSUMER_KEY']),
+    consumer_secret=os.getenv('MPESA_CONSUMER_SECRET', MPESA_CONFIG['CONSUMER_SECRET']),
+    shortcode=os.getenv('MPESA_SHORTCODE', MPESA_CONFIG['SHORTCODE']),
+    passkey=os.getenv('MPESA_PASSKEY', MPESA_CONFIG['PASSKEY']),
+    env=os.getenv('MPESA_ENV', 'sandbox')
+)
+
 # Login required decorator
 def login_required(f):
     @wraps(f)
@@ -143,6 +153,160 @@ def login_required(f):
 
     return decorated_function
 
+def initialize_subscription_records():
+    """Create subscription collection and records"""
+    try:
+        # Create indexes for subscription_payments collection
+        if 'subscription_payments' not in mongo.db.list_collection_names():
+            mongo.db.create_collection('subscription_payments')
+            
+        mongo.db.subscription_payments.create_index([
+            ('admin_id', 1),
+            ('created_at', -1)
+        ])
+        
+        mongo.db.subscription_payments.create_index([
+            ('checkout_request_id', 1)
+        ], unique=True, sparse=True)
+        
+        # Update admin schema for subscriptions
+        mongo.db.admins.update_many(
+            {"subscription_type": {"$exists": False}},
+            {"$set": {
+                "subscription_type": "monthly",  # monthly or lifetime
+                "subscription_tier": "starter",
+                "subscription_status": "active",
+                "subscription_start_date": datetime.now(),
+                "subscription_end_date": None,  # None for lifetime
+                "auto_renew": True,
+                "last_payment_date": None,
+                "next_billing_date": None
+            }}
+        )
+        
+        app.logger.info("Subscription records initialized")
+        return True
+        
+    except Exception as e:
+        app.logger.error(f"Error initializing subscription records: {e}")
+        return False
+
+def check_subscription_limit(resource_type='tenant'):
+    """Decorator to check subscription limits before adding resources"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            try:
+                admin_id = get_admin_id()
+                admin = mongo.db.admins.find_one({"_id": admin_id})
+                
+                if not admin:
+                    flash('Admin account not found', 'danger')
+                    return redirect(url_for('dashboard'))
+                
+                # Get subscription tier
+                tier = admin.get('subscription_tier', 'starter')
+                subscription_status = admin.get('subscription_status', 'active')
+                subscription_type = admin.get('subscription_type', 'monthly')
+                
+                # Check if subscription is active
+                if subscription_status != 'active' and tier != 'starter':
+                    flash('Your subscription is inactive. Please renew to continue.', 'danger')
+                    return redirect(url_for('subscription'))
+                
+                # Check expiry for monthly subscriptions
+                if subscription_type == 'monthly':
+                    end_date = admin.get('subscription_end_date')
+                    if end_date and end_date < datetime.now() and tier != 'starter':
+                        # Downgrade to starter tier
+                        mongo.db.admins.update_one(
+                            {"_id": admin_id},
+                            {"$set": {
+                                "subscription_tier": "starter",
+                                "subscription_status": "expired"
+                            }}
+                        )
+                        tier = 'starter'
+                        flash('Your subscription has expired. You have been downgraded to the Starter plan.', 'warning')
+                
+                # Get limits for the tier
+                tier_config = SUBSCRIPTION_TIERS.get(tier, SUBSCRIPTION_TIERS['starter'])
+                
+                if resource_type == 'tenant':
+                    max_allowed = tier_config['max_tenants']
+                    current_count = mongo.db.tenants.count_documents({"admin_id": admin_id})
+                    resource_name = 'tenants'
+                elif resource_type == 'house':
+                    max_allowed = tier_config['max_houses']
+                    current_count = mongo.db.houses.count_documents({"admin_id": admin_id})
+                    resource_name = 'houses'
+                else:
+                    return f(*args, **kwargs)
+                
+                # Check limit (-1 means unlimited)
+                if max_allowed != -1 and current_count >= max_allowed:
+                    flash(
+                        f'You have reached the maximum number of {resource_name} ({max_allowed}) '
+                        f'for your {tier_config["name"]} plan. Please upgrade to add more.',
+                        'warning'
+                    )
+                    return redirect(url_for('subscription'))
+                
+                return f(*args, **kwargs)
+                
+            except Exception as e:
+                app.logger.error(f"Subscription check error: {e}")
+                # Allow the operation in case of error
+                return f(*args, **kwargs)
+                
+        return decorated_function
+    return decorator 
+
+def initialize_subscriptions():
+    """Initialize subscription data for existing admins"""
+    try:
+        # Add subscription fields to existing admins
+        admins_without_subscription = mongo.db.admins.find({
+            "$or": [
+                {"subscription_tier": {"$exists": False}},
+                {"subscription_tier": None}
+            ]
+        })
+        
+        for admin in admins_without_subscription:
+            # Count current tenants for this admin
+            tenant_count = mongo.db.tenants.count_documents({"admin_id": admin["_id"]})
+            
+            # Assign appropriate tier based on current usage
+            if tenant_count <= 5:
+                tier = 'starter'
+            elif tenant_count <= 20:
+                tier = 'basic'
+            elif tenant_count <= 100:
+                tier = 'pro'
+            elif tenant_count <= 250:
+                tier = 'business'
+            else:
+                tier = 'enterprise'
+            
+            # Update admin with subscription info
+            mongo.db.admins.update_one(
+                {"_id": admin["_id"]},
+                {"$set": {
+                    "subscription_tier": tier,
+                    "subscription_start_date": datetime.now(),
+                    "subscription_end_date": datetime.now() + relativedelta(months=1),
+                    "subscription_status": "active",
+                    "trial_ends_at": datetime.now() + timedelta(days=14)  # 14-day trial
+                }}
+            )
+            
+        app.logger.info("Subscription initialization completed")
+        return True
+        
+    except Exception as e:
+        app.logger.error(f"Error initializing subscriptions: {e}")
+        return False
 
 
 def initialize_houses_collection():
@@ -189,7 +353,7 @@ def initialize_houses_collection():
                             "current_tenant_id": tenant["_id"],
                             "current_tenant_name": tenant["name"],
                             "admin_id": admin_id,
-                            "created_at": datetime.utcnow(),
+                            "created_at": datetime.now(),
                             "rent": 0
                         }
                         mongo.db.houses.insert_one(house_data)
@@ -247,7 +411,6 @@ def migrate_existing_readings_to_payments():
         return False
 
 # Add this migration function
-# Enhanced migration function (around line 240)
 def migrate_to_meter_readings():
     """Migrate data from water_readings and house_readings to meter_readings."""
     try:
@@ -314,6 +477,11 @@ def migrate_to_meter_readings():
     except Exception as e:
         app.logger.error(f"Migration failed: {str(e)}")
         return False
+
+
+def get_current_month_year():
+    """Get current month-year in consistent format"""
+    return datetime.now().strftime('%Y-%m')
 
 @app.route('/migrate_timestamps', methods=['POST','GET'])
 @login_required
@@ -442,12 +610,352 @@ def migrate_existing_data():
         app.logger.error(f"Error during data migration: {e}")
         return False
 
+
+@app.route('/subscription')
+@login_required
+def subscription():
+    """Enhanced subscription management page"""
+    try:
+        admin_id = get_admin_id()
+        admin = mongo.db.admins.find_one({"_id": admin_id})
+        
+        # Get current usage
+        tenant_count = mongo.db.tenants.count_documents({"admin_id": admin_id})
+        house_count = mongo.db.houses.count_documents({"admin_id": admin_id})
+        
+        # Get subscription info
+        current_tier_key = admin.get('subscription_tier', 'starter')
+        current_tier = SUBSCRIPTION_TIERS.get(current_tier_key, SUBSCRIPTION_TIERS['starter'])
+        subscription_type = admin.get('subscription_type', 'monthly')
+        
+        # Calculate days remaining for monthly subscriptions
+        days_remaining = None
+        if subscription_type == 'monthly' and admin.get('subscription_end_date'):
+            days_remaining = (admin['subscription_end_date'] - datetime.now()).days
+            
+        # Get payment history
+        payment_history = list(mongo.db.subscription_payments.find(
+            {"admin_id": admin_id}
+        ).sort("created_at", -1).limit(5))
+        
+        return render_template('subscription.html',
+            subscription_tiers=SUBSCRIPTION_TIERS,
+            current_subscription_tier=current_tier_key,
+            current_tier=current_tier,
+            subscription_type=subscription_type,
+            tenant_count=tenant_count,
+            house_count=house_count,
+            subscription_status=admin.get('subscription_status', 'inactive'),
+            subscription_end_date=admin.get('subscription_end_date'),
+            auto_renew=admin.get('auto_renew', True),
+            days_remaining=days_remaining,
+            payment_history=payment_history,
+            admin_phone=admin.get('phone', '')
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Error loading subscription page: {e}")
+        flash('Error loading subscription information', 'danger')
+        return redirect(url_for('dashboard'))
+
+@app.route('/upgrade_subscription', methods=['POST'])
+@login_required
+def upgrade_subscription():
+    """Handle subscription upgrade/downgrade requests"""
+    try:
+        admin_id = get_admin_id()
+        new_tier = request.form.get('tier')
+        
+        if new_tier not in SUBSCRIPTION_TIERS:
+            flash('Invalid subscription tier', 'danger')
+            return redirect(url_for('subscription'))
+        
+        # For demo purposes, automatically activate the subscription
+        # In production, this would integrate with a payment gateway
+        mongo.db.admins.update_one(
+            {"_id": admin_id},
+            {"$set": {
+                "subscription_tier": new_tier,
+                "subscription_status": "active",
+                "subscription_start_date": datetime.now(),
+                "subscription_end_date": datetime.now() + relativedelta(months=1)
+            }}
+        )
+        
+        flash(f'Successfully upgraded to {SUBSCRIPTION_TIERS[new_tier]["name"]} plan!', 'success')
+        
+    except Exception as e:
+        app.logger.error(f"Error upgrading subscription: {e}")
+        flash('Error processing subscription change', 'danger')
+        
+    return redirect(url_for('subscription'))
+
+@app.route('/initiate_subscription_payment', methods=['POST'])
+@login_required
+def initiate_subscription_payment():
+    """Initiate M-Pesa payment for subscription"""
+    try:
+        admin_id = get_admin_id()
+        admin = mongo.db.admins.find_one({"_id": admin_id})
+        
+        # Get form data
+        tier = request.form.get('tier')
+        payment_type = request.form.get('payment_type', 'monthly')  # monthly or lifetime
+        phone_number = request.form.get('phone_number', admin.get('phone', ''))
+        
+        if tier not in SUBSCRIPTION_TIERS:
+            return jsonify({'error': 'Invalid subscription tier'}), 400
+            
+        # Format phone number
+        try:
+            phone_number = format_phone_number(phone_number)
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+            
+        # Get amount based on payment type
+        tier_config = SUBSCRIPTION_TIERS[tier]
+        if payment_type == 'lifetime':
+            amount = tier_config['lifetime_price']
+        else:
+            amount = tier_config['monthly_price']
+            
+        if amount == 0:  # Free tier
+            # Directly activate free subscription
+            mongo.db.admins.update_one(
+                {"_id": admin_id},
+                {"$set": {
+                    "subscription_tier": tier,
+                    "subscription_type": payment_type,
+                    "subscription_status": "active",
+                    "subscription_start_date": datetime.now(),
+                    "subscription_end_date": datetime.now() + relativedelta(months=1) if payment_type == 'monthly' else None,
+                    "auto_renew": payment_type == 'monthly'
+                }}
+            )
+            return jsonify({'success': True, 'message': 'Free tier activated'})
+            
+        # Generate unique reference
+        reference = f"SUB-{admin_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        # Initiate STK push
+        callback_url = url_for('mpesa_callback', _external=True)
+        response = mpesa.stk_push(
+            phone_number=phone_number,
+            amount=amount,
+            account_reference=reference,
+            callback_url=callback_url
+        )
+        
+        if 'error' in response:
+            return jsonify({'error': response['error']}), 400
+            
+        # Save payment record
+        payment_record = {
+            'admin_id': admin_id,
+            'reference': reference,
+            'tier': tier,
+            'payment_type': payment_type,
+            'amount': amount,
+            'phone_number': phone_number,
+            'checkout_request_id': response.get('CheckoutRequestID'),
+            'merchant_request_id': response.get('MerchantRequestID'),
+            'status': 'pending',
+            'created_at': datetime.now()
+        }
+        
+        mongo.db.subscription_payments.insert_one(payment_record)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Payment initiated. Please check your phone for the M-Pesa prompt.',
+            'checkout_request_id': response.get('CheckoutRequestID')
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Payment initiation error: {e}")
+        return jsonify({'error': 'Failed to initiate payment'}), 500
+
+@app.route('/mpesa/callback', methods=['POST'])
+@csrf.exempt  # M-Pesa callbacks can't send CSRF tokens
+def mpesa_callback():
+    """Handle M-Pesa payment callbacks"""
+    try:
+        # Get callback data
+        data = request.get_json()
+        
+        # Extract relevant information
+        result_code = data['Body']['stkCallback']['ResultCode']
+        checkout_request_id = data['Body']['stkCallback']['CheckoutRequestID']
+        
+        # Find payment record
+        payment = mongo.db.subscription_payments.find_one({
+            'checkout_request_id': checkout_request_id
+        })
+        
+        if not payment:
+            app.logger.error(f"Payment record not found for {checkout_request_id}")
+            return jsonify({'ResultCode': 1, 'ResultDesc': 'Payment not found'})
+            
+        if result_code == 0:  # Success
+            # Extract payment details
+            callback_metadata = data['Body']['stkCallback']['CallbackMetadata']['Item']
+            
+            amount = next(item['Value'] for item in callback_metadata if item['Name'] == 'Amount')
+            receipt_number = next(item['Value'] for item in callback_metadata if item['Name'] == 'MpesaReceiptNumber')
+            
+            # Update payment record
+            mongo.db.subscription_payments.update_one(
+                {'_id': payment['_id']},
+                {'$set': {
+                    'status': 'completed',
+                    'receipt_number': receipt_number,
+                    'completed_at': datetime.now()
+                }}
+            )
+            
+            # Activate subscription
+            admin_id = payment['admin_id']
+            tier = payment['tier']
+            payment_type = payment['payment_type']
+            
+            subscription_update = {
+                "subscription_tier": tier,
+                "subscription_type": payment_type,
+                "subscription_status": "active",
+                "subscription_start_date": datetime.now(),
+                "last_payment_date": datetime.now(),
+                "auto_renew": payment_type == 'monthly'
+            }
+            
+            if payment_type == 'monthly':
+                subscription_update["subscription_end_date"] = datetime.now() + relativedelta(months=1)
+                subscription_update["next_billing_date"] = datetime.now() + relativedelta(months=1)
+            else:  # lifetime
+                subscription_update["subscription_end_date"] = None
+                subscription_update["next_billing_date"] = None
+                
+            mongo.db.admins.update_one(
+                {"_id": admin_id},
+                {"$set": subscription_update}
+            )
+            
+            # Send confirmation SMS
+            admin = mongo.db.admins.find_one({"_id": admin_id})
+            if admin and admin.get('phone'):
+                tier_name = SUBSCRIPTION_TIERS[tier]['name']
+                message = f"Payment confirmed! Your {tier_name} {payment_type} subscription is now active. Thank you for choosing Water Billing System."
+                send_message(admin['phone'], message)
+                
+        else:  # Failed
+            result_desc = data['Body']['stkCallback']['ResultDesc']
+            
+            mongo.db.subscription_payments.update_one(
+                {'_id': payment['_id']},
+                {'$set': {
+                    'status': 'failed',
+                    'error_message': result_desc,
+                    'failed_at': datetime.now()
+                }}
+            )
+            
+        return jsonify({'ResultCode': 0, 'ResultDesc': 'Success'})
+        
+    except Exception as e:
+        app.logger.error(f"M-Pesa callback error: {e}")
+        return jsonify({'ResultCode': 1, 'ResultDesc': 'Internal error'})
+
+@app.route('/check_payment_status/<checkout_request_id>')
+@login_required
+def check_payment_status(checkout_request_id):
+    """Check payment status (for polling)"""
+    try:
+        payment = mongo.db.subscription_payments.find_one({
+            'checkout_request_id': checkout_request_id,
+            'admin_id': get_admin_id()
+        })
+        
+        if not payment:
+            return jsonify({'error': 'Payment not found'}), 404
+            
+        return jsonify({
+            'status': payment['status'],
+            'tier': payment.get('tier'),
+            'payment_type': payment.get('payment_type')
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Payment status check error: {e}")
+        return jsonify({'error': 'Failed to check status'}), 500
+
+@app.route('/toggle_auto_renew', methods=['POST'])
+@login_required
+def toggle_auto_renew():
+    """Toggle auto-renewal for monthly subscriptions"""
+    try:
+        admin_id = get_admin_id()
+        admin = mongo.db.admins.find_one({"_id": admin_id})
+        
+        if admin.get('subscription_type') != 'monthly':
+            return jsonify({'error': 'Auto-renewal only applies to monthly subscriptions'}), 400
+            
+        new_status = not admin.get('auto_renew', True)
+        
+        mongo.db.admins.update_one(
+            {"_id": admin_id},
+            {"$set": {"auto_renew": new_status}}
+        )
+        
+        return jsonify({
+            'success': True,
+            'auto_renew': new_status,
+            'message': f'Auto-renewal {"enabled" if new_status else "disabled"}'
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Toggle auto-renew error: {e}")
+        return jsonify({'error': 'Failed to update auto-renewal'}), 500
+
+def check_subscription_expiry():
+    """Check for expiring subscriptions and send reminders"""
+    try:
+        # Find subscriptions expiring in 3 days
+        expiry_date = datetime.now() + timedelta(days=3)
+        expiring_admins = mongo.db.admins.find({
+            "subscription_end_date": {"$lte": expiry_date},
+            "subscription_status": "active",
+            "subscription_tier": {"$ne": "free"}
+        })
+        
+        for admin in expiring_admins:
+            # Send SMS reminder
+            if admin.get('phone'):
+                message = f"Your {SUBSCRIPTION_TIERS[admin['subscription_tier']]['name']} subscription expires soon. Renew at app.waterbilling.com/subscription"
+                send_message(admin['phone'], message)
+                
+        # Downgrade expired subscriptions
+        mongo.db.admins.update_many(
+            {
+                "subscription_end_date": {"$lt": datetime.now()},
+                "subscription_status": "active"
+            },
+            {"$set": {
+                "subscription_status": "expired",
+                "subscription_tier": "free"
+            }}
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Error checking subscriptions: {e}")
+
+
 # Call this function when the app starts
 if mongo:
     with app.app_context():
         initialize_houses_collection()
         migrate_existing_data()
         migrate_existing_readings_to_payments()
+        initialize_subscriptions()
+        initialize_subscription_records()
     app.logger.info("Houses collection initialized successfully")
 
 
@@ -460,8 +968,15 @@ def get_admin_id():
         raise ValueError("Invalid admin session")
 
 
-# Function to send SMS with TalkSasa
-#@celery.task(rate_limit='50/h')  
+
+# Add to your initialization block
+if mongo:
+    with app.app_context():
+        initialize_houses_collection()
+        migrate_existing_data()
+        migrate_existing_readings_to_payments()
+        initialize_subscriptions()  # Add this line
+
 # # 50 per hour
 def send_message(recipient, message, sender=None, retries=3):
     if not TALKSASA_API_KEY:
@@ -556,6 +1071,8 @@ def get_rate_per_unit(admin_id):
     
     admin = mongo.db.admins.find_one({"_id": admin_id})
     return admin.get('rate_per_unit', RATE_PER_UNIT) if admin else RATE_PER_UNIT
+
+
 
 def create_payment_record(admin_id, tenant_id, house_id, bill_amount, reading_id=None, month_year=None, bill_type=None):
     """Create a new payment record when a water reading is recorded"""
@@ -800,10 +1317,16 @@ def update_payment_status(payment_id, amount_paid, payment_method, notes=""):
 def calculate_total_arrears(admin_id, tenant_id, bill_type=None, exclude_current_month=None):
     """Calculate total arrears for a tenant excluding current month's bill"""
     try:
+        # Ensure ObjectIds
+        if not isinstance(admin_id, ObjectId):
+            admin_id = ObjectId(admin_id)
+        if not isinstance(tenant_id, ObjectId):
+            tenant_id = ObjectId(tenant_id)
+            
         # Build query to exclude fully paid bills
         query = {
-            'admin_id': ObjectId(admin_id),
-            'tenant_id': ObjectId(tenant_id),
+            'admin_id': admin_id,
+            'tenant_id': tenant_id,
             'payment_status': {'$in': ['unpaid', 'partial']}
         }
         
@@ -813,11 +1336,20 @@ def calculate_total_arrears(admin_id, tenant_id, bill_type=None, exclude_current
             
         # Exclude current month's bill from arrears calculation
         if exclude_current_month:
+            # Ensure the format is YYYY-MM
+            if isinstance(exclude_current_month, datetime):
+                exclude_current_month = exclude_current_month.strftime('%Y-%m')
             query['month_year'] = {'$ne': exclude_current_month}
+            
+            # Log for debugging
+            app.logger.info(f"Calculating arrears excluding month: {exclude_current_month}")
         
         # Get unpaid/partial bills (excluding current month)
         unpaid_bills = list(mongo.db.payments.find(query))
         total_arrears = 0.0
+        
+        # Log for debugging
+        app.logger.info(f"Found {len(unpaid_bills)} unpaid bills for tenant {tenant_id} (excluding current month: {exclude_current_month})")
         
         # Calculate outstanding amounts with improved precision
         for bill in unpaid_bills:
@@ -828,6 +1360,8 @@ def calculate_total_arrears(admin_id, tenant_id, bill_type=None, exclude_current
             # Only count positive outstanding amounts with precision threshold
             if outstanding > 0.01:
                 total_arrears += outstanding
+                # Log each bill being counted
+                app.logger.debug(f"Bill {bill['_id']} - Month: {bill.get('month_year')} - Outstanding: {outstanding}")
         
         # Round to 2 decimal places for currency precision
         return round(total_arrears, 2)
@@ -1017,7 +1551,7 @@ def signup():
                 "username": name,  
                 "password": hashed_password,
                 "rate_per_unit": cost,
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(),
                 "tenants": [],  # Empty array to store this admin's tenants
                 "houses": [],   # Empty array to store this admin's houses
                 "readings": [],  # Empty array to store this admin's readings
@@ -1032,7 +1566,7 @@ def signup():
                 sms_config = {
                     "admin_id": result.inserted_id,
                     "rate_per_unit": cost,
-                    "created_at": datetime.utcnow()
+                    "created_at": datetime.now()
                 }
                 mongo.db.sms_config.insert_one(sms_config)
                 
@@ -1148,18 +1682,30 @@ def dashboard():
     for reading in readings:
         reading['tenant_info']['id'] = str(reading['tenant_info']['_id'])
         formatted_readings.append((reading, reading['tenant_info']))
-    
+    readings_count = len(formatted_readings)
+
+    current_billing_period = formatted_readings[0][0]['date_recorded'].strftime('%b %Y') if formatted_readings else 'N/A'
+
     # Get rate per unit
     rate_per_unit = get_rate_per_unit(admin_id)
+    # Add subscription info
+    admin = mongo.db.admins.find_one({"_id": admin_id})
+    tier = admin.get('subscription_tier', 'starter')
+    tier_config = SUBSCRIPTION_TIERS.get(tier, SUBSCRIPTION_TIERS['starter'])
     
     return render_template(
         'dashboard.html',
         tenants=tenants,
         pagination=pagination,
         readings=formatted_readings,
+        current_billing_period=current_billing_period,
+        readings_count=readings_count,  # Add this line
         search_query=search_query,
         search_type=search_type,
-        rate_per_unit=rate_per_unit
+        rate_per_unit=rate_per_unit,
+        tenant_count=total_count,
+        max_tenants=tier_config['max_tenants'],
+        subscription_tier_name=tier_config['name']
     )
 
 @app.route('/tenant/<tenant_id>')
@@ -1284,8 +1830,10 @@ def tenant_readings_data(tenant_id):
     except Exception as e:
         app.logger.error(f"Error getting tenant readings data: {str(e)}")
         return jsonify({"error": "Failed to fetch readings"}), 500
+    
 @app.route('/add_tenant', methods=['POST'])
 @login_required
+@check_subscription_limit('tenant')  # Add this decorator
 def add_tenant():
     """Add a new tenant with improved validation."""
     try:
@@ -1345,7 +1893,7 @@ def add_tenant():
             "phone": formatted_phone,
             "house_number": house_number,
             "admin_id": admin_id,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now()
         }
         
         # If house exists, store its _id in the tenant document
@@ -1376,7 +1924,7 @@ def add_tenant():
                 "current_tenant_id": tenant_id,
                 "current_tenant_name": name,
                 "admin_id": admin_id,
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(),
                 "rent": 0
             }
             mongo.db.houses.insert_one(new_house)
@@ -1478,6 +2026,7 @@ def houses():
 
 @app.route('/add_house', methods=['POST'])
 @login_required
+@check_subscription_limit('house')  # Add this decorator
 def add_house():
     """Add a new house with validation."""
     try:
@@ -1520,7 +2069,7 @@ def add_house():
             "current_tenant_id": None,
             "current_tenant_name": None,
             "admin_id": admin_id,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(),
             "rent": rent
         }
         
@@ -1850,7 +2399,7 @@ def transfer_tenant(tenant_id):
                         "current_tenant_id": tenant_id_obj,
                         "current_tenant_name": tenant_name,
                         "admin_id": admin_id,
-                        "created_at": datetime.utcnow(),
+                        "created_at": datetime.now(),
                         "rent": 0
                     }
                     mongo.db.houses.insert_one(new_house_doc)
@@ -1900,6 +2449,7 @@ def get_last_house_reading(house_number, admin_id):
     
     return last_reading
 
+#replace with a function to handle bulk reading uploads
 @app.route('/record_reading', methods=['POST'])
 @login_required
 def record_reading():
@@ -2032,18 +2582,13 @@ def record_reading():
                 payment_info = f"Pay via Till: {till_number}"
         
             # In record_reading function around line 1972
-            current_date = datetime.now()
-            current_month_year = current_date.strftime('%Y-%m')
-
-            # Calculate arrears excluding current month's bill
+            current_month_year = get_current_month_year()
             total_arrears = calculate_total_arrears(admin_id, tenant_id_obj, bill_type='water', exclude_current_month=current_month_year)
-
             if total_arrears > 1:
                 message = (
                     f"Water Bill Alert: {tenant['name']}, House {house_number}. "
                     f"Current bill: KES {bill_amount:.2f}. "
                     f"Outstanding arrears: KES {total_arrears:.2f}. "
-                    f"Total due: KES {bill_amount + total_arrears:.2f}. "
                     f"{payment_info} "
                     f"From {admin_name} - {admin_phone}"
                 )
@@ -2106,7 +2651,7 @@ def record_tenant_reading(tenant_id):
         if reading_date:
             reading_date = datetime.strptime(reading_date, '%Y-%m-%d')
         else:
-            reading_date = datetime.utcnow()
+            reading_date = datetime.now()
             
     except (ValueError, TypeError) as e:
         flash('Invalid reading values. Please enter valid numbers and date.', 'danger')
@@ -2205,18 +2750,15 @@ def record_tenant_reading(tenant_id):
                 till_number = admin.get('till', 'N/A')
                 payment_info = f"Pay via Till: {till_number}"
         
-            # FIXED: Calculate arrears excluding current month's water bill
-            current_date = datetime.now().time()
-            month_year = current_date.strftime('%Y-%m')
-
-            # FIXED: Use tenant_id_obj instead of tenant_id string
-            total_arrears = calculate_total_arrears(admin_id, tenant_id_obj, bill_type="water", exclude_current_month=month_year)
+            # Calculate arrears excluding current month's bill
+            current_month_year = get_current_month_year()
+            total_arrears = calculate_total_arrears(admin_id, tenant_id_obj, bill_type='water', exclude_current_month=current_month_year)
             if total_arrears > 1:
                 message = (
                     f"Water Bill Alert: {tenant['name']}, House {house_number}. "
                     f"Current bill: KES {bill_amount:.2f}. "
                     f"Outstanding arrears: KES {total_arrears:.2f}. "
-                    f"Total due: KES {bill_amount + total_arrears:.2f}. "
+                    f"Total amount due: KES {bill_amount + total_arrears:.2f}. "
                     f"{payment_info} From {admin_name} - {admin_phone}"
                 )
             else:
@@ -2287,19 +2829,17 @@ def generate_rent_bills():
             flash("No active tenants found", "warning")
             return redirect(url_for('rent_dashboard'))
         
-        # Get current month and year
-        current_date = datetime.now()
-        month_year = current_date.strftime('%Y-%m')
+        current_month_year = get_current_month_year()
         
         # Check if bills already exist for this month
         existing_bills = list(mongo.db.payments.find({
             "admin_id": admin_id,
-            "month_year": month_year,
+            "month_year": current_month_year,
             "bill_type": "rent"
         }))
         
         if existing_bills:
-            flash(f"Rent bills for {month_year} have already been generated", "warning")
+            flash(f"Rent bills for {current_month_year} have already been generated", "warning")
             return redirect(url_for('rent_dashboard'))
         
         bills_generated = 0
@@ -2348,7 +2888,7 @@ def generate_rent_bills():
                 tenant_id=tenant_id,
                 house_id=house_id,
                 bill_amount=rent_amount,
-                month_year=month_year,
+                month_year=current_month_year,
                 bill_type="rent"
             )
             
@@ -2358,15 +2898,14 @@ def generate_rent_bills():
                 tenant_id_obj = ObjectId(tenant_id)
                 tenant = mongo.db.tenants.find_one({"_id": tenant_id})
                 # Calculate arrears (excluding current bill)
-                total_arrears = calculate_total_arrears(admin_id, tenant_id_obj, bill_type="rent")
-                
+                total_arrears = calculate_total_arrears(admin_id, tenant_id_obj, bill_type='water', exclude_current_month=current_month_year)
                 # Create SMS message with arrears info
                 if total_arrears > 1:  # Use smaller threshold for precision
                     message = (
                         f"Rent Bill Alert: {tenant['name']}, House {house_number}. "
                         f"Current bill: KES {rent_amount:.2f}. "
                         f"Outstanding arrears: KES {total_arrears:.2f}. "
-                        f"Total due: KES {rent_amount + total_arrears:.2f}. "
+                        f"Total amount due: KES {rent_amount + total_arrears:.2f}. "
                         f"{payment_text} From {admin_name} - {admin_phone}"
                     )
                 else:
@@ -2642,41 +3181,6 @@ def record_payment(payment_id):
     return redirect(request.referrer or url_for('payments_dashboard'))
 
 
-@app.route('/tenant_payments/<tenant_id>')
-@login_required
-def tenant_payments(tenant_id):
-    """Get payment history for a specific tenant (AJAX endpoint)"""
-    try:
-        admin_id = session['admin_id']
-        
-        # Get all payments for this tenant
-        payments = list(mongo.db.payments.find({
-            'admin_id': ObjectId(admin_id),
-            'tenant_id': ObjectId(tenant_id)
-        }).sort('created_at', -1))
-        
-        # Convert ObjectId to string for JSON serialization
-        for payment in payments:
-            payment['_id'] = str(payment['_id'])
-            payment['admin_id'] = str(payment['admin_id'])
-            payment['tenant_id'] = str(payment['tenant_id'])
-            payment['house_id'] = str(payment['house_id'])
-            payment['reading_id'] = str(payment['reading_id'])
-            
-            # Format dates
-            if payment.get('due_date'):
-                payment['due_date'] = payment['due_date'].strftime('%Y-%m-%d')
-            if payment.get('last_payment_date'):
-                payment['last_payment_date'] = payment['last_payment_date'].strftime('%Y-%m-%d')
-            if payment.get('created_at'):
-                payment['created_at'] = payment['created_at'].strftime('%Y-%m-%d')
-        
-        return jsonify({'payments': payments})
-        
-    except Exception as e:
-        app.logger.error(f"Error fetching tenant payments: {str(e)}")
-        return jsonify({'error': 'Failed to fetch payments'}), 500
-
 @app.route('/export_tenant_data/<tenant_id>')
 @login_required
 def export_tenant_data(tenant_id):
@@ -2819,13 +3323,13 @@ def sms_config():
                     {"_id": config["_id"]},
                     {"$set": {
                         "rate_per_unit": rate_per_unit,
-                        "updated_at": datetime.utcnow()
+                        "updated_at": datetime.now()
                     }}
                 )
             else:
                 mongo.db.sms_config.insert_one({
                     "rate_per_unit": rate_per_unit,
-                    "updated_at": datetime.utcnow(),
+                    "updated_at": datetime.now(),
                     "admin_id": admin_id  # Add admin_id
                 })
             flash('SMS configuration updated successfully!', 'success')
@@ -2865,7 +3369,7 @@ def update_profile():
         "username": name, 
         # Also update username to match name
         "phone": phone,
-        "updated_at": datetime.utcnow()
+        "updated_at": datetime.now()
     }
     
     # Handle payment method specific fields
@@ -2956,7 +3460,7 @@ def change_password():
             {"_id": admin_id},
             {"$set": {
                 "password": generate_password_hash(new_password),
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now()
             }}
         )
         flash('Password changed successfully!', 'success')
@@ -3081,7 +3585,7 @@ def edit_tenant(tenant_id):
                         "current_tenant_id": tenant_id_obj,
                         "current_tenant_name": name,
                         "admin_id": admin_id,
-                        "created_at": datetime.utcnow(),
+                        "created_at": datetime.now(),
                         "rent": 0
                     }
                     mongo.db.houses.insert_one(new_house_doc)
@@ -3198,7 +3702,7 @@ def test_sms():
                 "message": message,
                 "status": "sent",
                 "admin_id": admin_id,
-                "sent_at": datetime.utcnow()
+                "sent_at": datetime.now()
             })
             flash('Test SMS sent successfully!', 'success')
             
@@ -3253,7 +3757,7 @@ def create_admin_user():
             admin = {
                 "username": default_username,
                 "password": generate_password_hash(default_password),
-                "created_at": datetime.utcnow()
+                "created_at": datetime.now()
             }
             mongo.db.admins.insert_one(admin)
             app.logger.info(
@@ -3273,6 +3777,12 @@ def import_tenants():
         flash('Session expired. Please login again.', 'danger')
         return redirect(url_for('login'))
     
+    admin = mongo.db.admins.find_one({"_id": admin_id})
+    tier = admin.get('subscription_tier', 'free')
+    tier_config = SUBSCRIPTION_TIERS.get(tier, SUBSCRIPTION_TIERS['starter'])
+    max_tenants = tier_config['max_tenants']
+    current_tenants = mongo.db.tenants.count_documents({"admin_id": admin_id})
+
     if 'excel_file' not in request.files:
         flash('No file uploaded', 'danger')
         return redirect(url_for('dashboard'))
@@ -3289,244 +3799,256 @@ def import_tenants():
     try:
         # Read Excel file with better error handling
         df = pd.read_excel(file)
-        
-        # Validate required columns
-        required_columns = ['name', 'house_number', 'phone']
-        missing_columns = [col for col in required_columns if col not in df.columns]
-        
-        if missing_columns:
-            flash(f"Missing required columns: {', '.join(missing_columns)}", 'danger')
-            return redirect(url_for('dashboard'))
-        
-        # Pre-fetch existing data for validation - only for current admin
-        existing_phones = set(
-            tenant['phone'] for tenant in 
-            mongo.db.tenants.find({"admin_id": admin_id}, {"phone": 1})
-            if 'phone' in tenant
-        )
-        
-        # Get occupied houses for this admin only
-        occupied_houses = {}
-        for house in mongo.db.houses.find({"admin_id": admin_id, "is_occupied": True}):
-            if 'house_number' in house:
-                occupied_houses[house['house_number']] = {
-                    'id': house['_id'],
-                    'tenant_id': house.get('current_tenant_id'),
-                    'tenant_name': house.get('current_tenant_name', 'Unknown')
-                }
-        
-        # Process rows with batch operations
-        success_count = 0
-        error_count = 0
-        error_messages = []
-        
-        tenants_to_insert = []
-        houses_to_create = []
-        readings_to_insert = []
-        
-        # Track phone numbers and house numbers within the import file to check for duplicates
-        import_phones = set()
-        import_houses = set()
-        
-        for index, row in df.iterrows():
-            try:
-                # Clean and validate data
-                name = str(row['name']).strip()
-                house_number = str(row['house_number']).strip()
-                phone = str(row['phone']).strip()
-                last_reading = pd.to_numeric(row.get('last_reading', 0), errors='coerce') or 0
-                
-                if not all([name, house_number, phone]):
-                    error_messages.append(f"Row {index+2}: Missing required data")
-                    error_count += 1
-                    continue
-                
-                # Enhanced phone validation
+        new_tenants_count = len(df)
+
+        if max_tenants != -1 and (current_tenants + new_tenants_count) > max_tenants:
+            allowed = max(0, max_tenants - current_tenants)
+            flash(
+                f'Import would exceed your tenant limit. You can add {allowed} more tenants '
+                f'with your {tier_config["name"]} plan. Please upgrade or reduce the import size.',
+                'warning'
+            )
+            return redirect(url_for('subscription'))
+        else:
+            # Validate required columns
+            required_columns = ['name', 'house_number', 'phone']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            
+            if missing_columns:
+                flash(f"Missing required columns: {', '.join(missing_columns)}", 'danger')
+                return redirect(url_for('dashboard'))
+            
+            # Pre-fetch existing data for validation - only for current admin
+            existing_phones = set(
+                tenant['phone'] for tenant in 
+                mongo.db.tenants.find({"admin_id": admin_id}, {"phone": 1})
+                if 'phone' in tenant
+            )
+            
+            # Get occupied houses for this admin only
+            occupied_houses = {}
+            for house in mongo.db.houses.find({"admin_id": admin_id, "is_occupied": True}):
+                if 'house_number' in house:
+                    occupied_houses[house['house_number']] = {
+                        'id': house['_id'],
+                        'tenant_id': house.get('current_tenant_id'),
+                        'tenant_name': house.get('current_tenant_name', 'Unknown')
+                    }
+            
+            # Process rows with batch operations
+            success_count = 0
+            error_count = 0
+            error_messages = []
+            
+            tenants_to_insert = []
+            houses_to_create = []
+            readings_to_insert = []
+            
+            # Track phone numbers and house numbers within the import file to check for duplicates
+            import_phones = set()
+            import_houses = set()
+            
+            for index, row in df.iterrows():
                 try:
-                    # Format the phone number
-                    formatted_phone = format_phone_number(phone)
+                    # Clean and validate data
+                    name = str(row['name']).strip()
+                    house_number = str(row['house_number']).strip()
+                    phone = str(row['phone']).strip()
+                    last_reading = pd.to_numeric(row.get('last_reading', 0), errors='coerce') or 0
                     
-                    # Ensure format_phone_number returned a value
-                    if not formatted_phone:
-                        raise ValueError("Phone number formatting failed")
+                    if not all([name, house_number, phone]):
+                        error_messages.append(f"Row {index+2}: Missing required data")
+                        error_count += 1
+                        continue
+                    
+                    # Enhanced phone validation
+                    try:
+                        # Format the phone number
+                        formatted_phone = format_phone_number(phone)
                         
-                except ValueError as ve:
-                    error_messages.append(f"Row {index+2}: {str(ve)}")
-                    error_count += 1
-                    continue
-                
-                # Check for duplicates in existing database (for this admin only)
-                if formatted_phone in existing_phones:
-                    # Find the tenant with this phone number to show more helpful error
-                    existing_tenant = mongo.db.tenants.find_one({"phone": formatted_phone, "admin_id": admin_id})
-                    tenant_name = existing_tenant.get('name', 'Unknown') if existing_tenant else 'Unknown'
-                    tenant_house = existing_tenant.get('house_number', 'Unknown') if existing_tenant else 'Unknown'
-                    error_messages.append(f"Row {index+2}: Phone number {formatted_phone} already exists for tenant {tenant_name} in house {tenant_house}")
-                    error_count += 1
-                    continue
-                
-                # Check for duplicate phone numbers within the import file
-                if formatted_phone in import_phones:
-                    error_messages.append(f"Row {index+2}: Duplicate phone number {formatted_phone} in import file")
-                    error_count += 1
-                    continue
-                
-                # Check for duplicate house numbers in existing database (for this admin only)
-                if house_number in occupied_houses:
-                    house_info = occupied_houses[house_number]
-                    tenant_name = house_info['tenant_name']
-                    error_messages.append(f"Row {index+2}: House {house_number} is already occupied by {tenant_name}")
-                    error_count += 1
-                    continue
-                
-                # Check for duplicate house numbers within the import file
-                if house_number in import_houses:
-                    error_messages.append(f"Row {index+2}: Duplicate house number {house_number} in import file")
-                    error_count += 1
-                    continue
-                
-                # Add to tracking sets for this import
-                import_phones.add(formatted_phone)
-                import_houses.add(house_number)
-                
-                # Check if house exists but is unoccupied
-                existing_house = mongo.db.houses.find_one({
-                    "house_number": house_number,
-                    "admin_id": admin_id,
-                    "is_occupied": False
-                })
-                
-                # Prepare tenant data
-                tenant_id = ObjectId()
-                new_tenant = {
-                    "_id": tenant_id,
-                    "name": name,
-                    "phone": formatted_phone,
-                    "house_number": house_number,
-                    "admin_id": admin_id,
-                    "created_at": datetime.utcnow()
-                }
-                
-                # Prepare house data
-                if existing_house:
-                    # Use existing house ID
-                    house_id = existing_house["_id"]
-                    new_tenant["house_id"] = house_id
+                        # Ensure format_phone_number returned a value
+                        if not formatted_phone:
+                            raise ValueError("Phone number formatting failed")
+                            
+                    except ValueError as ve:
+                        error_messages.append(f"Row {index+2}: {str(ve)}")
+                        error_count += 1
+                        continue
                     
-                    # Update existing house
-                    mongo.db.houses.update_one(
-                        {"_id": house_id},
-                        {"$set": {
-                            "is_occupied": True,
-                            "current_tenant_id": tenant_id,
-                            "current_tenant_name": name
-                        }}
-                    )
-                else:
-                    # Create new house with new ID
-                    house_id = ObjectId()
-                    new_tenant["house_id"] = house_id
+                    # Check for duplicates in existing database (for this admin only)
+                    if formatted_phone in existing_phones:
+                        # Find the tenant with this phone number to show more helpful error
+                        existing_tenant = mongo.db.tenants.find_one({"phone": formatted_phone, "admin_id": admin_id})
+                        tenant_name = existing_tenant.get('name', 'Unknown') if existing_tenant else 'Unknown'
+                        tenant_house = existing_tenant.get('house_number', 'Unknown') if existing_tenant else 'Unknown'
+                        error_messages.append(f"Row {index+2}: Phone number {formatted_phone} already exists for tenant {tenant_name} in house {tenant_house}")
+                        error_count += 1
+                        continue
                     
-                    houses_to_create.append({
-                        "_id": house_id,
+                    # Check for duplicate phone numbers within the import file
+                    if formatted_phone in import_phones:
+                        error_messages.append(f"Row {index+2}: Duplicate phone number {formatted_phone} in import file")
+                        error_count += 1
+                        continue
+                    
+                    # Check for duplicate house numbers in existing database (for this admin only)
+                    if house_number in occupied_houses:
+                        house_info = occupied_houses[house_number]
+                        tenant_name = house_info['tenant_name']
+                        error_messages.append(f"Row {index+2}: House {house_number} is already occupied by {tenant_name}")
+                        error_count += 1
+                        continue
+                    
+                    # Check for duplicate house numbers within the import file
+                    if house_number in import_houses:
+                        error_messages.append(f"Row {index+2}: Duplicate house number {house_number} in import file")
+                        error_count += 1
+                        continue
+                    
+                    # Add to tracking sets for this import
+                    import_phones.add(formatted_phone)
+                    import_houses.add(house_number)
+                    
+                    # Check if house exists but is unoccupied
+                    existing_house = mongo.db.houses.find_one({
                         "house_number": house_number,
-                        "is_occupied": True,
-                        "current_tenant_id": tenant_id,
-                        "current_tenant_name": name,
                         "admin_id": admin_id,
-                        "created_at": datetime.utcnow()
-                    })
-                
-                tenants_to_insert.append(new_tenant)
-                existing_phones.add(formatted_phone)
-                occupied_houses[house_number] = {
-                    'id': house_id,
-                    'tenant_id': tenant_id,
-                    'tenant_name': name
-                }
-                
-                # Prepare initial reading if provided
-                if last_reading > 0:
-                    rate = get_rate_per_unit(admin_id)
-                    bill_amount = last_reading * rate
-                    reading_id = ObjectId()
-                    readings_to_insert.append({
-                        "_id": reading_id,
-                        "tenant_id": tenant_id,
-                        "house_number": house_number,
-                        "house_id": house_id,  # Add house_id to readings
-                        "previous_reading": 0,
-                        "current_reading": last_reading,
-                        "usage": last_reading,
-                        "bill_amount": bill_amount,
-                        "admin_id": admin_id,
-                        "date_recorded": datetime.utcnow(),
-                        "sms_status": "not_sent"
+                        "is_occupied": False
                     })
                     
-                    # Create payment record for this reading
-                    month_year = datetime.utcnow().strftime('%Y-%m')
-                    payment_data = {
-                        'admin_id': admin_id,
-                        'tenant_id': tenant_id,
-                        'house_id': house_id,
-                        'bill_amount': bill_amount,
-                        'amount_paid': 0.0,
-                        'payment_status': 'unpaid',
-                        'due_date': datetime.utcnow() + timedelta(days=30),
-                        'month_year': month_year,
-                        'reading_id': reading_id,
-                        'last_payment_date': None,
-                        'last_payment_method': None,
-                        'notes': '',
-                        'created_at': datetime.utcnow(),
-                        'updated_at': datetime.utcnow()
+                    # Prepare tenant data
+                    tenant_id = ObjectId()
+                    new_tenant = {
+                        "_id": tenant_id,
+                        "name": name,
+                        "phone": formatted_phone,
+                        "house_number": house_number,
+                        "admin_id": admin_id,
+                        "created_at": datetime.now()
                     }
                     
-                    # Add to batch insert for payments
-                    if 'payments_to_insert' not in locals():
-                        payments_to_insert = []
-                    payments_to_insert.append(payment_data)
+                    # Prepare house data
+                    if existing_house:
+                        # Use existing house ID
+                        house_id = existing_house["_id"]
+                        new_tenant["house_id"] = house_id
+                        
+                        # Update existing house
+                        mongo.db.houses.update_one(
+                            {"_id": house_id},
+                            {"$set": {
+                                "is_occupied": True,
+                                "current_tenant_id": tenant_id,
+                                "current_tenant_name": name
+                            }}
+                        )
+                    else:
+                        # Create new house with new ID
+                        house_id = ObjectId()
+                        new_tenant["house_id"] = house_id
+                        
+                        houses_to_create.append({
+                            "_id": house_id,
+                            "house_number": house_number,
+                            "is_occupied": True,
+                            "current_tenant_id": tenant_id,
+                            "current_tenant_name": name,
+                            "admin_id": admin_id,
+                            "created_at": datetime.now()
+                        })
+                    
+                    tenants_to_insert.append(new_tenant)
+                    existing_phones.add(formatted_phone)
+                    occupied_houses[house_number] = {
+                        'id': house_id,
+                        'tenant_id': tenant_id,
+                        'tenant_name': name
+                    }
+                    
+                    # Prepare initial reading if provided
+                    if last_reading > 0:
+                        rate = get_rate_per_unit(admin_id)
+                        bill_amount = last_reading * rate
+                        reading_id = ObjectId()
+                        readings_to_insert.append({
+                            "_id": reading_id,
+                            "tenant_id": tenant_id,
+                            "house_number": house_number,
+                            "house_id": house_id,  # Add house_id to readings
+                            "previous_reading": 0,
+                            "current_reading": last_reading,
+                            "usage": last_reading,
+                            "bill_amount": bill_amount,
+                            "admin_id": admin_id,
+                            "date_recorded": datetime.now(),
+                            "sms_status": "not_sent"
+                        })
+                        
+                        # Create payment record for this reading
+                        month_year = datetime.now().strftime('%Y-%m')
+                        payment_data = {
+                            'admin_id': admin_id,
+                            'tenant_id': tenant_id,
+                            'house_id': house_id,
+                            'bill_amount': bill_amount,
+                            'amount_paid': 0.0,
+                            'payment_status': 'unpaid',
+                            'due_date': datetime.now() + timedelta(days=30),
+                            'month_year': month_year,
+                            'reading_id': reading_id,
+                            'last_payment_date': None,
+                            'last_payment_method': None,
+                            'notes': '',
+                            'created_at': datetime.now(),
+                            'updated_at': datetime.now()
+                        }
+                        
+                        # Add to batch insert for payments
+                        if 'payments_to_insert' not in locals():
+                            payments_to_insert = []
+                        payments_to_insert.append(payment_data)
+                    
+                    success_count += 1
+                    
+                except Exception as e:
+                    app.logger.error(f"Error processing row {index+2}: {e}")
+                    error_messages.append(f"Row {index+2}: {str(e)}")
+                    error_count += 1
+            
+            # Batch insert operations
+            if tenants_to_insert:
+                mongo.db.tenants.insert_many(tenants_to_insert)
                 
-                success_count += 1
+            if houses_to_create:
+                # Insert new houses
+                mongo.db.houses.insert_many(houses_to_create)
                 
-            except Exception as e:
-                app.logger.error(f"Error processing row {index+2}: {e}")
-                error_messages.append(f"Row {index+2}: {str(e)}")
-                error_count += 1
-        
-        # Batch insert operations
-        if tenants_to_insert:
-            mongo.db.tenants.insert_many(tenants_to_insert)
+            if readings_to_insert:
+                mongo.db.meter_readings.insert_many(readings_to_insert)
+                
+            # Insert payment records if any
+            if 'payments_to_insert' in locals() and payments_to_insert:
+                mongo.db.payments.insert_many(payments_to_insert)
             
-        if houses_to_create:
-            # Insert new houses
-            mongo.db.houses.insert_many(houses_to_create)
+            # Show results
+            if success_count > 0:
+                flash(f'Successfully imported {success_count} tenants', 'success')
             
-        if readings_to_insert:
-            mongo.db.meter_readings.insert_many(readings_to_insert)
-            
-        # Insert payment records if any
-        if 'payments_to_insert' in locals() and payments_to_insert:
-            mongo.db.payments.insert_many(payments_to_insert)
-        
-        # Show results
-        if success_count > 0:
-            flash(f'Successfully imported {success_count} tenants', 'success')
-        
-        if error_count > 0:
-            flash(f'Failed to import {error_count} tenants', 'warning')
-            # Show first 5 errors to avoid overwhelming the user
-            for msg in error_messages[:5]:
-                flash(msg, 'warning')
-            if len(error_messages) > 5:
-                flash(f'... and {len(error_messages) - 5} more errors', 'warning')
+            if error_count > 0:
+                flash(f'Failed to import {error_count} tenants', 'warning')
+                # Show first 5 errors to avoid overwhelming the user
+                for msg in error_messages[:5]:
+                    flash(msg, 'warning')
+                if len(error_messages) > 5:
+                    flash(f'... and {len(error_messages) - 5} more errors', 'warning')
         
     except Exception as e:
         app.logger.error(f"Error processing Excel file: {e}")
         flash(f'Error processing file: {str(e)}', 'danger')
     
     return redirect(url_for('dashboard'))
+
+
 @app.route('/export_data', methods=['GET'])
 @login_required
 def export_data():
