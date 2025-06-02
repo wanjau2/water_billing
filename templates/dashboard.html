@@ -271,7 +271,7 @@
                     .then(data => {
                       if (data && data.length > 0) {
                         // Get the most recent reading (last item in the array)
-                        const lastReading = data[data.length - 1];
+                        const lastReading = data[0];
                         previousReadingInput.value = lastReading.current_reading;
                       } else {
                         // No previous readings, start from 0
