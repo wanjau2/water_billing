@@ -2,20 +2,20 @@
 SUBSCRIPTION_TIERS = {
     'starter': {
         'name': 'Starter',
-        'max_tenants': 5,
-        'max_houses': 10,  # Assuming a limit of 10 houses for starter tier
+        'max_tenants': 15,
+        'max_houses': 20,  # Assuming a limit of 10 houses for starter tier
         'features': [
-            'Up to 5 tenants',
+            'Up to 15 tenants',
             'Basic water billing',
             'SMS notifications',
             'Basic reports'
         ],
-        'monthly_price': 80,
-        'lifetime_price': 1500
+        'monthly_price': 300,
+        'lifetime_price': 10000
     },
     'basic': {
         'name': 'Basic',
-        'max_tenants': 20,
+        'max_tenants': 50,
         'max_houses': -1,
         'features': [
             'Up to 20 tenants',
@@ -24,8 +24,8 @@ SUBSCRIPTION_TIERS = {
             'Excel import/export',
             'Payment tracking'
         ],
-        'monthly_price': 400,
-        'lifetime_price': 15000  # 10 months equivalent
+        'monthly_price': 600,
+        'lifetime_price': 25000  # 10 months equivalent
     },
     'pro': {
         'name': 'Pro',
@@ -57,10 +57,10 @@ SUBSCRIPTION_TIERS = {
     },
     'enterprise': {
         'name': 'Enterprise',
-        'max_tenants': -1,  # Unlimited
+        'max_tenants': 1000,  # Unlimited
         'max_houses': -1,
         'features': [
-            'Unlimited tenants',
+            '1000 tenants',
             'All Enterprise features',
             'Dedicated support',
             'Custom features',

@@ -1,10 +1,37 @@
 from pymongo import MongoClient
 from bson import ObjectId
 import datetime
+import pymongo
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
+import os
 
 # Connect to MongoDB
-client = MongoClient("mongodb+srv://wanjau2:Wanjau254@cluster0.bvu9fcw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")  # Replace with your URI
-db = client["Cluster0"]  # Replace with your DB name
+MONGO_URI = os.getenv("MONGO_URI")
+DATABASE_NAME = os.getenv("DATABASE_NAME")
+
+try:
+    # Create a new client and connect to the server
+    client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
+    
+    # Test the connection by accessing the database
+    client.admin.command('ping')
+    
+    # Create a wrapper object similar to what PyMongo provides
+    # Specify the database name explicitly
+    db = client.get_database(DATABASE_NAME)  # Use explicit database name
+    mongo = type('obj', (object,), {'db': db})
+    
+except pymongo.errors.ConnectionFailure as e:
+    app.logger.error(f"MongoDB connection failed: {e}")
+    print(f"MongoDB connection failed: {e}")
+except pymongo.errors.ConfigurationError as e:
+    app.logger.error(f"MongoDB configuration error: {e}")
+    print(f"MongoDB configuration error: {e}")
+except Exception as e:
+    app.logger.error(f"Database initialization error: {e}")
+    print(f"Database initialization error: {e}")
+
 
 # Schema validator
 payments_schema = {
