@@ -2898,7 +2898,7 @@ def generate_rent_bills():
                 tenant_id_obj = ObjectId(tenant_id)
                 tenant = mongo.db.tenants.find_one({"_id": tenant_id})
                 # Calculate arrears (excluding current bill)
-                total_arrears = calculate_total_arrears(admin_id, tenant_id_obj, bill_type='water', exclude_current_month=current_month_year)
+                total_arrears = calculate_total_arrears(admin_id, tenant_id_obj, bill_type='rent', exclude_current_month=current_month_year)
                 # Create SMS message with arrears info
                 if total_arrears > 1:  # Use smaller threshold for precision
                     message = (
