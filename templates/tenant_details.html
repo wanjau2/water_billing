@@ -126,8 +126,8 @@
       <p><strong>House Number:</strong> {{ tenant.house_number }}</p>
       <p><strong>Total Readings:</strong> {{ readings|length }}</p>
       {% if readings and readings|length > 0 %}
-        {% set last_reading = readings[-1] %}
-        <p><strong>Latest Bill:</strong> Ksh {{ last_reading.bill_amount }}</p>
+        {% set last_reading = readings[0] %}
+        <p><strong>Latest Bill:</strong>  Ksh {{ last_reading.bill_amount }}</p>
       {% endif %}
     </div>
   <div class="card-body">
