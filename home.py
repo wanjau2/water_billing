@@ -40,7 +40,7 @@ load_dotenv()
 
 # Environment variables with fallbacks
 TALKSASA_API_KEY = os.environ.get("TALKSASA_API_KEY")
-TALKSASA_SENDER_ID = os.environ.get("TALKSASA_SENDER_ID", "WATER")
+TALKSASA_SENDER_ID = os.environ.get("TALKSASA_SENDER_ID", "TALKSASA")
 SECRET_KEY = os.environ.get("SECRET_KEY")
 RATE_PER_UNIT = float(os.environ.get("RATE_PER_UNIT", 100))
 DEFAULT_PER_PAGE = int(os.environ.get("DEFAULT_PER_PAGE", 10))
