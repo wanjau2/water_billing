@@ -1314,9 +1314,92 @@ def get_rate_per_unit(admin_id):
     sms_config = mongo.db.sms_config.find_one({"admin_id": admin_id})
     if sms_config:
         return sms_config.get('rate_per_unit', RATE_PER_UNIT)
-    
+
     admin = mongo.db.admins.find_one({"_id": admin_id})
     return admin.get('rate_per_unit', RATE_PER_UNIT) if admin else RATE_PER_UNIT
+
+
+def calculate_dashboard_analytics(admin_id):
+    """Calculate analytics data for dashboard."""
+    try:
+        current_month = datetime.now().replace(day=1)
+
+        # Monthly consumption for current month
+        monthly_pipeline = [
+            {
+                "$match": {
+                    "admin_id": admin_id,
+                    "date_recorded": {"$gte": current_month}
+                }
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "total_usage": {"$sum": "$usage"},
+                    "total_revenue": {"$sum": "$bill_amount"},
+                    "count": {"$sum": 1}
+                }
+            }
+        ]
+
+        monthly_result = list(mongo.db.meter_readings.aggregate(monthly_pipeline))
+        monthly_consumption = monthly_result[0]['total_usage'] if monthly_result else 0
+        monthly_revenue = monthly_result[0]['total_revenue'] if monthly_result else 0
+        reading_count = monthly_result[0]['count'] if monthly_result else 0
+
+        # Total revenue (all time) - Combined water + rent
+        # Water revenue
+        water_revenue_pipeline = [
+            {
+                "$match": {"admin_id": admin_id}
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "total_revenue": {"$sum": "$bill_amount"}
+                }
+            }
+        ]
+
+        water_revenue_result = list(mongo.db.meter_readings.aggregate(water_revenue_pipeline))
+        water_revenue = water_revenue_result[0]['total_revenue'] if water_revenue_result else 0
+
+        # Rent revenue
+        rent_revenue_pipeline = [
+            {
+                "$match": {"admin_id": admin_id}
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "total_revenue": {"$sum": "$amount_paid"}
+                }
+            }
+        ]
+
+        rent_revenue_result = list(mongo.db.payment_collections.aggregate(rent_revenue_pipeline))
+        rent_revenue = rent_revenue_result[0]['total_revenue'] if rent_revenue_result else 0
+
+        # Combined total revenue
+        total_revenue = water_revenue + rent_revenue
+
+        # Average usage per tenant
+        tenant_count = mongo.db.tenants.count_documents({"admin_id": admin_id})
+        avg_usage = monthly_consumption / tenant_count if tenant_count > 0 else 0
+
+        return {
+            'monthly_consumption': round(monthly_consumption, 1),
+            'total_revenue': round(total_revenue, 2),
+            'avg_usage': round(avg_usage, 1)
+        }
+
+    except Exception as e:
+        print(f"Error calculating analytics: {e}")
+        return {
+            'monthly_consumption': 0,
+            'total_revenue': 0,
+            'avg_usage': 0
+        }
 
 
 
@@ -1938,7 +2021,10 @@ def dashboard():
     admin = mongo.db.admins.find_one({"_id": admin_id})
     tier = admin.get('subscription_tier', 'starter')
     tier_config = SUBSCRIPTION_TIERS.get(tier, SUBSCRIPTION_TIERS['starter'])
-    
+
+    # Calculate analytics data
+    analytics_data = calculate_dashboard_analytics(admin_id)
+
     return render_template(
         'dashboard.html',
         tenants=tenants,
@@ -1951,7 +2037,10 @@ def dashboard():
         rate_per_unit=rate_per_unit,
         tenant_count=total_count,
         max_tenants=tier_config['max_tenants'],
-        subscription_tier_name=tier_config['name']
+        subscription_tier_name=tier_config['name'],
+        monthly_consumption=analytics_data['monthly_consumption'],
+        total_revenue=analytics_data['total_revenue'],
+        avg_usage=analytics_data['avg_usage']
     )
 
 @app.route('/tenant/<tenant_id>')
@@ -4814,6 +4903,152 @@ def download_tenant_template():
         download_name='tenant_import_template.xlsx',
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
+@app.route('/generate_analytics_report')
+@login_required
+def generate_analytics_report():
+    """Generate comprehensive analytics report."""
+    try:
+        admin_id = get_admin_id()
+
+        # Create Excel workbook
+        output = BytesIO()
+        workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+
+        # Create header format
+        header_format = workbook.add_format({
+            'bold': True,
+            'font_color': 'white',
+            'bg_color': '#4472C4',
+            'border': 1
+        })
+
+        # Create data format
+        data_format = workbook.add_format({
+            'border': 1,
+            'align': 'center'
+        })
+
+        # Create currency format
+        currency_format = workbook.add_format({
+            'num_format': 'KES #,##0.00',
+            'border': 1,
+            'align': 'right'
+        })
+
+        # Summary Sheet
+        summary_sheet = workbook.add_worksheet('Analytics Summary')
+        analytics_data = calculate_dashboard_analytics(admin_id)
+
+        summary_sheet.write(0, 0, 'Analytics Summary Report', workbook.add_format({'bold': True, 'font_size': 16}))
+        summary_sheet.write(1, 0, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+
+        summary_sheet.write(3, 0, 'Metric', header_format)
+        summary_sheet.write(3, 1, 'Value', header_format)
+
+        summary_sheet.write(4, 0, 'Monthly Consumption (m³)', data_format)
+        summary_sheet.write(4, 1, analytics_data['monthly_consumption'], data_format)
+
+        summary_sheet.write(5, 0, 'Total Revenue (KES)', data_format)
+        summary_sheet.write(5, 1, analytics_data['total_revenue'], currency_format)
+
+        summary_sheet.write(6, 0, 'Average Usage per Tenant (m³)', data_format)
+        summary_sheet.write(6, 1, analytics_data['avg_usage'], data_format)
+
+        tenant_count = mongo.db.tenants.count_documents({"admin_id": admin_id})
+        summary_sheet.write(7, 0, 'Total Tenants', data_format)
+        summary_sheet.write(7, 1, tenant_count, data_format)
+
+        # Monthly Trends Sheet
+        trends_sheet = workbook.add_worksheet('Monthly Trends')
+
+        # Get monthly data for the past 12 months
+        twelve_months_ago = datetime.now() - timedelta(days=365)
+        monthly_trends = list(mongo.db.meter_readings.aggregate([
+            {"$match": {"admin_id": admin_id, "date_recorded": {"$gte": twelve_months_ago}}},
+            {"$group": {
+                "_id": {
+                    "year": {"$year": "$date_recorded"},
+                    "month": {"$month": "$date_recorded"}
+                },
+                "total_usage": {"$sum": "$usage"},
+                "total_revenue": {"$sum": "$bill_amount"},
+                "reading_count": {"$sum": 1}
+            }},
+            {"$sort": {"_id.year": 1, "_id.month": 1}}
+        ]))
+
+        trends_sheet.write(0, 0, 'Month', header_format)
+        trends_sheet.write(0, 1, 'Total Usage (m³)', header_format)
+        trends_sheet.write(0, 2, 'Total Revenue (KES)', header_format)
+        trends_sheet.write(0, 3, 'Number of Readings', header_format)
+
+        for i, trend in enumerate(monthly_trends, 1):
+            month_str = f"{trend['_id']['year']}-{trend['_id']['month']:02d}"
+            trends_sheet.write(i, 0, month_str, data_format)
+            trends_sheet.write(i, 1, trend['total_usage'], data_format)
+            trends_sheet.write(i, 2, trend['total_revenue'], currency_format)
+            trends_sheet.write(i, 3, trend['reading_count'], data_format)
+
+        # Top Consumers Sheet
+        consumers_sheet = workbook.add_worksheet('Top Consumers')
+
+        top_consumers = list(mongo.db.meter_readings.aggregate([
+            {"$match": {"admin_id": admin_id}},
+            {"$lookup": {
+                "from": "tenants",
+                "localField": "tenant_id",
+                "foreignField": "_id",
+                "as": "tenant_info"
+            }},
+            {"$unwind": "$tenant_info"},
+            {"$group": {
+                "_id": "$tenant_id",
+                "name": {"$first": "$tenant_info.name"},
+                "house_number": {"$first": "$tenant_info.house_number"},
+                "total_usage": {"$sum": "$usage"},
+                "total_revenue": {"$sum": "$bill_amount"},
+                "reading_count": {"$sum": 1}
+            }},
+            {"$sort": {"total_usage": -1}},
+            {"$limit": 20}
+        ]))
+
+        consumers_sheet.write(0, 0, 'Rank', header_format)
+        consumers_sheet.write(0, 1, 'Name', header_format)
+        consumers_sheet.write(0, 2, 'House Number', header_format)
+        consumers_sheet.write(0, 3, 'Total Usage (m³)', header_format)
+        consumers_sheet.write(0, 4, 'Total Revenue (KES)', header_format)
+        consumers_sheet.write(0, 5, 'Number of Readings', header_format)
+
+        for i, consumer in enumerate(top_consumers, 1):
+            consumers_sheet.write(i, 0, i, data_format)
+            consumers_sheet.write(i, 1, consumer['name'], data_format)
+            consumers_sheet.write(i, 2, consumer['house_number'], data_format)
+            consumers_sheet.write(i, 3, consumer['total_usage'], data_format)
+            consumers_sheet.write(i, 4, consumer['total_revenue'], currency_format)
+            consumers_sheet.write(i, 5, consumer['reading_count'], data_format)
+
+        # Set column widths
+        for sheet in [summary_sheet, trends_sheet, consumers_sheet]:
+            for col in range(6):
+                sheet.set_column(col, col, 15)
+
+        workbook.close()
+        output.seek(0)
+
+        filename = f"analytics_report_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+
+    except Exception as e:
+        app.logger.error(f"Error generating analytics report: {e}")
+        flash('Error generating report. Please try again.', 'danger')
+        return redirect(url_for('dashboard'))
 
 #download data of all of your tenants
 # Route to download Excel template

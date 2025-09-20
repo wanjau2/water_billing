@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Settings Page Preview</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Match Dashboard Styling */
+        .settings-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            border-radius: 15px;
+        }
+
+        .card {
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom: none;
+            padding: 1.5rem;
+        }
+
+        .settings-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .settings-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .status-badge {
+            font-size: 0.875rem;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+        }
+
+        .info-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #667eea;
+        }
+
+        .form-control {
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .btn-enhanced {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 0.75rem 2rem;
+            border-radius: 25px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-enhanced:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        .btn-success-enhanced {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: none;
+            color: white;
+            padding: 0.75rem 2rem;
+            border-radius: 25px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-success-enhanced:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+            color: white;
+        }
+
+        .btn-info-enhanced {
+            background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
+            border: none;
+            color: white;
+            padding: 0.75rem 2rem;
+            border-radius: 25px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-info-enhanced:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(23, 162, 184, 0.4);
+            color: white;
+        }
+
+        .section-icon {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            padding: 1rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+        }
+
+        .quick-stats {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .preview-label {
+            background: #28a745;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 5px;
+            font-size: 0.75rem;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 2000;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-label">ENHANCED SETTINGS PREVIEW</div>
+
+    <!-- Navigation (Matching Dashboard) -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">Water Billing System</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Houses</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#"><i class="fas fa-money-bill"></i> Rent Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#"><i class="fas fa-money-bill-wave"></i> Payments</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">Settings</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#"><i class="bi bi-star"></i> Subscription</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Enhanced Header -->
+        <div class="settings-header">
+            <div class="text-center">
+                <div class="section-icon">
+                    <i class="fas fa-cogs fa-2x"></i>
+                </div>
+                <h1 class="mb-2">Account Settings</h1>
+                <p class="mb-0">Configure your water billing system preferences</p>
+            </div>
+        </div>
+
+        <!-- Flash Messages -->
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            Settings page enhanced to match dashboard design!
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <!-- Quick Configuration Status -->
+        <div class="quick-stats">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="stat-item">
+                        <div class="stat-number">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-label">Rate Configuration</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-item">
+                        <div class="stat-number">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-label">M-Pesa API</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-item">
+                        <div class="stat-number">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-label">Profile Complete</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8 offset-lg-2">
+
+                <!-- 1. Rate Configuration -->
+                <div class="card settings-card">
+                    <div class="card-header">
+                        <div class="d-flex align-items-center">
+                            <div class="section-icon">
+                                <i class="fas fa-calculator"></i>
+                            </div>
+                            <div>
+                                <h4 class="mb-0">Rate Configuration</h4>
+                                <small>Set your water billing rates</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-section">
+                            <h6><i class="fas fa-info-circle"></i> Configuration Status</h6>
+                            <p><strong>Last Updated:</strong> 2024-01-15 10:30 AM</p>
+                            <p class="mb-0">
+                                <strong>Status:</strong>
+                                <span class="badge bg-success status-badge">Configured</span>
+                            </p>
+                        </div>
+
+                        <form>
+                            <div class="mb-4">
+                                <label for="rate_per_unit" class="form-label">
+                                    <i class="fas fa-tint"></i> Rate Per Unit (KES)
+                                </label>
+                                <input type="number" class="form-control form-control-lg"
+                                       value="100.00" placeholder="100.00">
+                                <div class="form-text">The amount charged per cubic meter of water consumed</div>
+                            </div>
+
+                            <div class="mb-4">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" checked>
+                                    <label class="form-check-label">
+                                        <strong>Use House Number as M-Pesa Account Reference</strong>
+                                    </label>
+                                </div>
+                                <div class="info-section mt-3">
+                                    <h6><i class="fas fa-mobile-alt"></i> How it works:</h6>
+                                    <p class="mb-2">When enabled, tenants can use their house number as the account name when paying via your M-Pesa PayBill/Till.</p>
+                                    <p class="mb-2"><strong>Example:</strong> Tenant in House A1 pays to your PayBill using "A1" as account name.</p>
+
+                                    <h6><i class="fas fa-cogs"></i> Setup Instructions:</h6>
+                                    <ol class="mb-0">
+                                        <li>Configure callback URL: <code class="bg-light p-1 rounded">https://yoursite.com/mpesa/paybill_callback</code></li>
+                                        <li>Ensure your PayBill/Till number matches the one in your profile</li>
+                                        <li>Tenants should use their exact house number as the account name when paying</li>
+                                    </ol>
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn btn-enhanced">
+                                <i class="fas fa-save"></i> Save Configuration
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 2. M-Pesa API Configuration -->
+                <div class="card settings-card">
+                    <div class="card-header">
+                        <div class="d-flex align-items-center">
+                            <div class="section-icon">
+                                <i class="fas fa-mobile-alt"></i>
+                            </div>
+                            <div>
+                                <h4 class="mb-0">M-Pesa API Configuration</h4>
+                                <small>Enable automatic payment tracking</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-section">
+                            <h6><i class="fas fa-shield-alt"></i> M-Pesa API Setup</h6>
+                            <p class="mb-2">To enable automatic payment tracking, you need to configure your M-Pesa API credentials.</p>
+                            <p class="mb-0">
+                                <strong>Status:</strong>
+                                <span class="badge bg-warning status-badge text-dark">Not Configured</span>
+                            </p>
+                        </div>
+
+                        <form>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="fas fa-key"></i> Consumer Key
+                                        </label>
+                                        <input type="text" class="form-control" placeholder="Your Safaricom App Consumer Key">
+                                        <div class="form-text">Get this from your Safaricom Developer Portal</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="fas fa-lock"></i> Consumer Secret
+                                        </label>
+                                        <input type="password" class="form-control" placeholder="Your Safaricom App Consumer Secret">
+                                        <div class="form-text">Keep this secret and secure</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="fas fa-hashtag"></i> Business Shortcode
+                                        </label>
+                                        <input type="text" class="form-control" placeholder="e.g., 174379">
+                                        <div class="form-text">Your M-Pesa PayBill or Till Number</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="fas fa-fingerprint"></i> Passkey
+                                        </label>
+                                        <input type="password" class="form-control" placeholder="Your M-Pesa Passkey">
+                                        <div class="form-text">Provided by Safaricom for STK Push</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="fas fa-server"></i> Environment
+                                        </label>
+                                        <select class="form-control">
+                                            <option>Sandbox (Testing)</option>
+                                            <option>Production (Live)</option>
+                                        </select>
+                                        <div class="form-text">Use Sandbox for testing, Production for live payments</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="fas fa-link"></i> Callback URL
+                                        </label>
+                                        <input type="text" class="form-control" value="https://yoursite.com/mpesa/paybill_callback" readonly>
+                                        <div class="form-text">Configure this URL in your M-Pesa API settings</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-success-enhanced">
+                                    <i class="fas fa-save"></i> Save M-Pesa Configuration
+                                </button>
+                                <button type="button" class="btn btn-info-enhanced">
+                                    <i class="fas fa-question-circle"></i> Setup Guide
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 3. User Profile Settings -->
+                <div class="card settings-card">
+                    <div class="card-header">
+                        <div class="d-flex align-items-center">
+                            <div class="section-icon">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div>
+                                <h4 class="mb-0">Account Information</h4>
+                                <small>Manage your profile and payment details</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <form>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="fas fa-user"></i> Full Name
+                                        </label>
+                                        <input type="text" class="form-control" value="John Doe" placeholder="John Doe">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="fas fa-phone"></i> Phone Number
+                                        </label>
+                                        <input type="text" class="form-control" value="+254712345678" placeholder="+254712345678">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="fas fa-cash-register"></i> Till Number
+                                </label>
+                                <input type="text" class="form-control" value="567890" placeholder="567890">
+                            </div>
+
+                            <button type="button" class="btn btn-info-enhanced">
+                                <i class="fas fa-user-edit"></i> Update Profile
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Comparison Note -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="alert alert-success">
+                    <h5><i class="fas fa-palette"></i> Visual Enhancements Applied</h5>
+                    <p class="mb-0">
+                        <strong>✅ Enhanced Features:</strong>
+                        Beautiful header with gradient, status overview cards, improved form styling,
+                        enhanced buttons with hover effects, better visual hierarchy, and consistent design
+                        language matching your dashboard.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Demo hover effects for cards
+        document.querySelectorAll('.settings-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-3px)';
+                this.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
+            });
+
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.1)';
+            });
+        });
+    </script>
+</body>
+</html>
