@@ -26,7 +26,7 @@ requests
 PyMySQL
 pymssql
 pyodbc
-cryptography
+cryptography>=3.4.8
 africastalking
 Flask==2.3.2
 Flask-DotEnv==0.1.2

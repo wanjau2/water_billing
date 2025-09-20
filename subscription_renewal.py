@@ -6,13 +6,13 @@ import logging
 import os
 
 def process_subscription_renewals():
-    """Process auto-renewals for monthly subscriptions"""
+    """Process auto-renewals for monthly and annual subscriptions"""
     try:
         # Find subscriptions expiring today with auto-renew enabled
         today = datetime.utcnow().date()
         
         expiring_subscriptions = mongo.db.admins.find({
-            "subscription_type": "monthly",
+            "subscription_type": {"$in": ["monthly", "annual"]},
             "auto_renew": True,
             "subscription_status": "active",
             "subscription_end_date": {
@@ -24,7 +24,13 @@ def process_subscription_renewals():
         for admin in expiring_subscriptions:
             try:
                 tier = admin['subscription_tier']
-                amount = SUBSCRIPTION_TIERS[tier]['monthly_price']
+                subscription_type = admin['subscription_type']
+
+                # Get the correct price based on subscription type
+                if subscription_type == 'annual':
+                    amount = SUBSCRIPTION_TIERS[tier]['annual_price']
+                else:
+                    amount = SUBSCRIPTION_TIERS[tier]['monthly_price']
                 
                 if amount > 0 and admin.get('phone'):
                     # Initiate M-Pesa payment
@@ -43,7 +49,7 @@ def process_subscription_renewals():
                             'admin_id': admin['_id'],
                             'reference': reference,
                             'tier': tier,
-                            'payment_type': 'monthly',
+                            'payment_type': subscription_type,
                             'amount': amount,
                             'phone_number': admin['phone'],
                             'checkout_request_id': response.get('CheckoutRequestID'),
@@ -67,7 +73,7 @@ def process_subscription_renewals():
         remind_date = today + timedelta(days=3)
         
         upcoming_expirations = mongo.db.admins.find({
-            "subscription_type": "monthly",
+            "subscription_type": {"$in": ["monthly", "annual"]},
             "subscription_status": "active",
             "subscription_end_date": {
                 "$gte": datetime.combine(remind_date, datetime.min.time()),

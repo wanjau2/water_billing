@@ -348,13 +348,13 @@
       <div class="text-center mb-16">
         <h2 class="text-3xl md:text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
         <p class="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-          Choose between monthly subscriptions or one-time lifetime licenses. Start free, upgrade when you grow.
+          Choose between monthly subscriptions or annual plans with savings. Start free, upgrade when you grow.
         </p>
         
         <!-- Pricing Toggle -->
         <div class="inline-flex rounded-lg border border-gray-200 p-1 mb-8">
           <button id="monthlyBtn" class="px-6 py-2 rounded-md font-medium bg-blue-600 text-white">Monthly</button>
-          <button id="lifetimeBtn" class="px-6 py-2 rounded-md font-medium text-gray-700 hover:text-gray-900">Lifetime</button>
+          <button id="annualBtn" class="px-6 py-2 rounded-md font-medium text-gray-700 hover:text-gray-900">Annual</button>
         </div>
       </div>
       
@@ -371,9 +371,9 @@
               <div class="text-3xl font-extrabold">Ksh 600</div>
               <p class="text-gray-500 text-sm">per month</p>
             </div>
-            <div class="lifetime-price hidden">
-              <div class="text-3xl font-extrabold">Ksh 25,000</div>
-              <p class="text-gray-500 text-sm">one-time</p>
+            <div class="annual-price hidden">
+              <div class="text-3xl font-extrabold">Ksh 6,000</div>
+              <p class="text-gray-500 text-sm">per year</p>
             </div>
           </div>
           <ul class="text-gray-700 mb-6 space-y-2 text-sm">
@@ -401,9 +401,9 @@
               <div class="text-3xl font-extrabold">Ksh 1,000</div>
               <p class="text-gray-500 text-sm">per month</p>
             </div>
-            <div class="lifetime-price hidden">
-              <div class="text-3xl font-extrabold">Ksh 55,000</div>
-              <p class="text-gray-500 text-sm">one-time</p>
+            <div class="annual-price hidden">
+              <div class="text-3xl font-extrabold">Ksh 10,000</div>
+              <p class="text-gray-500 text-sm">per year</p>
             </div>
           </div>
           <ul class="text-gray-700 mb-6 space-y-2 text-sm">
@@ -428,9 +428,9 @@
               <div class="text-3xl font-extrabold">Ksh 2,500</div>
               <p class="text-gray-500 text-sm">per month</p>
             </div>
-            <div class="lifetime-price hidden">
-              <div class="text-3xl font-extrabold">Ksh 90,000</div>
-              <p class="text-gray-500 text-sm">one-time</p>
+            <div class="annual-price hidden">
+              <div class="text-3xl font-extrabold">Ksh 25,000</div>
+              <p class="text-gray-500 text-sm">per year</p>
               <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mt-1">Save 10 months!</span>
             </div>
           </div>
@@ -454,9 +454,9 @@
               <div class="text-3xl font-extrabold">Ksh 10,000</div>
               <p class="text-gray-500 text-sm">per month</p>
             </div>
-            <div class="lifetime-price hidden">
-              <div class="text-3xl font-extrabold">Ksh 250,000</div>
-              <p class="text-gray-500 text-sm">one-time</p>
+            <div class="annual-price hidden">
+              <div class="text-3xl font-extrabold">Ksh 100,000</div>
+              <p class="text-gray-500 text-sm">per year</p>
               <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mt-1">Best value!</span>
             </div>
           </div>
@@ -745,27 +745,27 @@
         // Pricing toggle functionality
     document.addEventListener('DOMContentLoaded', function() {
       const monthlyBtn = document.getElementById('monthlyBtn');
-      const lifetimeBtn = document.getElementById('lifetimeBtn');
+      const annualBtn = document.getElementById('annualBtn');
       const monthlyPrices = document.querySelectorAll('.monthly-price');
-      const lifetimePrices = document.querySelectorAll('.lifetime-price');
+      const annualPrices = document.querySelectorAll('.annual-price');
       
       monthlyBtn.addEventListener('click', function() {
         monthlyBtn.classList.add('bg-blue-600', 'text-white');
         monthlyBtn.classList.remove('text-gray-700');
-        lifetimeBtn.classList.remove('bg-blue-600', 'text-white');
-        lifetimeBtn.classList.add('text-gray-700');
-        
+        annualBtn.classList.remove('bg-blue-600', 'text-white');
+        annualBtn.classList.add('text-gray-700');
+
         monthlyPrices.forEach(el => el.classList.remove('hidden'));
-        lifetimePrices.forEach(el => el.classList.add('hidden'));
+        annualPrices.forEach(el => el.classList.add('hidden'));
       });
       
-      lifetimeBtn.addEventListener('click', function() {
-        lifetimeBtn.classList.add('bg-blue-600', 'text-white');
-        lifetimeBtn.classList.remove('text-gray-700');
+      annualBtn.addEventListener('click', function() {
+        annualBtn.classList.add('bg-blue-600', 'text-white');
+        annualBtn.classList.remove('text-gray-700');
         monthlyBtn.classList.remove('bg-blue-600', 'text-white');
         monthlyBtn.classList.add('text-gray-700');
-        
-        lifetimePrices.forEach(el => el.classList.remove('hidden'));
+
+        annualPrices.forEach(el => el.classList.remove('hidden'));
         monthlyPrices.forEach(el => el.classList.add('hidden'));
       });
     });

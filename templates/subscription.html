@@ -97,9 +97,9 @@
                         </h3>
                         <small class="text-muted">per month</small>
                         
-                        {% if tier.lifetime_price > 0 %}
+                        {% if tier.annual_price > 0 %}
                         <div class="mt-2">
-                            <span class="badge bg-success">Lifetime: KES {{ "{:,}".format(tier.lifetime_price) }}</span>
+                            <span class="badge bg-success">Annual: KES {{ "{:,}".format(tier.annual_price) }}</span>
                         </div>
                         {% endif %}
                     </div>
@@ -160,11 +160,11 @@
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input payment-type-radio" type="radio" 
-                                           name="payment_type_{{ tier_key }}" value="lifetime" 
-                                           id="lifetime_{{ tier_key }}">
-                                    <label class="form-check-label" for="lifetime_{{ tier_key }}">
-                                        Lifetime - KES {{ "{:,}".format(tier.lifetime_price) }}
-                                        <span class="badge bg-success">Save {{ ((tier.monthly_price * 12 - tier.lifetime_price) / (tier.monthly_price * 12) * 100)|int }}%</span>
+                                           name="payment_type_{{ tier_key }}" value="annual"
+                                           id="annual_{{ tier_key }}">
+                                    <label class="form-check-label" for="annual_{{ tier_key }}">
+                                        Annual - KES {{ "{:,}".format(tier.annual_price) }}
+                                        <span class="badge bg-success">Save {{ ((tier.monthly_price * 12 - tier.annual_price) / (tier.monthly_price * 12) * 100)|int }}%</span>
                                     </label>
                                 </div>
                             </div>

@@ -11,7 +11,7 @@ SUBSCRIPTION_TIERS = {
             'Basic reports'
         ],
         'monthly_price': 300,
-        'lifetime_price': 10000
+        'annual_price': 3000  # 10 months equivalent (save 2 months)
     },
     'basic': {
         'name': 'Basic',
@@ -25,7 +25,7 @@ SUBSCRIPTION_TIERS = {
             'Payment tracking'
         ],
         'monthly_price': 600,
-        'lifetime_price': 25000  # 10 months equivalent
+        'annual_price': 6000  # 10 months equivalent (save 2 months)
     },
     'pro': {
         'name': 'Pro',
@@ -39,7 +39,7 @@ SUBSCRIPTION_TIERS = {
             'Payment reminders'
         ],
         'monthly_price': 1000,
-        'lifetime_price': 55000  # 10 months equivalent
+        'annual_price': 10000  # 10 months equivalent (save 2 months)
     },
     'business': {
         'name': 'business',
@@ -53,7 +53,7 @@ SUBSCRIPTION_TIERS = {
             'API access (coming soon)'
         ],
         'monthly_price': 2500,
-        'lifetime_price': 90000  # 10 months equivalent
+        'annual_price': 25000  # 10 months equivalent (save 2 months)
     },
     'enterprise': {
         'name': 'Enterprise',
@@ -67,7 +67,7 @@ SUBSCRIPTION_TIERS = {
             'White labeling (coming soon)'
         ],
         'monthly_price': 10000,
-        'lifetime_price': 250000  # 10 months equivalent
+        'annual_price': 100000  # 10 months equivalent (save 2 months)
     }
 }
 

@@ -61,6 +61,11 @@ payments_schema = {
                 "payment_date": {"bsonType": ["date", "null"]},
                 "payment_method": {"bsonType": ["string", "null"]},
                 "notes": {"bsonType": ["string", "null"]},
+                "mpesa_trans_id": {"bsonType": ["string", "null"]},
+                "mpesa_phone": {"bsonType": ["string", "null"]},
+                "bill_ref_number": {"bsonType": ["string", "null"]},
+                "tenant_name": {"bsonType": ["string", "null"]},
+                "house_number": {"bsonType": ["string", "null"]},
                 "created_at": {"bsonType": "date"},
                 "updated_at": {"bsonType": ["date", "null"]}
             }

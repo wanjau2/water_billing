@@ -6,6 +6,7 @@ import requests
 import dns.resolver
 from mpesa_integration import MpesaAPI
 from subscription_config import SUBSCRIPTION_TIERS, MPESA_CONFIG
+from crypto_utils import encrypt_mpesa_credentials, decrypt_mpesa_credentials
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -18,6 +19,7 @@ from flask_wtf.csrf import CSRFProtect
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+import secrets
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 # from flask_pymongo import PyMongo  # Comment out as we'll use direct MongoClient
@@ -173,11 +175,11 @@ def initialize_subscription_records():
         mongo.db.admins.update_many(
             {"subscription_type": {"$exists": False}},
             {"$set": {
-                "subscription_type": "monthly",  # monthly or lifetime
+                "subscription_type": "monthly",  # monthly or annual
                 "subscription_tier": "starter",
                 "subscription_status": "active",
                 "subscription_start_date": datetime.now(),
-                "subscription_end_date": None,  # None for lifetime
+                "subscription_end_date": None,  # None for annual (set during payment)
                 "auto_renew": True,
                 "last_payment_date": None,
                 "next_billing_date": None
@@ -214,8 +216,8 @@ def check_subscription_limit(resource_type='tenant'):
                     flash('Your subscription is inactive. Please renew to continue.', 'danger')
                     return redirect(url_for('subscription'))
                 
-                # Check expiry for monthly subscriptions
-                if subscription_type == 'monthly':
+                # Check expiry for monthly and annual subscriptions
+                if subscription_type in ['monthly', 'annual']:
                     end_date = admin.get('subscription_end_date')
                     if end_date and end_date < datetime.now() and tier != 'starter':
                         # Downgrade to starter tier
@@ -700,7 +702,7 @@ def initiate_subscription_payment():
         
         # Get form data
         tier = request.form.get('tier')
-        payment_type = request.form.get('payment_type', 'monthly')  # monthly or lifetime
+        payment_type = request.form.get('payment_type', 'monthly')  # monthly or annual
         phone_number = request.form.get('phone_number', admin.get('phone', ''))
         
         if tier not in SUBSCRIPTION_TIERS:
@@ -714,8 +716,8 @@ def initiate_subscription_payment():
             
         # Get amount based on payment type
         tier_config = SUBSCRIPTION_TIERS[tier]
-        if payment_type == 'lifetime':
-            amount = tier_config['lifetime_price']
+        if payment_type == 'annual':
+            amount = tier_config['annual_price']
         else:
             amount = tier_config['monthly_price']
             
@@ -728,8 +730,8 @@ def initiate_subscription_payment():
                     "subscription_type": payment_type,
                     "subscription_status": "active",
                     "subscription_start_date": datetime.now(),
-                    "subscription_end_date": datetime.now() + relativedelta(months=1) if payment_type == 'monthly' else None,
-                    "auto_renew": payment_type == 'monthly'
+                    "subscription_end_date": datetime.now() + relativedelta(months=1) if payment_type == 'monthly' else datetime.now() + relativedelta(years=1),
+                    "auto_renew": True  # Both monthly and annual can have auto-renewal
                 }}
             )
             return jsonify({'success': True, 'message': 'Free tier activated'})
@@ -824,15 +826,15 @@ def mpesa_callback():
                 "subscription_status": "active",
                 "subscription_start_date": datetime.now(),
                 "last_payment_date": datetime.now(),
-                "auto_renew": payment_type == 'monthly'
+                "auto_renew": True  # Both monthly and annual can have auto-renewal
             }
             
             if payment_type == 'monthly':
                 subscription_update["subscription_end_date"] = datetime.now() + relativedelta(months=1)
                 subscription_update["next_billing_date"] = datetime.now() + relativedelta(months=1)
-            else:  # lifetime
-                subscription_update["subscription_end_date"] = None
-                subscription_update["next_billing_date"] = None
+            else:  # annual
+                subscription_update["subscription_end_date"] = datetime.now() + relativedelta(years=1)
+                subscription_update["next_billing_date"] = datetime.now() + relativedelta(years=1)
                 
             mongo.db.admins.update_one(
                 {"_id": admin_id},
@@ -859,10 +861,253 @@ def mpesa_callback():
             )
             
         return jsonify({'ResultCode': 0, 'ResultDesc': 'Success'})
-        
+
     except Exception as e:
         app.logger.error(f"M-Pesa callback error: {e}")
         return jsonify({'ResultCode': 1, 'ResultDesc': 'Internal error'})
+
+
+@app.route('/mpesa/paybill_callback', methods=['POST'])
+@csrf.exempt  # M-Pesa callbacks can't send CSRF tokens
+def mpesa_paybill_callback():
+    """Handle automatic M-Pesa PayBill/Till payments with house number as account reference"""
+    try:
+        # Log the incoming request
+        data = request.get_json()
+        app.logger.info(f"PayBill callback received: {data}")
+
+        # Extract payment information from PayBill callback
+        # PayBill format is different from STK Push
+        trans_type = data.get('TransactionType')
+        trans_id = data.get('TransID')
+        trans_time = data.get('TransTime')
+        trans_amount = data.get('TransAmount')
+        business_short_code = data.get('BusinessShortCode')
+        bill_ref_number = data.get('BillRefNumber', '').strip()  # This is the account name/house number
+        invoice_number = data.get('InvoiceNumber')
+        org_account_balance = data.get('OrgAccountBalance')
+        third_party_trans_id = data.get('ThirdPartyTransID')
+        msisdn = data.get('MSISDN')  # Customer phone number
+        first_name = data.get('FirstName', '')
+        middle_name = data.get('MiddleName', '')
+        last_name = data.get('LastName', '')
+
+        # Validate required fields
+        if not all([trans_id, trans_amount, bill_ref_number]):
+            app.logger.error("Missing required payment fields")
+            return jsonify({
+                'ResultCode': 'C00000001',
+                'ResultDesc': 'Missing required fields'
+            })
+
+        # Find admin by business short code or till number
+        admin = mongo.db.admins.find_one({
+            '$or': [
+                {'business_number': str(business_short_code)},
+                {'till': str(business_short_code)}
+            ]
+        })
+
+        if not admin:
+            app.logger.error(f"Admin not found for business code: {business_short_code}")
+            return jsonify({
+                'ResultCode': 'C00000001',
+                'ResultDesc': 'Business not found'
+            })
+
+        admin_id = admin['_id']
+
+        # Check if admin has enabled house number as account reference
+        config = mongo.db.sms_config.find_one({"admin_id": admin_id})
+        if not config or not config.get('use_house_number_as_account'):
+            app.logger.info(f"House number as account reference not enabled for admin {admin_id}")
+            return jsonify({
+                'ResultCode': '00000000',
+                'ResultDesc': 'Success - feature not enabled'
+            })
+
+        # Find house by house number
+        house = mongo.db.houses.find_one({
+            "house_number": bill_ref_number,
+            "admin_id": admin_id
+        })
+
+        if not house:
+            app.logger.warning(f"House not found for number: {bill_ref_number}")
+            return jsonify({
+                'ResultCode': '00000000',
+                'ResultDesc': 'Success - house not found'
+            })
+
+        # Find tenant in the house
+        tenant = mongo.db.tenants.find_one({
+            "house_number": bill_ref_number,
+            "admin_id": admin_id
+        })
+
+        # Create automatic payment record
+        current_month = datetime.now().strftime('%Y-%m')
+
+        # Check if payment already exists for this transaction
+        existing_payment = mongo.db.payments.find_one({
+            'mpesa_trans_id': trans_id,
+            'admin_id': admin_id
+        })
+
+        if existing_payment:
+            app.logger.info(f"Payment already recorded for transaction: {trans_id}")
+            return jsonify({
+                'ResultCode': '00000000',
+                'ResultDesc': 'Success - payment already recorded'
+            })
+
+        # Create payment record
+        payment_record = {
+            'admin_id': admin_id,
+            'house_id': house['_id'],
+            'house_number': bill_ref_number,
+            'tenant_id': tenant['_id'] if tenant else None,
+            'tenant_name': tenant['name'] if tenant else f"{first_name} {middle_name} {last_name}".strip(),
+            'amount_paid': float(trans_amount),
+            'payment_method': 'mpesa_auto',
+            'payment_status': 'paid',
+            'payment_date': datetime.now(),
+            'month_year': current_month,
+            'mpesa_trans_id': trans_id,
+            'mpesa_phone': msisdn,
+            'bill_ref_number': bill_ref_number,
+            'created_at': datetime.now(),
+            'notes': f'Automatic payment via M-Pesa. Ref: {bill_ref_number}'
+        }
+
+        # Insert payment record
+        result = mongo.db.payments.insert_one(payment_record)
+        app.logger.info(f"Automatic payment recorded: {result.inserted_id}")
+
+        # Send confirmation SMS to tenant if phone number available
+        if tenant and tenant.get('phone'):
+            try:
+                message = f"Payment received! Amount: KES {trans_amount}, House: {bill_ref_number}, Ref: {trans_id}. Thank you!"
+                send_message(tenant['phone'], message)
+            except Exception as sms_error:
+                app.logger.error(f"SMS sending failed: {sms_error}")
+
+        # Send notification to admin
+        if admin.get('phone'):
+            try:
+                tenant_name = tenant['name'] if tenant else 'Unknown tenant'
+                message = f"Payment received: {tenant_name}, House {bill_ref_number}, KES {trans_amount}. Ref: {trans_id}"
+                send_message(admin['phone'], message)
+            except Exception as sms_error:
+                app.logger.error(f"Admin SMS sending failed: {sms_error}")
+
+        return jsonify({
+            'ResultCode': '00000000',
+            'ResultDesc': 'Success'
+        })
+
+    except Exception as e:
+        app.logger.error(f"PayBill callback error: {e}")
+        return jsonify({
+            'ResultCode': 'C00000001',
+            'ResultDesc': 'Internal server error'
+        })
+
+
+@app.route('/mpesa/validation', methods=['POST'])
+@csrf.exempt
+def mpesa_validation():
+    """M-Pesa validation endpoint - always accept payments"""
+    try:
+        # Log validation request
+        data = request.get_json()
+        app.logger.info(f"M-Pesa validation request: {data}")
+
+        # Always return success to allow payments
+        return jsonify({
+            'ResultCode': '00000000',
+            'ResultDesc': 'Success'
+        })
+
+    except Exception as e:
+        app.logger.error(f"M-Pesa validation error: {e}")
+        return jsonify({
+            'ResultCode': '00000000',
+            'ResultDesc': 'Success'  # Always allow payments even if validation fails
+        })
+
+
+def get_mpesa_credentials(admin_id):
+    """Get decrypted M-Pesa credentials for an admin"""
+    try:
+        encrypted_config = mongo.db.mpesa_config.find_one({"admin_id": admin_id})
+        if not encrypted_config:
+            return None
+
+        return decrypt_mpesa_credentials(encrypted_config)
+    except Exception as e:
+        app.logger.error(f"Error getting M-Pesa credentials: {e}")
+        return None
+
+
+def generate_tenant_access_token(tenant_id, admin_id, expires_in_hours=24):
+    """Generate a secure access token for tenant portal"""
+    token_data = {
+        'tenant_id': str(tenant_id),
+        'admin_id': str(admin_id),
+        'timestamp': datetime.now().isoformat(),
+        'expires': (datetime.now() + timedelta(hours=expires_in_hours)).isoformat()
+    }
+
+    serializer = URLSafeTimedSerializer(SECRET_KEY)
+    token = serializer.dumps(token_data)
+
+    # Store token in database for tracking
+    mongo.db.tenant_access_tokens.insert_one({
+        'token': token,
+        'tenant_id': ObjectId(tenant_id),
+        'admin_id': ObjectId(admin_id),
+        'created_at': datetime.now(),
+        'expires_at': datetime.now() + timedelta(hours=expires_in_hours),
+        'used': False
+    })
+
+    return token
+
+
+def verify_tenant_access_token(token):
+    """Verify and decode tenant access token"""
+    try:
+        serializer = URLSafeTimedSerializer(SECRET_KEY)
+        token_data = serializer.loads(token, max_age=24*3600)  # 24 hours
+
+        # Check if token exists and is not used
+        token_record = mongo.db.tenant_access_tokens.find_one({
+            'token': token,
+            'used': False,
+            'expires_at': {'$gt': datetime.now()}
+        })
+
+        if not token_record:
+            return None
+
+        return {
+            'tenant_id': ObjectId(token_data['tenant_id']),
+            'admin_id': ObjectId(token_data['admin_id'])
+        }
+
+    except (SignatureExpired, BadSignature, Exception) as e:
+        app.logger.error(f"Token verification error: {e}")
+        return None
+
+
+def mark_token_as_used(token):
+    """Mark a token as used to prevent reuse"""
+    mongo.db.tenant_access_tokens.update_one(
+        {'token': token},
+        {'$set': {'used': True, 'used_at': datetime.now()}}
+    )
+
 
 @app.route('/check_payment_status/<checkout_request_id>')
 @login_required
@@ -890,13 +1135,14 @@ def check_payment_status(checkout_request_id):
 @app.route('/toggle_auto_renew', methods=['POST'])
 @login_required
 def toggle_auto_renew():
-    """Toggle auto-renewal for monthly subscriptions"""
+    """Toggle auto-renewal for monthly and annual subscriptions"""
     try:
         admin_id = get_admin_id()
         admin = mongo.db.admins.find_one({"_id": admin_id})
-        
-        if admin.get('subscription_type') != 'monthly':
-            return jsonify({'error': 'Auto-renewal only applies to monthly subscriptions'}), 400
+
+        subscription_type = admin.get('subscription_type')
+        if subscription_type not in ['monthly', 'annual']:
+            return jsonify({'error': 'Auto-renewal only applies to monthly and annual subscriptions'}), 400
             
         new_status = not admin.get('auto_renew', True)
         
@@ -2584,12 +2830,17 @@ def record_reading():
             # In record_reading function around line 1972
             current_month_year = get_current_month_year()
             total_arrears = calculate_total_arrears(admin_id, tenant_id_obj, bill_type='water', exclude_current_month=current_month_year)
+            # Generate secure access token for tenant portal
+            access_token = generate_tenant_access_token(tenant_id_obj, admin_id, expires_in_hours=24)
+            portal_link = f"{request.url_root}tenant_portal/{access_token}"
+
             if total_arrears > 1:
                 message = (
                     f"Water Bill Alert: {tenant['name']}, House {house_number}. "
                     f"Current bill: KES {bill_amount:.2f}. "
                     f"Outstanding arrears: KES {total_arrears:.2f}. "
                     f"{payment_info} "
+                    f"View your usage history: {portal_link} "
                     f"From {admin_name} - {admin_phone}"
                 )
             else:
@@ -2597,6 +2848,7 @@ def record_reading():
                     f"Water Bill Alert: {tenant['name']}, House {house_number}.\n "
                     f"Current bill: KES {bill_amount:.2f}. \n"
                     f"{payment_info}\n"
+                    f"View your usage history: {portal_link}\n"
                     f" From {admin_name} - {admin_phone}"
                 )
         
@@ -2753,19 +3005,23 @@ def record_tenant_reading(tenant_id):
             # Calculate arrears excluding current month's bill
             current_month_year = get_current_month_year()
             total_arrears = calculate_total_arrears(admin_id, tenant_id_obj, bill_type='water', exclude_current_month=current_month_year)
+            # Generate secure access token for tenant portal
+            access_token = generate_tenant_access_token(tenant_id_obj, admin_id, expires_in_hours=24)
+            portal_link = f"{request.url_root}tenant_portal/{access_token}"
+
             if total_arrears > 1:
                 message = (
                     f"Water Bill Alert: {tenant['name']}, House {house_number}. "
                     f"Current bill: KES {bill_amount:.2f}. "
                     f"Outstanding arrears: KES {total_arrears:.2f}. "
                     f"Total amount due: KES {bill_amount + total_arrears:.2f}. "
-                    f"{payment_info} From {admin_name} - {admin_phone}"
+                    f"{payment_info} View history: {portal_link} From {admin_name} - {admin_phone}"
                 )
             else:
                 message = (
                     f"Water Bill Alert: {tenant['name']}, House {house_number}. "
                     f"Current bill: KES {bill_amount:.2f}. "
-                    f"{payment_info} From {admin_name} - {admin_phone}"
+                    f"{payment_info} View history: {portal_link} From {admin_name} - {admin_phone}"
                 )
         
         # Send SMS notification
@@ -2899,6 +3155,11 @@ def generate_rent_bills():
                 tenant = mongo.db.tenants.find_one({"_id": tenant_id})
                 # Calculate arrears (excluding current bill)
                 total_arrears = calculate_total_arrears(admin_id, tenant_id_obj, bill_type='rent', exclude_current_month=current_month_year)
+
+                # Generate secure access token for tenant portal
+                access_token = generate_tenant_access_token(tenant_id_obj, admin_id, expires_in_hours=24)
+                portal_link = f"{request.url_root}tenant_portal/{access_token}"
+
                 # Create SMS message with arrears info
                 if total_arrears > 1:  # Use smaller threshold for precision
                     message = (
@@ -2906,13 +3167,13 @@ def generate_rent_bills():
                         f"Current bill: KES {rent_amount:.2f}. "
                         f"Outstanding arrears: KES {total_arrears:.2f}. "
                         f"Total amount due: KES {rent_amount + total_arrears:.2f}. "
-                        f"{payment_text} From {admin_name} - {admin_phone}"
+                        f"{payment_text} View history: {portal_link} From {admin_name} - {admin_phone}"
                     )
                 else:
                     message = (
                         f"Rent Bill Alert: {tenant['name']}, House {house_number}. "
                         f"Current bill: KES {rent_amount:.2f}. "
-                        f"{payment_text} From {admin_name} - {admin_phone}"
+                        f"{payment_text} View history: {portal_link} From {admin_name} - {admin_phone}"
                     )
                 
                 # Send SMS
@@ -3248,20 +3509,48 @@ def export_tenant_data(tenant_id):
         worksheet.write('B4', tenant['house_number'], cell_format)
         
         # Write reading history headers
-        headers = ['Date', 'Previous Reading (m³)', 'Current Reading (m³)', 'Usage (m³)', 'Bill Amount']
+        headers = ['Date', 'Previous Reading (m³)', 'Current Reading (m³)', 'Usage (m³)', 'Bill Amount', 'Payment Status', 'Amount Paid', 'Outstanding']
         start_row = 6
         
         worksheet.write('A6', 'Reading History', header_format)
         for col, header in enumerate(headers):
             worksheet.write(start_row + 1, col, header, header_format)
         
-        # Write reading data
+        # Write reading data with payment information
         for row, reading in enumerate(readings, start_row + 2):
+            # Get payment information for this reading
+            reading_month = reading['date_recorded'].strftime('%Y-%m')
+            payment = mongo.db.payments.find_one({
+                'tenant_id': tenant_id_obj,
+                'admin_id': admin_id,
+                'month_year': reading_month
+            })
+
+            # Determine payment status
+            if payment:
+                amount_paid = payment.get('amount_paid', 0)
+                bill_amount = reading['bill_amount']
+                outstanding = max(0, bill_amount - amount_paid)
+
+                if outstanding == 0:
+                    payment_status = 'Paid'
+                elif amount_paid > 0:
+                    payment_status = 'Partial'
+                else:
+                    payment_status = 'Unpaid'
+            else:
+                payment_status = 'Unpaid'
+                amount_paid = 0
+                outstanding = reading['bill_amount']
+
             worksheet.write(row, 0, reading['date_recorded'], date_format)
             worksheet.write(row, 1, reading['previous_reading'], cell_format)
             worksheet.write(row, 2, reading['current_reading'], cell_format)
             worksheet.write(row, 3, reading['usage'], cell_format)
             worksheet.write(row, 4, reading['bill_amount'], currency_format)
+            worksheet.write(row, 5, payment_status, cell_format)
+            worksheet.write(row, 6, amount_paid, currency_format)
+            worksheet.write(row, 7, outstanding, currency_format)
         
         # Add summary statistics
         if readings:
@@ -3312,36 +3601,339 @@ def sms_config():
 
     if request.method == 'POST':
         rate_per_unit = request.form.get('rate_per_unit', type=float)
+        use_house_number_as_account = 'use_house_number_as_account' in request.form
 
         if rate_per_unit is None:
             flash('Rate per unit is required', 'danger')
             return redirect(url_for('sms_config'))
 
         try:
+            config_data = {
+                "rate_per_unit": rate_per_unit,
+                "use_house_number_as_account": use_house_number_as_account,
+                "updated_at": datetime.now()
+            }
+
             if config:
                 mongo.db.sms_config.update_one(
                     {"_id": config["_id"]},
-                    {"$set": {
-                        "rate_per_unit": rate_per_unit,
-                        "updated_at": datetime.now()
-                    }}
+                    {"$set": config_data}
                 )
             else:
-                mongo.db.sms_config.insert_one({
-                    "rate_per_unit": rate_per_unit,
-                    "updated_at": datetime.now(),
-                    "admin_id": admin_id  # Add admin_id
-                })
-            flash('SMS configuration updated successfully!', 'success')
-        except Exception as e:
-            flash(f'Error updating SMS configuration: {str(e)}', 'danger')
+                config_data["admin_id"] = admin_id
+                mongo.db.sms_config.insert_one(config_data)
 
-    return render_template('sms_config.html', 
+            flash('Configuration updated successfully!', 'success')
+        except Exception as e:
+            flash(f'Error updating configuration: {str(e)}', 'danger')
+
+    # Get M-Pesa configuration
+    mpesa_config = mongo.db.mpesa_config.find_one({"admin_id": admin_id})
+    if mpesa_config:
+        # Decrypt sensitive fields for display (but not the actual secrets)
+        mpesa_config = decrypt_mpesa_credentials(mpesa_config)
+        # For security, don't show the full secrets in the form
+        if mpesa_config.get('consumer_secret'):
+            mpesa_config['consumer_secret'] = '*' * 20
+        if mpesa_config.get('passkey'):
+            mpesa_config['passkey'] = '*' * 20
+
+    return render_template('sms_config.html',
                           config=config,
-                          admin=admin,  # Pass admin info to template
+                          admin=admin,
+                          mpesa_config=mpesa_config,
                           rate_per_unit=RATE_PER_UNIT,
                           talksasa_api_key=TALKSASA_API_KEY,
                           talksasa_sender_id=TALKSASA_SENDER_ID)
+
+@app.route('/save_mpesa_config', methods=['POST'])
+@login_required
+def save_mpesa_config():
+    """Save M-Pesa API configuration with encryption"""
+    try:
+        admin_id = get_admin_id()
+
+        # Get form data
+        consumer_key = request.form.get('consumer_key', '').strip()
+        consumer_secret = request.form.get('consumer_secret', '').strip()
+        shortcode = request.form.get('shortcode', '').strip()
+        passkey = request.form.get('passkey', '').strip()
+        environment = request.form.get('environment', 'sandbox')
+
+        # Validate required fields
+        if not all([consumer_key, shortcode, environment]):
+            flash('Consumer Key and Shortcode are required', 'danger')
+            return redirect(url_for('sms_config'))
+
+        # Don't update secrets if they're masked (showing asterisks)
+        existing_config = mongo.db.mpesa_config.find_one({"admin_id": admin_id})
+        if existing_config and consumer_secret == '*' * 20:
+            consumer_secret = decrypt_mpesa_credentials(existing_config).get('consumer_secret', '')
+        if existing_config and passkey == '*' * 20:
+            passkey = decrypt_mpesa_credentials(existing_config).get('passkey', '')
+
+        # Prepare credentials for encryption
+        credentials = {
+            'admin_id': admin_id,
+            'consumer_key': consumer_key,
+            'consumer_secret': consumer_secret,
+            'shortcode': shortcode,
+            'passkey': passkey,
+            'environment': environment,
+            'updated_at': datetime.now(),
+            'callback_url': f"{request.url_root}mpesa/paybill_callback"
+        }
+
+        # Encrypt sensitive credentials
+        encrypted_credentials = encrypt_mpesa_credentials(credentials)
+
+        # Save to database
+        if existing_config:
+            mongo.db.mpesa_config.update_one(
+                {"admin_id": admin_id},
+                {"$set": encrypted_credentials}
+            )
+        else:
+            mongo.db.mpesa_config.insert_one(encrypted_credentials)
+
+        flash('M-Pesa configuration saved successfully!', 'success')
+        app.logger.info(f"M-Pesa config updated for admin {admin_id}")
+
+    except Exception as e:
+        app.logger.error(f"Error saving M-Pesa config: {e}")
+        flash(f'Error saving M-Pesa configuration: {str(e)}', 'danger')
+
+    return redirect(url_for('sms_config'))
+
+
+@app.route('/tenant_portal/<token>')
+def tenant_portal(token):
+    """Tenant portal for accessing reading history"""
+    try:
+        # Verify token
+        token_data = verify_tenant_access_token(token)
+        if not token_data:
+            return render_template('error.html',
+                                 error_title="Access Denied",
+                                 error_message="Invalid or expired access link. Please contact your landlord for a new link."), 403
+
+        tenant_id = token_data['tenant_id']
+        admin_id = token_data['admin_id']
+
+        # Get tenant information
+        tenant = mongo.db.tenants.find_one({
+            "_id": tenant_id,
+            "admin_id": admin_id
+        })
+
+        if not tenant:
+            return render_template('error.html',
+                                 error_title="Tenant Not Found",
+                                 error_message="Tenant record not found."), 404
+
+        # Get tenant's reading history
+        readings = list(mongo.db.meter_readings.find({
+            "tenant_id": tenant_id,
+            "admin_id": admin_id
+        }).sort("date_recorded", -1).limit(12))  # Last 12 readings
+
+        # Get payment information for each reading
+        readings_with_payments = []
+        for reading in readings:
+            reading_month = reading['date_recorded'].strftime('%Y-%m')
+            payment = mongo.db.payments.find_one({
+                'tenant_id': tenant_id,
+                'admin_id': admin_id,
+                'month_year': reading_month
+            })
+
+            # Add payment information to reading
+            reading_data = dict(reading)
+            if payment:
+                amount_paid = payment.get('amount_paid', 0)
+                outstanding = max(0, reading['bill_amount'] - amount_paid)
+                reading_data['payment_status'] = 'Paid' if outstanding == 0 else ('Partial' if amount_paid > 0 else 'Unpaid')
+                reading_data['amount_paid'] = amount_paid
+                reading_data['outstanding'] = outstanding
+                reading_data['payment_date'] = payment.get('payment_date')
+            else:
+                reading_data['payment_status'] = 'Unpaid'
+                reading_data['amount_paid'] = 0
+                reading_data['outstanding'] = reading['bill_amount']
+                reading_data['payment_date'] = None
+
+            readings_with_payments.append(reading_data)
+
+        # Get admin/landlord information
+        admin = mongo.db.admins.find_one({"_id": admin_id}, {"name": 1, "phone": 1})
+
+        return render_template('tenant_portal.html',
+                             tenant=tenant,
+                             readings=readings_with_payments,
+                             admin=admin,
+                             token=token)
+
+    except Exception as e:
+        app.logger.error(f"Tenant portal error: {e}")
+        return render_template('error.html',
+                             error_title="System Error",
+                             error_message="An error occurred while loading your data. Please try again later."), 500
+
+
+@app.route('/tenant_download/<token>')
+def tenant_download_history(token):
+    """Allow tenant to download their reading history"""
+    try:
+        # Verify token
+        token_data = verify_tenant_access_token(token)
+        if not token_data:
+            return render_template('error.html',
+                                 error_title="Access Denied",
+                                 error_message="Invalid or expired access link."), 403
+
+        tenant_id = token_data['tenant_id']
+        admin_id = token_data['admin_id']
+
+        # Get tenant information
+        tenant = mongo.db.tenants.find_one({
+            "_id": tenant_id,
+            "admin_id": admin_id
+        })
+
+        if not tenant:
+            return render_template('error.html',
+                                 error_title="Tenant Not Found",
+                                 error_message="Tenant record not found."), 404
+
+        # Get tenant's reading history
+        readings = list(mongo.db.meter_readings.find({
+            "tenant_id": tenant_id,
+            "admin_id": admin_id
+        }).sort("date_recorded", 1))
+
+        # Create Excel file in memory
+        output = BytesIO()
+        workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+
+        # Create worksheet
+        worksheet = workbook.add_worksheet(f"My_Reading_History")
+
+        # Define formats
+        header_format = workbook.add_format({
+            'bold': True,
+            'bg_color': '#4472C4',
+            'font_color': 'white',
+            'border': 1,
+            'align': 'center'
+        })
+
+        cell_format = workbook.add_format({
+            'border': 1,
+            'align': 'center'
+        })
+
+        currency_format = workbook.add_format({
+            'border': 1,
+            'align': 'center',
+            'num_format': '"Ksh "#,##0.00'
+        })
+
+        date_format = workbook.add_format({
+            'border': 1,
+            'align': 'center',
+            'num_format': 'yyyy-mm-dd'
+        })
+
+        # Write tenant information
+        worksheet.write('A1', 'My Water Usage History', header_format)
+        worksheet.write('A2', 'Name:', cell_format)
+        worksheet.write('B2', tenant['name'], cell_format)
+        worksheet.write('A3', 'House Number:', cell_format)
+        worksheet.write('B3', tenant['house_number'], cell_format)
+        worksheet.write('A4', 'Generated:', cell_format)
+        worksheet.write('B4', datetime.now().strftime('%Y-%m-%d %H:%M'), cell_format)
+
+        # Write reading history headers
+        headers = ['Date', 'Previous Reading (m³)', 'Current Reading (m³)', 'Usage (m³)', 'Bill Amount', 'Payment Status', 'Amount Paid', 'Outstanding']
+        start_row = 6
+
+        worksheet.write('A6', 'Reading History', header_format)
+        for col, header in enumerate(headers):
+            worksheet.write(start_row + 1, col, header, header_format)
+
+        # Write reading data with payment information
+        for row, reading in enumerate(readings, start_row + 2):
+            # Get payment information for this reading
+            reading_month = reading['date_recorded'].strftime('%Y-%m')
+            payment = mongo.db.payments.find_one({
+                'tenant_id': tenant_id,
+                'admin_id': admin_id,
+                'month_year': reading_month
+            })
+
+            # Determine payment status
+            if payment:
+                amount_paid = payment.get('amount_paid', 0)
+                bill_amount = reading['bill_amount']
+                outstanding = max(0, bill_amount - amount_paid)
+
+                if outstanding == 0:
+                    payment_status = 'Paid'
+                elif amount_paid > 0:
+                    payment_status = 'Partial'
+                else:
+                    payment_status = 'Unpaid'
+            else:
+                payment_status = 'Unpaid'
+                amount_paid = 0
+                outstanding = reading['bill_amount']
+
+            worksheet.write(row, 0, reading['date_recorded'], date_format)
+            worksheet.write(row, 1, reading['previous_reading'], cell_format)
+            worksheet.write(row, 2, reading['current_reading'], cell_format)
+            worksheet.write(row, 3, reading['usage'], cell_format)
+            worksheet.write(row, 4, reading['bill_amount'], currency_format)
+            worksheet.write(row, 5, payment_status, cell_format)
+            worksheet.write(row, 6, amount_paid, currency_format)
+            worksheet.write(row, 7, outstanding, currency_format)
+
+        # Add summary statistics
+        if readings:
+            summary_row = start_row + len(readings) + 3
+            worksheet.write(summary_row, 0, 'Summary Statistics', header_format)
+            worksheet.write(summary_row + 1, 0, 'Total Readings:', cell_format)
+            worksheet.write(summary_row + 1, 1, len(readings), cell_format)
+            worksheet.write(summary_row + 2, 0, 'Total Usage:', cell_format)
+            worksheet.write(summary_row + 2, 1, sum(r['usage'] for r in readings), cell_format)
+            worksheet.write(summary_row + 3, 0, 'Total Billed:', cell_format)
+            worksheet.write(summary_row + 3, 1, sum(r['bill_amount'] for r in readings), currency_format)
+
+        # Auto-adjust column widths
+        worksheet.set_column('A:A', 15)
+        worksheet.set_column('B:D', 12)
+        worksheet.set_column('E:H', 15)
+
+        workbook.close()
+        output.seek(0)
+
+        # Mark token as used (one-time download)
+        mark_token_as_used(token)
+
+        # Return file
+        filename = f"{tenant['name']}_Water_History_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+
+    except Exception as e:
+        app.logger.error(f"Tenant download error: {e}")
+        return render_template('error.html',
+                             error_title="Download Error",
+                             error_message="Unable to generate your reading history. Please try again later."), 500
+
 
 # Add these routes after the sms_config route
 

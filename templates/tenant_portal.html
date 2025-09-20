@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ tenant.name }} - Water Usage Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .tenant-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .status-badge {
+            font-size: 0.875rem;
+            padding: 0.375rem 0.75rem;
+        }
+        .reading-card {
+            transition: transform 0.2s;
+            border-left: 4px solid #007bff;
+        }
+        .reading-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .usage-meter {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .payment-status-paid { color: #28a745; }
+        .payment-status-partial { color: #ffc107; }
+        .payment-status-unpaid { color: #dc3545; }
+        .footer-info {
+            background: #f8f9fa;
+            padding: 2rem 0;
+            margin-top: 3rem;
+            border-top: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="tenant-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-tint"></i> Water Usage Portal</h1>
+                    <h3>{{ tenant.name }}</h3>
+                    <p class="mb-0"><i class="fas fa-home"></i> House: {{ tenant.house_number }} | <i class="fas fa-phone"></i> {{ tenant.phone }}</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{{ url_for('tenant_download_history', token=token) }}" class="btn btn-light btn-lg">
+                        <i class="fas fa-download"></i> Download Full History
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Readings</h5>
+                        <h2 class="text-primary">{{ readings|length }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Usage</h5>
+                        <h2 class="text-info">{{ "%.1f"|format(readings|sum(attribute='usage')) }} m³</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Billed</h5>
+                        <h2 class="text-warning">KES {{ "{:,.2f}"|format(readings|sum(attribute='bill_amount')) }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Outstanding</h5>
+                        <h2 class="text-danger">KES {{ "{:,.2f}"|format(readings|sum(attribute='outstanding')) }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reading History -->
+        <div class="row">
+            <div class="col-12">
+                <h4><i class="fas fa-history"></i> Recent Reading History (Last 12 months)</h4>
+                <p class="text-muted">Your water meter readings and payment status</p>
+            </div>
+        </div>
+
+        {% if readings %}
+            <div class="row">
+                {% for reading in readings %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card reading-card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <strong>{{ reading.date_recorded.strftime('%B %Y') }}</strong>
+                            <span class="badge
+                                {% if reading.payment_status == 'Paid' %}bg-success
+                                {% elif reading.payment_status == 'Partial' %}bg-warning
+                                {% else %}bg-danger{% endif %} status-badge">
+                                {{ reading.payment_status }}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <div class="usage-meter">
+                                <div class="row text-center">
+                                    <div class="col-6">
+                                        <small class="text-muted">Previous</small>
+                                        <div class="h5">{{ reading.previous_reading }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Current</small>
+                                        <div class="h5">{{ reading.current_reading }}</div>
+                                    </div>
+                                </div>
+                                <hr class="my-2">
+                                <div class="text-center">
+                                    <small class="text-muted">Usage</small>
+                                    <div class="h4 text-primary">{{ reading.usage }} m³</div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-6">
+                                    <small class="text-muted">Bill Amount</small>
+                                    <div class="h6">KES {{ "{:,.2f}"|format(reading.bill_amount) }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted">Amount Paid</small>
+                                    <div class="h6 payment-status-{{ reading.payment_status.lower() }}">
+                                        KES {{ "{:,.2f}"|format(reading.amount_paid) }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% if reading.outstanding > 0 %}
+                            <div class="mt-2">
+                                <small class="text-danger">Outstanding: KES {{ "{:,.2f}"|format(reading.outstanding) }}</small>
+                            </div>
+                            {% endif %}
+
+                            {% if reading.payment_date %}
+                            <div class="mt-2">
+                                <small class="text-success">
+                                    <i class="fas fa-check-circle"></i> Paid on {{ reading.payment_date.strftime('%Y-%m-%d') }}
+                                </small>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar"></i> Reading Date: {{ reading.date_recorded.strftime('%Y-%m-%d') }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-info text-center">
+                        <h4><i class="fas fa-info-circle"></i> No Reading History</h4>
+                        <p>No water meter readings found for your account yet.</p>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Payment Information -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5><i class="fas fa-credit-card"></i> Payment Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>For payments and inquiries, contact your landlord:</strong></p>
+                        {% if admin %}
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-user"></i> <strong>Name:</strong> {{ admin.name }}</li>
+                            <li><i class="fas fa-phone"></i> <strong>Phone:</strong> {{ admin.phone }}</li>
+                        </ul>
+                        {% endif %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Note:</strong> This portal is for viewing your usage history only.
+                            For payments and billing inquiries, please contact your landlord directly.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer-info">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><i class="fas fa-shield-alt"></i> Secure Access</h6>
+                    <p class="small text-muted">
+                        This is a secure portal for your water usage data.
+                        This link expires after 24 hours for your security.
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <h6><i class="fas fa-download"></i> Download Options</h6>
+                    <p class="small text-muted">
+                        Click "Download Full History" to get a complete Excel report
+                        of all your water usage and payment records.
+                    </p>
+                </div>
+            </div>
+            <hr>
+            <div class="text-center">
+                <p class="small text-muted mb-0">
+                    <i class="fas fa-tint"></i> Water Billing System - Tenant Portal
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

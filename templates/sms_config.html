@@ -30,11 +30,128 @@
 
                         <div class="mb-3">
                             <label for="rate_per_unit" class="form-label">Rate Per Unit (Ksh)</label>
-                            <input type="number" step="0.01" min="0" class="form-control" id="rate_per_unit" 
+                            <input type="number" step="0.01" min="0" class="form-control" id="rate_per_unit"
                                    name="rate_per_unit" value="{{config.rate_per_unit if config else rate_per_unit }}" required>
                             <div class="form-text">The amount charged per unit of water consumed</div>
                         </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="use_house_number_as_account"
+                                       name="use_house_number_as_account"
+                                       {% if config and config.use_house_number_as_account %}checked{% endif %}>
+                                <label class="form-check-label" for="use_house_number_as_account">
+                                    Use House Number as M-Pesa Account Reference
+                                </label>
+                            </div>
+                            <div class="form-text">
+                                When enabled, tenants can use their house number as the account name when paying via your M-Pesa PayBill/Till.
+                                This allows automatic tracking of payments to specific houses.
+                                <br><strong>Example:</strong> Tenant in House A1 pays to your PayBill using "A1" as account name.
+                                <br><br><strong>Setup Instructions:</strong>
+                                <br>1. Configure this callback URL in your M-Pesa API: <code>{{ request.url_root }}mpesa/paybill_callback</code>
+                                <br>2. Ensure your PayBill/Till number matches the one in your profile
+                                <br>3. Tenants should use their exact house number as the account name when paying
+                            </div>
+                        </div>
+
                         <button type="submit" class="btn btn-primary">Save Configuration</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- M-Pesa API Configuration -->
+            <div class="card mt-4">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">M-Pesa API Configuration</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> M-Pesa API Setup</h6>
+                        <p class="mb-2">To enable automatic payment tracking, you need to configure your M-Pesa API credentials.</p>
+                        <p class="mb-0"><strong>Status:</strong>
+                            {% if mpesa_config and mpesa_config.consumer_key %}
+                                <span class="badge bg-success">Configured</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">Not Configured</span>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('save_mpesa_config') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="consumer_key" class="form-label">Consumer Key</label>
+                                    <input type="text" class="form-control" id="consumer_key" name="consumer_key"
+                                           value="{{ mpesa_config.consumer_key if mpesa_config else '' }}"
+                                           placeholder="Your Safaricom App Consumer Key">
+                                    <div class="form-text">Get this from your Safaricom Developer Portal</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="consumer_secret" class="form-label">Consumer Secret</label>
+                                    <input type="password" class="form-control" id="consumer_secret" name="consumer_secret"
+                                           value="{{ mpesa_config.consumer_secret if mpesa_config else '' }}"
+                                           placeholder="Your Safaricom App Consumer Secret">
+                                    <div class="form-text">Keep this secret and secure</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="shortcode" class="form-label">Business Shortcode</label>
+                                    <input type="text" class="form-control" id="shortcode" name="shortcode"
+                                           value="{{ mpesa_config.shortcode if mpesa_config else '' }}"
+                                           placeholder="e.g., 174379">
+                                    <div class="form-text">Your M-Pesa PayBill or Till Number</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="passkey" class="form-label">Passkey</label>
+                                    <input type="password" class="form-control" id="passkey" name="passkey"
+                                           value="{{ mpesa_config.passkey if mpesa_config else '' }}"
+                                           placeholder="Your M-Pesa Passkey">
+                                    <div class="form-text">Provided by Safaricom for STK Push</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="environment" class="form-label">Environment</label>
+                                    <select class="form-control" id="environment" name="environment">
+                                        <option value="sandbox" {% if not mpesa_config or mpesa_config.environment == 'sandbox' %}selected{% endif %}>
+                                            Sandbox (Testing)
+                                        </option>
+                                        <option value="production" {% if mpesa_config and mpesa_config.environment == 'production' %}selected{% endif %}>
+                                            Production (Live)
+                                        </option>
+                                    </select>
+                                    <div class="form-text">Use Sandbox for testing, Production for live payments</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="callback_url" class="form-label">Callback URL</label>
+                                    <input type="text" class="form-control" id="callback_url" name="callback_url" readonly
+                                           value="{{ request.url_root }}mpesa/paybill_callback">
+                                    <div class="form-text">Configure this URL in your M-Pesa API settings</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success">Save M-Pesa Configuration</button>
+                        <button type="button" class="btn btn-info ms-2" data-bs-toggle="modal" data-bs-target="#mpesaGuideModal">
+                            <i class="fas fa-question-circle"></i> Setup Guide
+                        </button>
                     </form>
                 </div>
             </div>
@@ -143,6 +260,222 @@
                         <button type="submit" class="btn btn-secondary">Send Test SMS</button>
                     </form>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- M-Pesa Setup Guide Modal -->
+<div class="modal fade" id="mpesaGuideModal" tabindex="-1" aria-labelledby="mpesaGuideModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mpesaGuideModalLabel">
+                    <i class="fas fa-mobile-alt"></i> Complete M-Pesa API Setup Guide
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="accordion" id="mpesaSetupAccordion">
+
+                    <!-- Step 1: Create Safaricom Developer Account -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="stepOne">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
+                                Step 1: Create Safaricom Developer Account
+                            </button>
+                        </h2>
+                        <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#mpesaSetupAccordion">
+                            <div class="accordion-body">
+                                <ol>
+                                    <li>Visit <a href="https://developer.safaricom.co.ke" target="_blank">https://developer.safaricom.co.ke</a></li>
+                                    <li>Click "Get Started" or "Sign Up"</li>
+                                    <li>Fill in your details:
+                                        <ul>
+                                            <li>Full Name</li>
+                                            <li>Email Address</li>
+                                            <li>Phone Number (Safaricom Number preferred)</li>
+                                            <li>Password</li>
+                                        </ul>
+                                    </li>
+                                    <li>Verify your email address</li>
+                                    <li>Log in to your developer account</li>
+                                </ol>
+                                <div class="alert alert-info">
+                                    <strong>Note:</strong> You'll need a valid Safaricom phone number for verification.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Create an App -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="stepTwo">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
+                                Step 2: Create a New App
+                            </button>
+                        </h2>
+                        <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#mpesaSetupAccordion">
+                            <div class="accordion-body">
+                                <ol>
+                                    <li>In your developer dashboard, click "Create App"</li>
+                                    <li>Fill in app details:
+                                        <ul>
+                                            <li><strong>App Name:</strong> Water Billing System (or your preferred name)</li>
+                                            <li><strong>Description:</strong> Water billing and payment management system</li>
+                                        </ul>
+                                    </li>
+                                    <li>Select the following APIs:
+                                        <ul>
+                                            <li>✅ <strong>Lipa na M-Pesa Online</strong> (for STK Push)</li>
+                                            <li>✅ <strong>M-Pesa Express</strong> (for payment processing)</li>
+                                            <li>✅ <strong>Customer to Business (C2B)</strong> (for PayBill payments)</li>
+                                        </ul>
+                                    </li>
+                                    <li>Click "Create App"</li>
+                                </ol>
+                                <div class="alert alert-warning">
+                                    <strong>Important:</strong> Make sure to select C2B API for automatic payment tracking!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Get Your Credentials -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="stepThree">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">
+                                Step 3: Get Your API Credentials
+                            </button>
+                        </h2>
+                        <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#mpesaSetupAccordion">
+                            <div class="accordion-body">
+                                <ol>
+                                    <li>After creating your app, you'll see it in your apps list</li>
+                                    <li>Click on your app to view details</li>
+                                    <li>Copy the following credentials:
+                                        <ul>
+                                            <li><strong>Consumer Key:</strong> Found under "Keys" section</li>
+                                            <li><strong>Consumer Secret:</strong> Found under "Keys" section</li>
+                                        </ul>
+                                    </li>
+                                    <li>For testing, you'll also get:
+                                        <ul>
+                                            <li><strong>Test Shortcode:</strong> Usually 174379 (sandbox)</li>
+                                            <li><strong>Passkey:</strong> Provided in the documentation</li>
+                                        </ul>
+                                    </li>
+                                </ol>
+                                <div class="alert alert-success">
+                                    <strong>Sandbox Credentials:</strong> Perfect for testing before going live!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Get Production Credentials -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="stepFour">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour">
+                                Step 4: Get Production Credentials (Go Live)
+                            </button>
+                        </h2>
+                        <div id="collapseFour" class="accordion-collapse collapse" data-bs-parent="#mpesaSetupAccordion">
+                            <div class="accordion-body">
+                                <ol>
+                                    <li>Contact Safaricom to request production access:
+                                        <ul>
+                                            <li><strong>Email:</strong> apisupport@safaricom.co.ke</li>
+                                            <li><strong>Phone:</strong> +254 722 000 000</li>
+                                        </ul>
+                                    </li>
+                                    <li>Provide them with:
+                                        <ul>
+                                            <li>Your business registration details</li>
+                                            <li>Your app details from the developer portal</li>
+                                            <li>Your PayBill or Till number</li>
+                                            <li>This callback URL: <code>{{ request.url_root }}mpesa/paybill_callback</code></li>
+                                        </ul>
+                                    </li>
+                                    <li>They will provide:
+                                        <ul>
+                                            <li>Production Consumer Key & Secret</li>
+                                            <li>Your actual shortcode (PayBill/Till number)</li>
+                                            <li>Production passkey</li>
+                                        </ul>
+                                    </li>
+                                </ol>
+                                <div class="alert alert-info">
+                                    <strong>Timeline:</strong> Production approval usually takes 1-3 business days.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Configure Callback URL -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="stepFive">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive">
+                                Step 5: Configure Callback URLs
+                            </button>
+                        </h2>
+                        <div id="collapseFive" class="accordion-collapse collapse" data-bs-parent="#mpesaSetupAccordion">
+                            <div class="accordion-body">
+                                <ol>
+                                    <li>In your Safaricom developer portal, go to your app settings</li>
+                                    <li>Configure the following URLs:
+                                        <ul>
+                                            <li><strong>Validation URL:</strong> <code>{{ request.url_root }}mpesa/validation</code></li>
+                                            <li><strong>Confirmation URL:</strong> <code>{{ request.url_root }}mpesa/paybill_callback</code></li>
+                                        </ul>
+                                    </li>
+                                    <li>Set Response Type to "Completed" (not "Cancelled")</li>
+                                    <li>Save the configuration</li>
+                                </ol>
+                                <div class="alert alert-warning">
+                                    <strong>Important:</strong> Your website must be accessible via HTTPS for production!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 6: Test Setup -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="stepSix">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSix">
+                                Step 6: Test Your Setup
+                            </button>
+                        </h2>
+                        <div id="collapseSix" class="accordion-collapse collapse" data-bs-parent="#mpesaSetupAccordion">
+                            <div class="accordion-body">
+                                <ol>
+                                    <li>Start with sandbox environment</li>
+                                    <li>Enable "Use House Number as Account Reference" setting</li>
+                                    <li>Test payment with house number as account name</li>
+                                    <li>Check if payment is automatically recorded</li>
+                                    <li>Verify SMS notifications are sent</li>
+                                    <li>Once testing is successful, switch to production</li>
+                                </ol>
+                                <div class="alert alert-success">
+                                    <strong>Success!</strong> Your tenants can now pay using their house numbers automatically!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-3 bg-light rounded">
+                    <h6><i class="fas fa-phone"></i> Need Help?</h6>
+                    <p class="mb-1"><strong>Safaricom API Support:</strong> apisupport@safaricom.co.ke</p>
+                    <p class="mb-1"><strong>M-Pesa Business:</strong> +254 722 000 000</p>
+                    <p class="mb-0"><strong>Developer Portal:</strong> <a href="https://developer.safaricom.co.ke" target="_blank">developer.safaricom.co.ke</a></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="https://developer.safaricom.co.ke" target="_blank" class="btn btn-primary">
+                    Go to Developer Portal
+                </a>
             </div>
         </div>
     </div>
