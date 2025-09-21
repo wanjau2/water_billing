@@ -29,9 +29,7 @@
           <li class="nav-item">
             <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">Dashboard</a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'houses' %}active{% endif %}" href="{{ url_for('houses') }}">Houses</a>
-          </li>
+
           <li class="nav-item">
             <a class="nav-link {% if request.endpoint == 'rent_dashboard' %}active{% endif %}" href="{{ url_for('rent_dashboard') }}" class="btn btn-primary">
               <i class="fas fa-money-bill"></i> Rent Dashboard
@@ -39,8 +37,11 @@
           </li>
           <li class = "nav-item">
             <a class="nav-link {% if request.endpoint == 'payments_dashboard' %}active{% endif %}" href="{{ url_for('payments_dashboard') }}" class="nav-link">
-              <i class="fas fa-money-bill-wave"></i> Payments
+              <i class="fas fa-money-bill-wave">Water Bill Dashboard</i>
             </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'houses' %}active{% endif %}" href="{{ url_for('houses') }}">Houses</a>
           </li>
           <li class="nav-item">
             <a class="nav-link {% if request.endpoint == 'sms_config' %}active{% endif %}" href="{{ url_for('sms_config') }}">Settings</a>
@@ -52,7 +53,7 @@
             <a class="nav-link" href="{{ url_for('subscription') }}">
                 <i class="bi bi-star"></i> Subscription
             </a>
-        </li>
+          </li>
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
           </li>

@@ -177,7 +177,7 @@
       <div class="container">
         <div class="row">
           <!-- Compact Analytics Cards -->
-          <div class="col-lg-8">
+          <div class="col-lg-12">
             <div class="row">
               <div class="col-lg-3 col-md-6 mb-2">
                 <div class="stats-card">
@@ -193,7 +193,7 @@
               </div>
               <div class="col-lg-3 col-md-6 mb-2">
                 <div class="stats-card">
-                  <div class="stats-number" id="total-revenue">{{ "{:,.0f}"|format(total_revenue or 0) }}</div>
+                  <div class="stats-number" id="total-revenue">{{ "%.1f"|format(total_revenue or 0) }}</div>
                   <div class="stats-label">Combined Revenue (KES)</div>
                 </div>
               </div>
@@ -206,30 +206,27 @@
             </div>
           </div>
 
-          <!-- Integrated Search -->
-          <div class="col-lg-4">
+
+        </div>
+                  <!-- Integrated Search -->
+          <div class="col-lg-8">
             <div class="search-section">
               <h6 class="mb-2"><i class="fas fa-search"></i> Quick Tenant Lookup</h6>
               <form action="{{ url_for('dashboard') }}" method="GET" class="d-flex">
                 <input class="form-control me-2" type="search" placeholder="Search tenant for reading..." name="search" value="{{ search_query }}">
                 <button class="btn btn-primary btn-sm" type="submit">
-                  <i class="fas fa-search"></i>
+                  <i class="fas fa-search">Search </i>
                 </button>
                 {% if search_query %}
                   <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm ms-1">
-                    <i class="fas fa-times"></i>
+                    <i class="fas fa-times"> Cancel</i>
                   </a>
                 {% endif %}
                 <input type="hidden" name="search_type" value="all">
               </form>
-              <div class="mt-2">
-                <button id="refresh-data" class="btn btn-outline-success btn-sm">
-                  <i class="fas fa-sync-alt"></i> Refresh
-                </button>
-              </div>
+       
             </div>
           </div>
-        </div>
       </div>
     </div>
 

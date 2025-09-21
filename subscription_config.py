@@ -10,22 +10,22 @@ SUBSCRIPTION_TIERS = {
             'SMS notifications',
             'Basic reports'
         ],
-        'monthly_price': 300,
-        'annual_price': 3000  # 10 months equivalent (save 2 months)
+        'monthly_price': 500,
+        'annual_price': 4000  # 10 months equivalent (save 2 months)
     },
     'basic': {
         'name': 'Basic',
         'max_tenants': 50,
         'max_houses': -1,
         'features': [
-            'Up to 20 tenants',
+            'Up to 50 tenants',
             'Water & rent billing',
             'SMS notifications',
             'Excel import/export',
             'Payment tracking'
         ],
-        'monthly_price': 600,
-        'annual_price': 6000  # 10 months equivalent (save 2 months)
+        'monthly_price': 1500,
+        'annual_price': 14000  # 10 months equivalent (save 2 months)
     },
     'pro': {
         'name': 'Pro',
@@ -38,11 +38,11 @@ SUBSCRIPTION_TIERS = {
             'Bulk operations',
             'Payment reminders'
         ],
-        'monthly_price': 1000,
-        'annual_price': 10000  # 10 months equivalent (save 2 months)
+        'monthly_price': 3000,
+        'annual_price': 25000  # 10 months equivalent (save 2 months)
     },
     'business': {
-        'name': 'business',
+        'name': 'Business',
         'max_tenants': 250,
         'max_houses': -1,
 
@@ -52,8 +52,8 @@ SUBSCRIPTION_TIERS = {
             'Priority support',
             'API access (coming soon)'
         ],
-        'monthly_price': 2500,
-        'annual_price': 25000  # 10 months equivalent (save 2 months)
+        'monthly_price': 5000,
+        'annual_price': 40000  # 10 months equivalent (save 2 months)
     },
     'enterprise': {
         'name': 'Enterprise',
