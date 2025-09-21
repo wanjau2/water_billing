@@ -866,11 +866,146 @@ def mpesa_callback():
         app.logger.error(f"M-Pesa callback error: {e}")
         return jsonify({'ResultCode': 1, 'ResultDesc': 'Internal error'})
 
+@app.route('/mpesa/till_callback', methods=['POST'])
+@csrf.exempt  # M-Pesa callbacks can't send CSRF tokens
+def mpesa_till_callback():
+    """Handle automatic M-Pesa Till payments - redirects to main payment callback"""
+    return mpesa_payment_callback()
+
+
+def find_tenant_with_multi_reference(admin_id, payment_method, bill_ref_number, customer_phone, customer_name):
+    """
+    Enhanced tenant matching with multiple reference strategies
+    Returns: (tenant, house, matching_method)
+    """
+    try:
+        # Strategy 1: PayBill - House number as account reference (most reliable)
+        if payment_method == 'paybill' and bill_ref_number:
+            # Check if admin has enabled house number feature
+            config = mongo.db.sms_config.find_one({"admin_id": admin_id})
+            if config and config.get('use_house_number_as_account'):
+                # Find house by house number
+                house = mongo.db.houses.find_one({
+                    "house_number": bill_ref_number,
+                    "admin_id": admin_id
+                })
+
+                if house:
+                    # Find tenant in that house
+                    tenant = mongo.db.tenants.find_one({
+                        "house_number": bill_ref_number,
+                        "admin_id": admin_id
+                    })
+
+                    if tenant:
+                        return tenant, house, "house_number_paybill"
+                    else:
+                        # House exists but no tenant found - still return house for manual allocation
+                        return None, house, "house_found_no_tenant"
+
+        # Strategy 2: Phone number + name matching (works for both PayBill and Till)
+        if customer_phone and customer_name:
+            # Normalize name for comparison (remove extra spaces, convert to lowercase)
+            normalized_customer_name = ' '.join(customer_name.lower().split())
+
+            # Find tenant by phone and name match
+            tenants = list(mongo.db.tenants.find({
+                "admin_id": admin_id,
+                "phone": customer_phone
+            }))
+
+            for tenant in tenants:
+                tenant_name = tenant.get('name', '').lower()
+                normalized_tenant_name = ' '.join(tenant_name.split())
+
+                # Check if names match (exact or partial)
+                if (normalized_customer_name in normalized_tenant_name or
+                    normalized_tenant_name in normalized_customer_name):
+
+                    # Find the house for this tenant
+                    house = mongo.db.houses.find_one({
+                        "house_number": tenant.get('house_number'),
+                        "admin_id": admin_id
+                    })
+
+                    return tenant, house, "phone_and_name_match"
+
+        # Strategy 3: Phone number only (less reliable)
+        if customer_phone:
+            tenant = mongo.db.tenants.find_one({
+                "admin_id": admin_id,
+                "phone": customer_phone
+            })
+
+            if tenant:
+                house = mongo.db.houses.find_one({
+                    "house_number": tenant.get('house_number'),
+                    "admin_id": admin_id
+                })
+
+                return tenant, house, "phone_only_match"
+
+        # Strategy 4: Till users - House number as tenant reference (if available)
+        if payment_method == 'till' and bill_ref_number:
+            # For Till users, sometimes bill_ref_number might be house number
+            house = mongo.db.houses.find_one({
+                "house_number": bill_ref_number,
+                "admin_id": admin_id
+            })
+
+            if house:
+                tenant = mongo.db.tenants.find_one({
+                    "house_number": bill_ref_number,
+                    "admin_id": admin_id
+                })
+
+                return tenant, house, "house_number_till"
+
+        # Strategy 5: Name matching only (least reliable)
+        if customer_name and len(customer_name.strip()) > 3:
+            normalized_customer_name = ' '.join(customer_name.lower().split())
+
+            # Find tenants with similar names
+            tenants = list(mongo.db.tenants.find({"admin_id": admin_id}))
+
+            for tenant in tenants:
+                tenant_name = tenant.get('name', '').lower()
+                normalized_tenant_name = ' '.join(tenant_name.split())
+
+                # More strict name matching for this fallback
+                if normalized_customer_name == normalized_tenant_name:
+                    house = mongo.db.houses.find_one({
+                        "house_number": tenant.get('house_number'),
+                        "admin_id": admin_id
+                    })
+
+                    return tenant, house, "name_only_exact_match"
+
+        # No match found
+        return None, None, "no_match_found"
+
+    except Exception as e:
+        app.logger.error(f"Error in tenant matching: {str(e)}")
+        return None, None, "matching_error"
+
+def get_matching_confidence(matching_method):
+    """Return confidence level for different matching methods"""
+    confidence_map = {
+        "house_number_paybill": "high",      # Most reliable - house number + PayBill
+        "phone_and_name_match": "high",      # High confidence - phone + name match
+        "house_number_till": "medium",       # Medium - house number but via Till
+        "phone_only_match": "medium",        # Medium - phone only
+        "house_found_no_tenant": "low",     # Low - house found but no tenant
+        "name_only_exact_match": "low",     # Low - name only
+        "no_match_found": "none",           # No match
+        "matching_error": "error"           # Error in matching
+    }
+    return confidence_map.get(matching_method, "unknown")
 
 @app.route('/mpesa/paybill_callback', methods=['POST'])
 @csrf.exempt  # M-Pesa callbacks can't send CSRF tokens
-def mpesa_paybill_callback():
-    """Handle automatic M-Pesa PayBill/Till payments with house number as account reference"""
+def mpesa_payment_callback():
+    """Handle automatic M-Pesa PayBill/Till payments with multi-reference tenant matching"""
     try:
         # Log the incoming request
         data = request.get_json()
@@ -892,15 +1027,15 @@ def mpesa_paybill_callback():
         middle_name = data.get('MiddleName', '')
         last_name = data.get('LastName', '')
 
-        # Validate required fields
-        if not all([trans_id, trans_amount, bill_ref_number]):
+        # Validate required fields (trans_amount and trans_id are always required)
+        if not all([trans_id, trans_amount]):
             app.logger.error("Missing required payment fields")
             return jsonify({
                 'ResultCode': 'C00000001',
                 'ResultDesc': 'Missing required fields'
             })
 
-        # Find admin by business short code or till number
+        # Find admin by business short code (supports both PayBill and Till)
         admin = mongo.db.admins.find_one({
             '$or': [
                 {'business_number': str(business_short_code)},
@@ -916,34 +1051,24 @@ def mpesa_paybill_callback():
             })
 
         admin_id = admin['_id']
+        payment_method = admin.get('payment_method', 'till')  # Default to till for older accounts
 
-        # Check if admin has enabled house number as account reference
-        config = mongo.db.sms_config.find_one({"admin_id": admin_id})
-        if not config or not config.get('use_house_number_as_account'):
-            app.logger.info(f"House number as account reference not enabled for admin {admin_id}")
-            return jsonify({
-                'ResultCode': '00000000',
-                'ResultDesc': 'Success - feature not enabled'
-            })
+        # Clean phone number (remove country code if present)
+        customer_phone = msisdn
+        if customer_phone and customer_phone.startswith('254'):
+            customer_phone = '0' + customer_phone[3:]
 
-        # Find house by house number
-        house = mongo.db.houses.find_one({
-            "house_number": bill_ref_number,
-            "admin_id": admin_id
-        })
+        # Build customer name from M-Pesa data
+        customer_name = f"{first_name} {middle_name} {last_name}".strip()
 
-        if not house:
-            app.logger.warning(f"House not found for number: {bill_ref_number}")
-            return jsonify({
-                'ResultCode': '00000000',
-                'ResultDesc': 'Success - house not found'
-            })
-
-        # Find tenant in the house
-        tenant = mongo.db.tenants.find_one({
-            "house_number": bill_ref_number,
-            "admin_id": admin_id
-        })
+        # Enhanced tenant matching with multiple strategies
+        tenant, house, matching_method = find_tenant_with_multi_reference(
+            admin_id=admin_id,
+            payment_method=payment_method,
+            bill_ref_number=bill_ref_number,
+            customer_phone=customer_phone,
+            customer_name=customer_name
+        )
 
         # Create automatic payment record
         current_month = datetime.now().strftime('%Y-%m')
@@ -961,42 +1086,65 @@ def mpesa_paybill_callback():
                 'ResultDesc': 'Success - payment already recorded'
             })
 
-        # Create payment record
-        payment_record = {
+        # Create unallocated payment record (to be manually allocated by admin)
+        unallocated_payment = {
             'admin_id': admin_id,
-            'house_id': house['_id'],
-            'house_number': bill_ref_number,
+            'house_id': house['_id'] if house else None,
+            'house_number': house.get('house_number') if house else bill_ref_number,
             'tenant_id': tenant['_id'] if tenant else None,
-            'tenant_name': tenant['name'] if tenant else f"{first_name} {middle_name} {last_name}".strip(),
-            'amount_paid': float(trans_amount),
-            'payment_method': 'mpesa_auto',
-            'payment_status': 'paid',
+            'tenant_name': tenant['name'] if tenant else customer_name,
+            'amount_received': float(trans_amount),
+            'amount_allocated': 0.0,
+            'amount_remaining': float(trans_amount),
+            'payment_method': f'mpesa_{payment_method}',  # mpesa_paybill or mpesa_till
+            'payment_status': 'unallocated',
+            'allocation_status': 'pending',  # pending/partial/complete
             'payment_date': datetime.now(),
             'month_year': current_month,
             'mpesa_trans_id': trans_id,
             'mpesa_phone': msisdn,
+            'customer_phone': customer_phone,
+            'customer_name': customer_name,
             'bill_ref_number': bill_ref_number,
+            'matching_method': matching_method,
+            'matching_confidence': get_matching_confidence(matching_method),
+            'allocations': [],  # Array to track bill allocations
             'created_at': datetime.now(),
-            'notes': f'Automatic payment via M-Pesa. Ref: {bill_ref_number}'
+            'updated_at': datetime.now(),
+            'notes': f'Auto M-Pesa payment via {payment_method.upper()} - {matching_method}. Ref: {bill_ref_number or "N/A"}'
         }
 
-        # Insert payment record
-        result = mongo.db.payments.insert_one(payment_record)
-        app.logger.info(f"Automatic payment recorded: {result.inserted_id}")
+        # Insert unallocated payment record
+        result = mongo.db.unallocated_payments.insert_one(unallocated_payment)
+        app.logger.info(f"Unallocated payment recorded: {result.inserted_id}")
 
         # Send confirmation SMS to tenant if phone number available
         if tenant and tenant.get('phone'):
             try:
-                message = f"Payment received! Amount: KES {trans_amount}, House: {bill_ref_number}, Ref: {trans_id}. Thank you!"
+                house_info = house.get('house_number', 'N/A') if house else 'N/A'
+                confidence = get_matching_confidence(matching_method)
+                message = f"Payment received! Amount: KES {trans_amount}, House: {house_info}, Ref: {trans_id}. Your payment is being processed. Thank you!"
                 send_message(tenant['phone'], message)
             except Exception as sms_error:
                 app.logger.error(f"SMS sending failed: {sms_error}")
 
-        # Send notification to admin
+        # Send notification to admin about unallocated payment with matching details
         if admin.get('phone'):
             try:
-                tenant_name = tenant['name'] if tenant else 'Unknown tenant'
-                message = f"Payment received: {tenant_name}, House {bill_ref_number}, KES {trans_amount}. Ref: {trans_id}"
+                tenant_name = tenant['name'] if tenant else customer_name or 'Unknown'
+                house_info = house.get('house_number') if house else bill_ref_number or 'Unknown'
+                confidence = get_matching_confidence(matching_method)
+
+                # Create detailed message based on matching confidence
+                if confidence == "high":
+                    message = f"NEW PAYMENT (High Match): {tenant_name}, House {house_info}, KES {trans_amount}. Tenant matched via {payment_method.upper()}. Ref: {trans_id}"
+                elif confidence == "medium":
+                    message = f"NEW PAYMENT (Medium Match): {tenant_name}, House {house_info}, KES {trans_amount}. Please verify and allocate. Ref: {trans_id}"
+                elif confidence == "low":
+                    message = f"NEW PAYMENT (Low Match): {tenant_name}, House {house_info}, KES {trans_amount}. Uncertain match - please verify. Ref: {trans_id}"
+                else:
+                    message = f"NEW PAYMENT (No Match): {customer_name}, KES {trans_amount}. Could not match tenant. Please allocate manually. Ref: {trans_id}"
+
                 send_message(admin['phone'], message)
             except Exception as sms_error:
                 app.logger.error(f"Admin SMS sending failed: {sms_error}")
@@ -3432,6 +3580,229 @@ def payments_dashboard():
         flash(f'Error loading payments dashboard: {str(e)}', 'danger')
         return redirect(url_for('dashboard'))
 
+@app.route('/unallocated_payments', methods=['GET'])
+@login_required
+def unallocated_payments():
+    """Display dashboard for unallocated M-Pesa payments requiring manual allocation"""
+    try:
+        # Get admin_id from session
+        admin_id = get_admin_id()
+
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = 10
+
+        # Build query for unallocated payments
+        query = {
+            'admin_id': admin_id,
+            'allocation_status': {'$in': ['pending', 'partial']}
+        }
+
+        # Get total count for pagination
+        total_count = mongo.db.unallocated_payments.count_documents(query)
+
+        # Get paginated unallocated payments
+        unallocated_payments_list = list(mongo.db.unallocated_payments.find(query)
+                                       .sort('payment_date', -1)
+                                       .skip((page - 1) * per_page)
+                                       .limit(per_page))
+
+        # Enrich each payment with outstanding bills for that house
+        enriched_payments = []
+        for payment in unallocated_payments_list:
+            # Get outstanding bills for this house (both water and rent)
+            outstanding_bills = list(mongo.db.payments.find({
+                'admin_id': admin_id,
+                'house_id': payment['house_id'],
+                'payment_status': {'$in': ['unpaid', 'partial']}
+            }).sort('due_date', 1))
+
+            # Add outstanding amounts to bills
+            for bill in outstanding_bills:
+                bill['outstanding_amount'] = bill['bill_amount'] - bill.get('amount_paid', 0)
+
+            payment['outstanding_bills'] = outstanding_bills
+            payment['total_outstanding'] = sum(bill['outstanding_amount'] for bill in outstanding_bills)
+            enriched_payments.append(payment)
+
+        # Calculate pagination info
+        has_prev = page > 1
+        has_next = (page * per_page) < total_count
+        prev_num = page - 1 if has_prev else None
+        next_num = page + 1 if has_next else None
+
+        pagination = {
+            'page': page,
+            'per_page': per_page,
+            'total': total_count,
+            'has_prev': has_prev,
+            'has_next': has_next,
+            'prev_num': prev_num,
+            'next_num': next_num,
+            'pages': (total_count + per_page - 1) // per_page
+        }
+
+        # Calculate summary statistics
+        total_unallocated = sum(payment['amount_remaining'] for payment in enriched_payments)
+        pending_count = len([p for p in enriched_payments if p['allocation_status'] == 'pending'])
+        partial_count = len([p for p in enriched_payments if p['allocation_status'] == 'partial'])
+
+        return render_template('unallocated_payments.html',
+                             payments=enriched_payments,
+                             pagination=pagination,
+                             total_unallocated=total_unallocated,
+                             pending_count=pending_count,
+                             partial_count=partial_count,
+                             now=datetime.now().timestamp())
+
+    except KeyError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    except Exception as e:
+        app.logger.error(f"Error in unallocated payments dashboard: {str(e)}")
+        flash(f'Error loading unallocated payments: {str(e)}', 'danger')
+        return redirect(url_for('dashboard'))
+
+@app.route('/allocate_payment/<unallocated_payment_id>', methods=['POST'])
+@login_required
+def allocate_payment(unallocated_payment_id):
+    """Allocate unallocated payment to specific bills"""
+    try:
+        admin_id = get_admin_id()
+
+        # Get the unallocated payment
+        unallocated_payment = mongo.db.unallocated_payments.find_one({
+            '_id': ObjectId(unallocated_payment_id),
+            'admin_id': admin_id
+        })
+
+        if not unallocated_payment:
+            flash('Unallocated payment not found', 'danger')
+            return redirect(url_for('unallocated_payments'))
+
+        # Get allocation data from form
+        allocations = []
+        total_allocated = 0
+
+        # Parse form data for allocations (bill_id: amount)
+        for key, value in request.form.items():
+            if key.startswith('allocation_') and float(value or 0) > 0:
+                bill_id = key.replace('allocation_', '')
+                amount = float(value)
+                allocations.append({
+                    'bill_id': ObjectId(bill_id),
+                    'amount': amount,
+                    'allocated_at': datetime.now()
+                })
+                total_allocated += amount
+
+        # Validate total allocation doesn't exceed remaining amount
+        if total_allocated > unallocated_payment['amount_remaining']:
+            flash(f'Total allocation (KES {total_allocated}) exceeds remaining amount (KES {unallocated_payment["amount_remaining"]})', 'danger')
+            return redirect(url_for('unallocated_payments'))
+
+        # Process each allocation
+        successful_allocations = []
+        for allocation in allocations:
+            # Get the bill being paid
+            bill = mongo.db.payments.find_one({
+                '_id': allocation['bill_id'],
+                'admin_id': admin_id
+            })
+
+            if bill:
+                # Calculate new payment amount for this bill
+                current_paid = bill.get('amount_paid', 0)
+                new_paid = current_paid + allocation['amount']
+                bill_amount = bill['bill_amount']
+
+                # Determine new payment status
+                if new_paid >= bill_amount:
+                    new_status = 'paid'
+                elif new_paid > 0:
+                    new_status = 'partial'
+                else:
+                    new_status = 'unpaid'
+
+                # Update the bill
+                mongo.db.payments.update_one(
+                    {'_id': allocation['bill_id']},
+                    {
+                        '$set': {
+                            'amount_paid': new_paid,
+                            'payment_status': new_status,
+                            'last_payment_method': 'mpesa_auto_allocated',
+                            'updated_at': datetime.now()
+                        },
+                        '$push': {
+                            'payment_history': {
+                                'amount': allocation['amount'],
+                                'method': 'mpesa_auto_allocated',
+                                'date': datetime.now(),
+                                'mpesa_trans_id': unallocated_payment['mpesa_trans_id'],
+                                'unallocated_payment_id': ObjectId(unallocated_payment_id),
+                                'notes': f'Allocated from M-Pesa payment {unallocated_payment["mpesa_trans_id"]}'
+                            }
+                        }
+                    }
+                )
+
+                successful_allocations.append({
+                    'bill_id': allocation['bill_id'],
+                    'bill_type': bill.get('bill_type', 'unknown'),
+                    'month_year': bill.get('month_year', 'unknown'),
+                    'amount': allocation['amount'],
+                    'allocated_at': allocation['allocated_at']
+                })
+
+        # Update unallocated payment record
+        new_amount_allocated = unallocated_payment['amount_allocated'] + total_allocated
+        new_amount_remaining = unallocated_payment['amount_remaining'] - total_allocated
+
+        # Determine new allocation status
+        if new_amount_remaining <= 0:
+            new_allocation_status = 'complete'
+        elif new_amount_allocated > 0:
+            new_allocation_status = 'partial'
+        else:
+            new_allocation_status = 'pending'
+
+        mongo.db.unallocated_payments.update_one(
+            {'_id': ObjectId(unallocated_payment_id)},
+            {
+                '$set': {
+                    'amount_allocated': new_amount_allocated,
+                    'amount_remaining': new_amount_remaining,
+                    'allocation_status': new_allocation_status,
+                    'updated_at': datetime.now()
+                },
+                '$push': {
+                    'allocations': {
+                        '$each': successful_allocations
+                    }
+                }
+            }
+        )
+
+        # Send confirmation SMS to tenant
+        if unallocated_payment.get('tenant_id'):
+            tenant = mongo.db.tenants.find_one({'_id': unallocated_payment['tenant_id']})
+            if tenant and tenant.get('phone'):
+                try:
+                    allocation_details = ', '.join([f"{alloc['bill_type']} KES {alloc['amount']}" for alloc in successful_allocations])
+                    message = f"Payment allocated: {allocation_details}. House {unallocated_payment['house_number']}. Thank you!"
+                    send_message(tenant['phone'], message)
+                except Exception as sms_error:
+                    app.logger.error(f"SMS error: {sms_error}")
+
+        flash(f'Successfully allocated KES {total_allocated} to {len(successful_allocations)} bill(s)', 'success')
+        return redirect(url_for('unallocated_payments'))
+
+    except Exception as e:
+        app.logger.error(f"Error allocating payment: {str(e)}")
+        flash(f'Error allocating payment: {str(e)}', 'danger')
+        return redirect(url_for('unallocated_payments'))
+
 @app.route('/record_payment/<payment_id>', methods=['POST'])
 @login_required
 def record_payment(payment_id):
@@ -3691,6 +4062,11 @@ def sms_config():
     if request.method == 'POST':
         rate_per_unit = request.form.get('rate_per_unit', type=float)
         use_house_number_as_account = 'use_house_number_as_account' in request.form
+
+        # Security check: Only PayBill users can enable house number as account feature
+        if use_house_number_as_account and admin.get('payment_method') != 'paybill':
+            flash('House number as account reference is only available for PayBill users', 'danger')
+            return redirect(url_for('sms_config'))
 
         if rate_per_unit is None:
             flash('Rate per unit is required', 'danger')

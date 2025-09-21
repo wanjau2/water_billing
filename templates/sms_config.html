@@ -35,25 +35,28 @@
                             <div class="form-text">The amount charged per unit of water consumed</div>
                         </div>
 
+                        <!-- House Number as Account Reference - Only for PayBill users -->
+                        {% if admin and admin.payment_method == 'paybill' %}
                         <div class="mb-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="use_house_number_as_account"
                                        name="use_house_number_as_account"
                                        {% if config and config.use_house_number_as_account %}checked{% endif %}>
                                 <label class="form-check-label" for="use_house_number_as_account">
-                                    Use House Number as M-Pesa Account Reference
+                                    Use House Number as M-Pesa PayBill Account Reference
                                 </label>
                             </div>
                             <div class="form-text">
-                                When enabled, tenants can use their house number as the account name when paying via your M-Pesa PayBill/Till.
+                                When enabled, tenants can use their house number as the account name when paying via your M-Pesa PayBill.
                                 This allows automatic tracking of payments to specific houses.
                                 <br><strong>Example:</strong> Tenant in House A1 pays to your PayBill using "A1" as account name.
                                 <br><br><strong>Setup Instructions:</strong>
                                 <br>1. Configure this callback URL in your M-Pesa API: <code>{{ request.url_root }}mpesa/paybill_callback</code>
-                                <br>2. Ensure your PayBill/Till number matches the one in your profile
+                                <br>2. Ensure your PayBill business number matches the one in your profile
                                 <br>3. Tenants should use their exact house number as the account name when paying
                             </div>
                         </div>
+                        {% endif %}
 
                         <button type="submit" class="btn btn-primary">Save Configuration</button>
                     </form>

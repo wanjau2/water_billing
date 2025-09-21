@@ -1,0 +1,542 @@
+{% extends "base.html" %}
+
+{% block title %}Unallocated Payments - Payment Allocation{% endblock %}
+
+{% block content %}
+<!-- Main Container -->
+<div class="min-vh-100 bg-light py-4">
+    <div class="container">
+        <!-- Header Card Component -->
+        <div class="card mb-4 border-start border-warning border-4 shadow">
+            <div class="card-body p-4">
+                <div class="row align-items-center">
+                    <div class="col-md-8 d-flex align-items-center mb-3 mb-md-0">
+                        <div class="bg-warning bg-opacity-10 p-3 rounded-circle me-3">
+                            <svg class="text-warning" width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="fs-2 fw-bold">Unallocated Payments</h1>
+                            <p class="text-muted">M-Pesa payments requiring manual allocation to bills</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <a href="{{ url_for('dashboard') }}"
+                           class="btn btn-primary d-inline-flex align-items-center">
+                            <svg width="20" height="20" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                            </svg>
+                            <span>Back to Dashboard</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <!-- Total Unallocated Card -->
+            <div class="col-md-4 mb-3 mb-md-0">
+                <div class="card h-100 border-top border-warning border-4 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-warning bg-opacity-10 p-3 rounded-circle me-3">
+                                <svg width="24" height="24" class="text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="small fw-medium text-muted mb-0">Total Unallocated</p>
+                                <p class="fs-4 fw-bold mb-0">KES {{ "%.2f"|format(total_unallocated) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending Count Card -->
+            <div class="col-md-4 mb-3 mb-md-0">
+                <div class="card h-100 border-top border-danger border-4 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-danger bg-opacity-10 p-3 rounded-circle me-3">
+                                <svg width="24" height="24" class="text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="small fw-medium text-muted mb-0">Pending Allocation</p>
+                                <p class="fs-4 fw-bold mb-0">{{ pending_count }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Partial Allocation Card -->
+            <div class="col-md-4 mb-3 mb-md-0">
+                <div class="card h-100 border-top border-info border-4 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-info bg-opacity-10 p-3 rounded-circle me-3">
+                                <svg width="24" height="24" class="text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="small fw-medium text-muted mb-0">Partially Allocated</p>
+                                <p class="fs-4 fw-bold mb-0">{{ partial_count }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Unallocated Payments List -->
+        <div class="card shadow">
+            <div class="card-header bg-white py-3">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h5 class="mb-0 fw-semibold">Unallocated Payments</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if payments %}
+                    {% for payment in payments %}
+                    <div class="border-bottom p-4">
+                        <div class="row">
+                            <!-- Payment Info -->
+                            <div class="col-md-4 mb-3">
+                                <div class="d-flex align-items-start">
+                                    <div class="bg-primary bg-opacity-10 p-2 rounded me-3 mt-1">
+                                        <svg width="16" height="16" class="text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-semibold mb-1">{{ payment.tenant_name }}</h6>
+                                        <p class="text-muted small mb-1">House: {{ payment.house_number }}</p>
+                                        <p class="text-muted small mb-1">Date: {{ payment.payment_date.strftime('%Y-%m-%d %H:%M') }}</p>
+                                        <p class="text-muted small mb-1">Ref: {{ payment.mpesa_trans_id }}</p>
+
+                                        <!-- Matching Information -->
+                                        <div class="d-flex align-items-center mt-1">
+                                            {% if payment.matching_confidence == 'high' %}
+                                            <span class="badge bg-success bg-opacity-10 text-success me-2">High Match</span>
+                                            {% elif payment.matching_confidence == 'medium' %}
+                                            <span class="badge bg-warning bg-opacity-10 text-warning me-2">Medium Match</span>
+                                            {% elif payment.matching_confidence == 'low' %}
+                                            <span class="badge bg-danger bg-opacity-10 text-danger me-2">Low Match</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary me-2">No Match</span>
+                                            {% endif %}
+
+                                            <small class="text-muted">{{ payment.payment_method|replace('mpesa_', '')|title }}</small>
+                                        </div>
+
+                                        {% if payment.customer_phone and payment.customer_phone != payment.tenant_name %}
+                                        <p class="text-muted small mb-0 mt-1">Customer: {{ payment.customer_name }} ({{ payment.customer_phone }})</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payment Amounts -->
+                            <div class="col-md-3 mb-3">
+                                <p class="small text-muted mb-1">Payment Amount</p>
+                                <p class="fs-5 fw-bold text-success mb-1">KES {{ "%.2f"|format(payment.amount_received) }}</p>
+
+                                <p class="small text-muted mb-1">Remaining</p>
+                                <p class="fw-semibold mb-0 {% if payment.amount_remaining > 0 %}text-warning{% else %}text-success{% endif %}">
+                                    KES {{ "%.2f"|format(payment.amount_remaining) }}
+                                </p>
+                            </div>
+
+                            <!-- Outstanding Bills -->
+                            <div class="col-md-5">
+                                <p class="small text-muted mb-2">Outstanding Bills for House {{ payment.house_number }}</p>
+
+                                {% if payment.outstanding_bills %}
+                                {% set water_bills = payment.outstanding_bills | selectattr('bill_type', 'equalto', 'water') | list %}
+                                {% set rent_bills = payment.outstanding_bills | selectattr('bill_type', 'equalto', 'rent') | list %}
+                                {% set total_water_owed = water_bills | sum(attribute='outstanding_amount') %}
+                                {% set total_rent_owed = rent_bills | sum(attribute='outstanding_amount') %}
+
+                                <form method="POST" action="{{ url_for('allocate_payment', unallocated_payment_id=payment._id) }}">
+
+                                    <!-- Water Bills Section -->
+                                    {% if water_bills %}
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h6 class="mb-0 text-primary">💧 Water Bills</h6>
+                                            <div class="d-flex align-items-center">
+                                                <small class="text-muted me-2">Total: KES {{ "%.2f"|format(total_water_owed) }}</small>
+                                                {% if total_water_owed <= payment.amount_remaining %}
+                                                <div class="form-check form-check-sm">
+                                                    <input class="form-check-input pay-all-checkbox" type="checkbox"
+                                                           data-bill-type="water"
+                                                           data-total-amount="{{ total_water_owed }}"
+                                                           data-payment-id="{{ payment._id }}"
+                                                           id="pay_all_water_{{ payment._id }}">
+                                                    <label class="form-check-label small" for="pay_all_water_{{ payment._id }}">
+                                                        Pay All
+                                                    </label>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        {% for bill in water_bills %}
+                                        <div class="card card-body p-2 bg-light mb-2">
+                                            <div class="row align-items-center g-2">
+                                                <div class="col-7">
+                                                    <small class="fw-medium">{{ bill.month_year }}</small>
+                                                    <br>
+                                                    <small class="text-muted">Outstanding: KES {{ "%.2f"|format(bill.outstanding_amount) }}</small>
+                                                </div>
+                                                <div class="col-5">
+                                                    <div class="input-group input-group-sm">
+                                                        <span class="input-group-text">KES</span>
+                                                        <input type="number"
+                                                               name="allocation_{{ bill._id }}"
+                                                               class="form-control allocation-input water-bill-input"
+                                                               step="0.01"
+                                                               min="0"
+                                                               max="{{ [bill.outstanding_amount, payment.amount_remaining]|min }}"
+                                                               placeholder="0.00"
+                                                               data-max-amount="{{ payment.amount_remaining }}"
+                                                               data-payment-id="{{ payment._id }}"
+                                                               data-bill-type="water"
+                                                               data-bill-outstanding="{{ bill.outstanding_amount }}">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Rent Bills Section -->
+                                    {% if rent_bills %}
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h6 class="mb-0 text-success">🏠 Rent Bills</h6>
+                                            <div class="d-flex align-items-center">
+                                                <small class="text-muted me-2">Total: KES {{ "%.2f"|format(total_rent_owed) }}</small>
+                                                {% if total_rent_owed <= payment.amount_remaining %}
+                                                <div class="form-check form-check-sm">
+                                                    <input class="form-check-input pay-all-checkbox" type="checkbox"
+                                                           data-bill-type="rent"
+                                                           data-total-amount="{{ total_rent_owed }}"
+                                                           data-payment-id="{{ payment._id }}"
+                                                           id="pay_all_rent_{{ payment._id }}">
+                                                    <label class="form-check-label small" for="pay_all_rent_{{ payment._id }}">
+                                                        Pay All
+                                                    </label>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        {% for bill in rent_bills %}
+                                        <div class="card card-body p-2 bg-light mb-2">
+                                            <div class="row align-items-center g-2">
+                                                <div class="col-7">
+                                                    <small class="fw-medium">{{ bill.month_year }}</small>
+                                                    <br>
+                                                    <small class="text-muted">Outstanding: KES {{ "%.2f"|format(bill.outstanding_amount) }}</small>
+                                                </div>
+                                                <div class="col-5">
+                                                    <div class="input-group input-group-sm">
+                                                        <span class="input-group-text">KES</span>
+                                                        <input type="number"
+                                                               name="allocation_{{ bill._id }}"
+                                                               class="form-control allocation-input rent-bill-input"
+                                                               step="0.01"
+                                                               min="0"
+                                                               max="{{ [bill.outstanding_amount, payment.amount_remaining]|min }}"
+                                                               placeholder="0.00"
+                                                               data-max-amount="{{ payment.amount_remaining }}"
+                                                               data-payment-id="{{ payment._id }}"
+                                                               data-bill-type="rent"
+                                                               data-bill-outstanding="{{ bill.outstanding_amount }}">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Quick Allocation Buttons -->
+                                    <div class="mb-3">
+                                        <div class="d-flex gap-2 flex-wrap">
+                                            {% if total_water_owed > 0 and total_water_owed <= payment.amount_remaining %}
+                                            <button type="button" class="btn btn-outline-primary btn-sm quick-allocate-btn"
+                                                    data-type="water-only" data-amount="{{ total_water_owed }}" data-payment-id="{{ payment._id }}">
+                                                Pay All Water ({{ "%.0f"|format(total_water_owed) }})
+                                            </button>
+                                            {% endif %}
+
+                                            {% if total_rent_owed > 0 and total_rent_owed <= payment.amount_remaining %}
+                                            <button type="button" class="btn btn-outline-success btn-sm quick-allocate-btn"
+                                                    data-type="rent-only" data-amount="{{ total_rent_owed }}" data-payment-id="{{ payment._id }}">
+                                                Pay All Rent ({{ "%.0f"|format(total_rent_owed) }})
+                                            </button>
+                                            {% endif %}
+
+                                            {% if (total_water_owed + total_rent_owed) <= payment.amount_remaining %}
+                                            <button type="button" class="btn btn-outline-dark btn-sm quick-allocate-btn"
+                                                    data-type="all-bills" data-amount="{{ total_water_owed + total_rent_owed }}" data-payment-id="{{ payment._id }}">
+                                                Pay All Bills ({{ "%.0f"|format(total_water_owed + total_rent_owed) }})
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-3 d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <small class="text-muted">Total to allocate: </small>
+                                            <span class="fw-bold allocation-total-{{ payment._id }}">KES 0.00</span>
+                                        </div>
+                                        <button type="submit" class="btn btn-success btn-sm">
+                                            <svg width="16" height="16" class="me-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            Allocate Payment
+                                        </button>
+                                    </div>
+                                </form>
+                                {% else %}
+                                <div class="alert alert-info mb-0">
+                                    <small>No outstanding bills found for this house.</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Allocation History -->
+                        {% if payment.allocations %}
+                        <div class="mt-3 pt-3 border-top">
+                            <p class="small fw-medium text-muted mb-2">Previous Allocations</p>
+                            <div class="row g-2">
+                                {% for allocation in payment.allocations %}
+                                <div class="col-auto">
+                                    <span class="badge bg-success">
+                                        {{ allocation.bill_type|title }}: KES {{ "%.2f"|format(allocation.amount) }}
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="text-center py-5">
+                    <svg width="64" height="64" class="text-muted mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <h5 class="text-muted">No Unallocated Payments</h5>
+                    <p class="text-muted">All M-Pesa payments have been allocated to bills.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if pagination.pages > 1 %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('unallocated_payments', page=pagination.prev_num) }}">Previous</a>
+                </li>
+                {% endif %}
+
+                {% for page_num in range(1, pagination.pages + 1) %}
+                    {% if page_num <= 3 or page_num > pagination.pages - 3 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
+                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('unallocated_payments', page=page_num) }}">{{ page_num }}</a>
+                    </li>
+                    {% elif page_num == 4 or page_num == pagination.pages - 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('unallocated_payments', page=pagination.next_num) }}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<!-- JavaScript for enhanced allocation with quick pay features -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // Calculate total allocation for a payment
+    function calculateTotal(paymentId) {
+        let totalAllocation = 0;
+        document.querySelectorAll(`.allocation-input[data-payment-id="${paymentId}"]`).forEach(function(inp) {
+            const value = parseFloat(inp.value) || 0;
+            totalAllocation += value;
+        });
+        return totalAllocation;
+    }
+
+    // Update total display
+    function updateTotalDisplay(paymentId) {
+        const totalAllocation = calculateTotal(paymentId);
+        const maxAmount = parseFloat(document.querySelector(`.allocation-input[data-payment-id="${paymentId}"]`).dataset.maxAmount);
+
+        const totalDisplay = document.querySelector(`.allocation-total-${paymentId}`);
+        if (totalDisplay) {
+            totalDisplay.textContent = `KES ${totalAllocation.toFixed(2)}`;
+
+            // Color code based on amount
+            if (totalAllocation > maxAmount) {
+                totalDisplay.className = 'fw-bold text-danger';
+            } else if (totalAllocation === maxAmount) {
+                totalDisplay.className = 'fw-bold text-success';
+            } else {
+                totalDisplay.className = 'fw-bold text-primary';
+            }
+        }
+    }
+
+    // Handle "Pay All" checkboxes
+    document.querySelectorAll('.pay-all-checkbox').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const paymentId = this.dataset.paymentId;
+            const billType = this.dataset.billType;
+            const totalAmount = parseFloat(this.dataset.totalAmount);
+
+            if (this.checked) {
+                // Fill all inputs for this bill type with their outstanding amounts
+                document.querySelectorAll(`.allocation-input[data-payment-id="${paymentId}"][data-bill-type="${billType}"]`).forEach(function(input) {
+                    const outstanding = parseFloat(input.dataset.billOutstanding);
+                    input.value = outstanding.toFixed(2);
+                });
+            } else {
+                // Clear all inputs for this bill type
+                document.querySelectorAll(`.allocation-input[data-payment-id="${paymentId}"][data-bill-type="${billType}"]`).forEach(function(input) {
+                    input.value = '';
+                });
+            }
+
+            updateTotalDisplay(paymentId);
+        });
+    });
+
+    // Handle quick allocation buttons
+    document.querySelectorAll('.quick-allocate-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const paymentId = this.dataset.paymentId;
+            const type = this.dataset.type;
+
+            // Clear all inputs first
+            document.querySelectorAll(`.allocation-input[data-payment-id="${paymentId}"]`).forEach(function(input) {
+                input.value = '';
+            });
+
+            if (type === 'water-only') {
+                // Fill only water bills
+                document.querySelectorAll(`.water-bill-input[data-payment-id="${paymentId}"]`).forEach(function(input) {
+                    const outstanding = parseFloat(input.dataset.billOutstanding);
+                    input.value = outstanding.toFixed(2);
+                });
+            } else if (type === 'rent-only') {
+                // Fill only rent bills
+                document.querySelectorAll(`.rent-bill-input[data-payment-id="${paymentId}"]`).forEach(function(input) {
+                    const outstanding = parseFloat(input.dataset.billOutstanding);
+                    input.value = outstanding.toFixed(2);
+                });
+            } else if (type === 'all-bills') {
+                // Fill all bills
+                document.querySelectorAll(`.allocation-input[data-payment-id="${paymentId}"]`).forEach(function(input) {
+                    const outstanding = parseFloat(input.dataset.billOutstanding);
+                    input.value = outstanding.toFixed(2);
+                });
+            }
+
+            updateTotalDisplay(paymentId);
+        });
+    });
+
+    // Handle allocation input changes
+    document.querySelectorAll('.allocation-input').forEach(function(input) {
+        input.addEventListener('input', function() {
+            const paymentId = this.dataset.paymentId;
+            updateTotalDisplay(paymentId);
+
+            // Validate individual input
+            if (parseFloat(this.value) > parseFloat(this.max)) {
+                this.setCustomValidity('Amount exceeds maximum allowed');
+            } else {
+                this.setCustomValidity('');
+            }
+
+            // Update pay-all checkboxes based on input values
+            const billType = this.dataset.billType;
+            const payAllCheckbox = document.querySelector(`#pay_all_${billType}_${paymentId}`);
+
+            if (payAllCheckbox) {
+                // Check if all bills of this type are fully paid
+                let allFullyPaid = true;
+                document.querySelectorAll(`.allocation-input[data-payment-id="${paymentId}"][data-bill-type="${billType}"]`).forEach(function(inp) {
+                    const value = parseFloat(inp.value) || 0;
+                    const outstanding = parseFloat(inp.dataset.billOutstanding);
+                    if (value !== outstanding) {
+                        allFullyPaid = false;
+                    }
+                });
+
+                payAllCheckbox.checked = allFullyPaid;
+            }
+        });
+    });
+
+    // Handle form submission validation
+    document.querySelectorAll('form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            const firstInput = form.querySelector('.allocation-input');
+            if (!firstInput) return;
+
+            const paymentId = firstInput.dataset.paymentId;
+            const maxAmount = parseFloat(firstInput.dataset.maxAmount);
+
+            let totalAllocation = 0;
+            let hasAllocation = false;
+
+            form.querySelectorAll('.allocation-input').forEach(function(input) {
+                const value = parseFloat(input.value) || 0;
+                totalAllocation += value;
+                if (value > 0) hasAllocation = true;
+            });
+
+            if (!hasAllocation) {
+                e.preventDefault();
+                alert('Please enter at least one allocation amount.');
+                return false;
+            }
+
+            if (totalAllocation > maxAmount) {
+                e.preventDefault();
+                alert(`Total allocation (KES ${totalAllocation.toFixed(2)}) exceeds remaining amount (KES ${maxAmount.toFixed(2)})`);
+                return false;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

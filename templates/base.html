@@ -43,6 +43,11 @@
             </a>
           </li>
           <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'unallocated_payments' %}active{% endif %}" href="{{ url_for('unallocated_payments') }}">
+              <i class="fas fa-exclamation-triangle"></i> Unallocated
+            </a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link {% if request.endpoint == 'sms_config' %}active{% endif %}" href="{{ url_for('sms_config') }}">Settings</a>
           </li>
 
