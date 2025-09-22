@@ -128,8 +128,11 @@
             <a class="nav-link active" href="{{ url_for('dashboard') }}">Dashboard</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'houses' %}active{% endif %}" href="{{ url_for('houses') }}">Houses</a>
+            <a class="nav-link {% if request.endpoint == 'unallocated_payments' %}active{% endif %}" href="{{ url_for('unallocated_payments') }}">
+              <i class="fas fa-exclamation-triangle">Unallocated</i> 
+            </a>
           </li>
+
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('rent_dashboard') }}" class="btn btn-primary">
               <i class="fas fa-money-bill"></i> Rent Dashboard
@@ -139,6 +142,9 @@
             <a href="{{ url_for('payments_dashboard') }}" class="nav-link">
               <i class="fas fa-money-bill-wave"></i> Payments
             </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'houses' %}active{% endif %}" href="{{ url_for('houses') }}">Houses</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('sms_config') }}">Settings</a>
@@ -413,12 +419,6 @@
       </div>
     </div>
 
-    <!-- Tenant Management Section -->
-    <div class="row mb-4">
-      <div class="col-12">
-        <h3><i class="fas fa-users"></i> Tenant Management</h3>
-      </div>
-    </div>
 
     <!-- Analytics Dashboard -->
     <div class="row mb-4">

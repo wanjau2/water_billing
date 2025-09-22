@@ -986,3 +986,5 @@ MongoDB connection failed: localhost:27017: [Errno 111] Connection refused (conf
 MongoDB did not initialize—check MONGO_URI!
 MongoDB connection failed: localhost:27017: [Errno 111] Connection refused (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms), Timeout: 30s, Topology Description: <TopologyDescription id: 68cf687ce296c35da9d683b1, topology_type: Unknown, servers: [<ServerDescription ('localhost', 27017) server_type: Unknown, rtt: None, error=AutoReconnect('localhost:27017: [Errno 111] Connection refused (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms)')>]>
 MongoDB did not initialize—check MONGO_URI!
+MongoDB configuration error: The DNS operation timed out after 20.00025963783264 seconds
+MongoDB did not initialize—check MONGO_URI!
