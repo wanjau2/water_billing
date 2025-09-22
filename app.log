@@ -988,3 +988,4 @@ MongoDB connection failed: localhost:27017: [Errno 111] Connection refused (conf
 MongoDB did not initialize—check MONGO_URI!
 MongoDB configuration error: The DNS operation timed out after 20.00025963783264 seconds
 MongoDB did not initialize—check MONGO_URI!
+Error getting M-Pesa token: 400 Client Error: Bad Request for url: https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials

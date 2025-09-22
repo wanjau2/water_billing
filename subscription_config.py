@@ -10,8 +10,8 @@ SUBSCRIPTION_TIERS = {
             'SMS notifications',
             'Basic reports'
         ],
-        'monthly_price': 500,
-        'annual_price': 4000  # 10 months equivalent (save 2 months)
+        'monthly_price': 800,
+        'annual_price': 8000  # 10 months equivalent (save 2 months)
     },
     'basic': {
         'name': 'Basic',
@@ -24,8 +24,8 @@ SUBSCRIPTION_TIERS = {
             'Excel import/export',
             'Payment tracking'
         ],
-        'monthly_price': 1500,
-        'annual_price': 14000  # 10 months equivalent (save 2 months)
+        'monthly_price': 6000,
+        'annual_price': 45000  # 10 months equivalent (save 2 months)
     },
     'pro': {
         'name': 'Pro',
@@ -38,8 +38,8 @@ SUBSCRIPTION_TIERS = {
             'Bulk operations',
             'Payment reminders'
         ],
-        'monthly_price': 3000,
-        'annual_price': 25000  # 10 months equivalent (save 2 months)
+        'monthly_price': 9000,
+        'annual_price': 80000  # 10 months equivalent (save 2 months)
     },
     'business': {
         'name': 'Business',
@@ -52,8 +52,8 @@ SUBSCRIPTION_TIERS = {
             'Priority support',
             'API access (coming soon)'
         ],
-        'monthly_price': 5000,
-        'annual_price': 40000  # 10 months equivalent (save 2 months)
+        'monthly_price': 20000,
+        'annual_price': 115000  # 10 months equivalent (save 2 months)
     },
     'enterprise': {
         'name': 'Enterprise',
@@ -66,8 +66,8 @@ SUBSCRIPTION_TIERS = {
             'Custom features',
             'White labeling (coming soon)'
         ],
-        'monthly_price': 10000,
-        'annual_price': 100000  # 10 months equivalent (save 2 months)
+        'monthly_price': 80000,
+        'annual_price': 350000  # 10 months equivalent (save 2 months)
     }
 }
 
