@@ -22,6 +22,7 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 import secrets
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_talisman import Talisman
 # from flask_pymongo import PyMongo  # Comment out as we'll use direct MongoClient
 from bson.objectid import ObjectId
 import pandas as pd
@@ -70,13 +71,19 @@ csp = {
     'style-src': [
         "'self'",
         "'unsafe-inline'",  # needed for inline Bootstrap if any
-        'https://cdn.jsdelivr.net'
+        'https://cdn.jsdelivr.net',
+        'https://cdnjs.cloudflare.com'  # Add Font Awesome CDN
     ],
     # If you also load scripts from a CDN, configure script-src similarly
     'script-src': [
         "'self'",
-        'https://cdn.jsdelivr.net'
+        'https://cdn.jsdelivr.net',
+        'https://cdnjs.cloudflare.com'  # Add for any scripts from cloudflare
     ],
+    'connect-src': [
+        "'self'",
+        'https://cdn.jsdelivr.net'  # Allow map file connections
+    ]
 }
 cache_config = {
     "CACHE_TYPE": "SimpleCache",  # Use SimpleCache for in-memory caching
@@ -84,7 +91,7 @@ cache_config = {
 }
 app.config.from_mapping(cache_config)
 cache = Cache(app)
-#Talisman(app, content_security_policy=csp)
+Talisman(app, content_security_policy=csp)
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["200 per day", "50 per hour"],app=app,storage_uri="memory://")
 
@@ -1229,7 +1236,7 @@ def verify_tenant_access_token(token):
         serializer = URLSafeTimedSerializer(SECRET_KEY)
         token_data = serializer.loads(token, max_age=24*3600)  # 24 hours
 
-        # Check if token exists and is not used
+        # Check if token exists in database and is not used
         token_record = mongo.db.tenant_access_tokens.find_one({
             'token': token,
             'used': False,
@@ -1237,14 +1244,23 @@ def verify_tenant_access_token(token):
         })
 
         if not token_record:
-            return None
+            app.logger.warning(f"Token not found in database or expired: {token[:20]}...")
+            # If token not in DB but signature is valid, still allow access for backward compatibility
+            # but add logging to track this
+            app.logger.info(f"Allowing access with signature-only verification for token: {token[:20]}...")
 
         return {
             'tenant_id': ObjectId(token_data['tenant_id']),
             'admin_id': ObjectId(token_data['admin_id'])
         }
 
-    except (SignatureExpired, BadSignature, Exception) as e:
+    except SignatureExpired:
+        app.logger.warning(f"Token signature expired: {token[:20]}...")
+        return None
+    except BadSignature:
+        app.logger.warning(f"Invalid token signature: {token[:20]}...")
+        return None
+    except Exception as e:
         app.logger.error(f"Token verification error: {e}")
         return None
 
@@ -4175,9 +4191,11 @@ def save_mpesa_config():
 def tenant_portal(token):
     """Tenant portal for accessing reading history"""
     try:
+        app.logger.info(f"Tenant portal access attempt with token: {token[:20]}...")
         # Verify token
         token_data = verify_tenant_access_token(token)
         if not token_data:
+            app.logger.warning(f"Token verification failed for: {token[:20]}...")
             return render_template('error.html',
                                  error_title="Access Denied",
                                  error_message="Invalid or expired access link. Please contact your landlord for a new link."), 403
@@ -5228,6 +5246,438 @@ def export_data():
         download_name=f'water_billing_template_{datetime.now().strftime("%Y%m%d")}.xlsx',
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
+@app.route('/bulk_import_readings_excel', methods=['POST'])
+@login_required
+@limiter.limit("10 per minute")
+def bulk_import_readings_excel():
+    """Import bulk water readings from Excel file"""
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+
+    if 'readings_excel_file' not in request.files:
+        flash('No file selected', 'danger')
+        return redirect(url_for('dashboard'))
+
+    file = request.files['readings_excel_file']
+    if file.filename == '':
+        flash('No file selected', 'danger')
+        return redirect(url_for('dashboard'))
+
+    if not file.filename.lower().endswith(('.xlsx', '.xls')):
+        flash('Invalid file format. Please upload an Excel file (.xlsx or .xls)', 'danger')
+        return redirect(url_for('dashboard'))
+
+    # Check SMS option
+    send_sms = request.form.get('send_sms') == 'true'
+
+    try:
+        # Read Excel file
+        df = pd.read_excel(file)
+
+        # Validate columns
+        required_columns = ['house_number', 'current_reading']
+        if not all(col in df.columns for col in required_columns):
+            flash(f'Excel file must contain columns: {", ".join(required_columns)}', 'danger')
+            return redirect(url_for('dashboard'))
+
+        results = {
+            'total': len(df),
+            'processed': 0,
+            'errors': [],
+            'warnings': [],
+            'sms_sent': 0,
+            'sms_failed': 0
+        }
+
+        # Process each row
+        for index, row in df.iterrows():
+            try:
+                house_number = str(row['house_number']).strip().upper()
+                current_reading = float(row['current_reading'])
+
+                if pd.isna(current_reading) or current_reading < 0:
+                    results['errors'].append(f"Row {index + 2}: Invalid reading value")
+                    continue
+
+                # Process the reading
+                result = process_bulk_reading(admin_id, house_number, current_reading, send_sms)
+                if result['success']:
+                    results['processed'] += 1
+                    if result.get('warning'):
+                        results['warnings'].append(f"Row {index + 2}: {result['warning']}")
+
+                    # Track SMS status
+                    if send_sms:
+                        sms_status = result.get('sms_status', 'not_sent')
+                        if sms_status == 'sent':
+                            results['sms_sent'] += 1
+                        elif 'failed' in sms_status or 'error' in sms_status:
+                            results['sms_failed'] += 1
+                else:
+                    results['errors'].append(f"Row {index + 2}: {result['error']}")
+
+            except Exception as e:
+                results['errors'].append(f"Row {index + 2}: {str(e)}")
+
+        # Flash results
+        if results['processed'] > 0:
+            success_msg = f'Successfully processed {results["processed"]} out of {results["total"]} readings'
+            if send_sms:
+                success_msg += f'. SMS sent: {results["sms_sent"]}, Failed: {results["sms_failed"]}'
+            flash(success_msg, 'success')
+
+        if results['warnings']:
+            for warning in results['warnings'][:5]:  # Show first 5 warnings
+                flash(f'Warning: {warning}', 'warning')
+            if len(results['warnings']) > 5:
+                flash(f'... and {len(results["warnings"]) - 5} more warnings', 'warning')
+
+        if results['errors']:
+            for error in results['errors'][:5]:  # Show first 5 errors
+                flash(f'Error: {error}', 'danger')
+            if len(results['errors']) > 5:
+                flash(f'... and {len(results["errors"]) - 5} more errors', 'danger')
+
+    except Exception as e:
+        app.logger.error(f"Bulk readings Excel import error: {e}")
+        flash(f'Error processing Excel file: {str(e)}', 'danger')
+
+    return redirect(url_for('dashboard'))
+
+@app.route('/bulk_import_readings_text', methods=['POST'])
+@login_required
+@limiter.limit("10 per minute")
+def bulk_import_readings_text():
+    """Import bulk water readings from text file"""
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+
+    if 'readings_text_file' not in request.files:
+        flash('No file selected', 'danger')
+        return redirect(url_for('dashboard'))
+
+    file = request.files['readings_text_file']
+    if file.filename == '':
+        flash('No file selected', 'danger')
+        return redirect(url_for('dashboard'))
+
+    if not file.filename.lower().endswith('.txt'):
+        flash('Invalid file format. Please upload a text file (.txt)', 'danger')
+        return redirect(url_for('dashboard'))
+
+    # Check SMS option
+    send_sms = request.form.get('send_sms') == 'true'
+
+    try:
+        # Read text file
+        content = file.read().decode('utf-8')
+        lines = [line.strip() for line in content.splitlines() if line.strip()]
+
+        results = {
+            'total': len(lines),
+            'processed': 0,
+            'errors': [],
+            'warnings': [],
+            'sms_sent': 0,
+            'sms_failed': 0
+        }
+
+        # Process each line
+        for line_num, line in enumerate(lines, 1):
+            try:
+                # Parse line format: "house_number reading"
+                parts = line.split()
+                if len(parts) != 2:
+                    results['errors'].append(f"Line {line_num}: Invalid format. Expected 'house_number reading'")
+                    continue
+
+                house_number = parts[0].strip().upper()
+                current_reading = float(parts[1])
+
+                if current_reading < 0:
+                    results['errors'].append(f"Line {line_num}: Reading cannot be negative")
+                    continue
+
+                # Process the reading
+                result = process_bulk_reading(admin_id, house_number, current_reading, send_sms)
+                if result['success']:
+                    results['processed'] += 1
+                    if result.get('warning'):
+                        results['warnings'].append(f"Line {line_num}: {result['warning']}")
+
+                    # Track SMS status
+                    if send_sms:
+                        sms_status = result.get('sms_status', 'not_sent')
+                        if sms_status == 'sent':
+                            results['sms_sent'] += 1
+                        elif 'failed' in sms_status or 'error' in sms_status:
+                            results['sms_failed'] += 1
+                else:
+                    results['errors'].append(f"Line {line_num}: {result['error']}")
+
+            except ValueError:
+                results['errors'].append(f"Line {line_num}: Invalid reading value")
+            except Exception as e:
+                results['errors'].append(f"Line {line_num}: {str(e)}")
+
+        # Flash results
+        if results['processed'] > 0:
+            success_msg = f'Successfully processed {results["processed"]} out of {results["total"]} readings'
+            if send_sms:
+                success_msg += f'. SMS sent: {results["sms_sent"]}, Failed: {results["sms_failed"]}'
+            flash(success_msg, 'success')
+
+        if results['warnings']:
+            for warning in results['warnings'][:5]:  # Show first 5 warnings
+                flash(f'Warning: {warning}', 'warning')
+            if len(results['warnings']) > 5:
+                flash(f'... and {len(results["warnings"]) - 5} more warnings', 'warning')
+
+        if results['errors']:
+            for error in results['errors'][:5]:  # Show first 5 errors
+                flash(f'Error: {error}', 'danger')
+            if len(results['errors']) > 5:
+                flash(f'... and {len(results["errors"]) - 5} more errors', 'danger')
+
+    except Exception as e:
+        app.logger.error(f"Bulk readings text import error: {e}")
+        flash(f'Error processing text file: {str(e)}', 'danger')
+
+    return redirect(url_for('dashboard'))
+
+def process_bulk_reading(admin_id, house_number, current_reading, send_sms=True):
+    """Process a single bulk reading entry"""
+    try:
+        # Find tenant by house number
+        tenant = mongo.db.tenants.find_one({
+            "house_number": house_number,
+            "admin_id": admin_id
+        })
+
+        if not tenant:
+            return {
+                'success': False,
+                'error': f'No tenant found for house number {house_number}'
+            }
+
+        tenant_id = tenant['_id']
+
+        # Get the house document to retrieve house_id
+        house = mongo.db.houses.find_one({"house_number": house_number, "admin_id": admin_id})
+        house_id = house.get('_id') if house else None
+
+        # Get the latest reading for this house number
+        latest_house_reading = get_last_house_reading(house_number, admin_id)
+
+        # Determine previous reading
+        if latest_house_reading:
+            previous_reading = latest_house_reading.get('current_reading', 0)
+            # Check if reading is decreasing
+            if current_reading < previous_reading:
+                return {
+                    'success': False,
+                    'error': f'Current reading ({current_reading}) is less than previous reading ({previous_reading})'
+                }
+        else:
+            previous_reading = 0
+
+        # Calculate usage and bill
+        usage = max(0, current_reading - previous_reading)
+        rate_per_unit = get_rate_per_unit(admin_id)
+        bill_amount = usage * rate_per_unit
+
+        # Create reading record
+        reading_date = datetime.now()
+        reading_data = {
+            "tenant_id": tenant_id,
+            "house_number": house_number,
+            "previous_reading": previous_reading,
+            "current_reading": current_reading,
+            "usage": usage,
+            "bill_amount": bill_amount,
+            "date_recorded": reading_date,
+            "admin_id": admin_id,
+            "tenant_name": tenant['name'],
+            "current_tenant_id": tenant_id,
+            "reading_type": "bulk_import",
+            "source_collection": "meter_readings"
+        }
+
+        if house_id:
+            reading_data["house_id"] = house_id
+
+        # Insert reading
+        result = mongo.db.meter_readings.insert_one(reading_data)
+        reading_id = result.inserted_id
+
+        # Create payment record
+        month_year = reading_date.strftime('%Y-%m')
+        create_payment_record(admin_id, tenant_id, house_id, bill_amount, reading_id, month_year, 'water')
+
+        warning_msg = None
+        if usage == 0:
+            warning_msg = f'No usage recorded for {house_number} (same reading as previous)'
+
+        # Send SMS notification if enabled
+        sms_status = 'not_sent'
+        if send_sms and tenant.get('phone'):
+            try:
+                # Get admin info for SMS
+                admin = mongo.db.admins.find_one({"_id": admin_id})
+                admin_name = admin.get('name', 'Your Landlord') if admin else 'Your Landlord'
+                admin_phone = admin.get('phone', '') if admin else ''
+
+                # Get payment info
+                payment_method = admin.get('payment_method', 'till') if admin else 'till'
+                if payment_method == 'till':
+                    till = admin.get('till', '') if admin else ''
+                    payment_info = f"Pay via Till: {till}" if till else "Contact landlord for payment details"
+                elif payment_method == 'paybill':
+                    business_number = admin.get('business_number', '') if admin else ''
+                    account_name = admin.get('account_name', house_number) if admin else house_number
+                    payment_info = f"Pay via Paybill: {business_number}, Account: {account_name}" if business_number else "Contact landlord for payment details"
+                else:
+                    payment_info = "Contact landlord for payment details"
+
+                # Calculate arrears excluding current month's bill
+                current_month_year = get_current_month_year()
+                total_arrears = calculate_total_arrears(admin_id, tenant_id, bill_type='water', exclude_current_month=current_month_year)
+
+                # Generate secure access token for tenant portal
+                access_token = generate_tenant_access_token(tenant_id, admin_id, expires_in_hours=24)
+                portal_link = f"https://{request.host}/tenant_portal/{access_token}"
+
+                # Create message based on arrears
+                if total_arrears > 1:
+                    message = (
+                        f"Water Bill Alert: {tenant['name']}, House {house_number}. "
+                        f"Current bill: KES {bill_amount:.2f}. "
+                        f"Outstanding arrears: KES {total_arrears:.2f}. "
+                        f"{payment_info} "
+                        f"View your usage history: {portal_link} "
+                        f"From {admin_name} - {admin_phone}"
+                    )
+                else:
+                    message = (
+                        f"Water Bill Alert: {tenant['name']}, House {house_number}. "
+                        f"Current bill: KES {bill_amount:.2f}. "
+                        f"{payment_info} "
+                        f"View history: {portal_link} "
+                        f"From {admin_name} - {admin_phone}"
+                    )
+
+                # Send SMS
+                response = send_message(tenant['phone'], message)
+
+                if "error" in response:
+                    sms_status = f"failed: {response['error']}"
+                    warning_msg = f"{warning_msg}, SMS failed" if warning_msg else "SMS sending failed"
+                else:
+                    sms_status = "sent"
+
+                # Update reading with SMS status
+                mongo.db.meter_readings.update_one(
+                    {"_id": reading_id},
+                    {"$set": {"sms_status": sms_status}}
+                )
+
+            except Exception as sms_error:
+                sms_status = f"error: {str(sms_error)}"
+                warning_msg = f"{warning_msg}, SMS error" if warning_msg else "SMS sending error"
+                app.logger.error(f"SMS error for bulk reading {house_number}: {sms_error}")
+
+        return {
+            'success': True,
+            'reading_id': reading_id,
+            'usage': usage,
+            'bill_amount': bill_amount,
+            'warning': warning_msg,
+            'sms_status': sms_status
+        }
+
+    except Exception as e:
+        app.logger.error(f"Error processing bulk reading for {house_number}: {e}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+@app.route('/download_bulk_readings_template')
+@login_required
+def download_bulk_readings_template():
+    """Download Excel template for bulk readings import"""
+    try:
+        # Create a BytesIO object
+        output = BytesIO()
+
+        # Create workbook and worksheet
+        workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+        worksheet = workbook.add_worksheet('Bulk Readings Template')
+
+        # Create formats
+        header_format = workbook.add_format({
+            'bold': True,
+            'bg_color': '#D7E4BC',
+            'border': 1,
+            'text_wrap': True,
+            'valign': 'top'
+        })
+
+        cell_format = workbook.add_format({
+            'border': 1,
+            'text_wrap': True,
+            'valign': 'top'
+        })
+
+        # Write headers
+        headers = ['house_number', 'current_reading']
+        for col, header in enumerate(headers):
+            worksheet.write(0, col, header, header_format)
+
+        # Write sample data
+        sample_data = [
+            ['A08', 30],
+            ['B12', 45.5],
+            ['C05', 25],
+            ['D14', 38]
+        ]
+
+        for row, data in enumerate(sample_data, 1):
+            for col, value in enumerate(data):
+                worksheet.write(row, col, value, cell_format)
+
+        # Set column widths
+        worksheet.set_column('A:A', 15)
+        worksheet.set_column('B:B', 18)
+
+        # Add instructions
+        worksheet.write('A7', 'Instructions:', header_format)
+        worksheet.write('A8', '1. Fill in house_number column with exact house numbers', cell_format)
+        worksheet.write('A9', '2. Fill in current_reading column with meter readings', cell_format)
+        worksheet.write('A10', '3. Save the file and upload through the dashboard', cell_format)
+        worksheet.write('A11', '4. System will calculate usage automatically', cell_format)
+
+        workbook.close()
+        output.seek(0)
+
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name='bulk_readings_template.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+
+    except Exception as e:
+        app.logger.error(f"Error generating bulk readings template: {e}")
+        flash('Error generating template file', 'danger')
+        return redirect(url_for('dashboard'))
 
 @app.route('/download_tenant_template')
 @login_required

@@ -6,6 +6,7 @@ Flask-Limiter
 Flask-Login
 Flask-Mail
 Flask-Bcrypt
+Flask-Talisman
 Flask-PyMongo
 gunicorn
 dnspython

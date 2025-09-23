@@ -339,6 +339,115 @@
             </script>
           </div>
         </div>
+
+        <!-- Bulk Readings Import -->
+        <div class="card mt-4">
+          <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-file-import"></i> Bulk Readings Import</h5>
+          </div>
+          <div class="card-body">
+            <ul class="nav nav-tabs" id="bulkReadingTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="excel-tab" data-bs-toggle="tab" data-bs-target="#excel-import" type="button" role="tab">Excel File</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="text-tab" data-bs-toggle="tab" data-bs-target="#text-import" type="button" role="tab">Text File</button>
+              </li>
+            </ul>
+
+            <div class="tab-content mt-3" id="bulkReadingContent">
+              <!-- Excel Import Tab -->
+              <div class="tab-pane fade show active" id="excel-import" role="tabpanel">
+                <form id="bulkReadingsExcelForm" action="{{ url_for('bulk_import_readings_excel') }}" method="post" enctype="multipart/form-data">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <div class="mb-3">
+                    <label for="readings_excel_file" class="form-label">Excel File</label>
+                    <input type="file" class="form-control" id="readings_excel_file" name="readings_excel_file" accept=".xlsx, .xls" required>
+                    <div class="form-text">Upload Excel file with house numbers and readings</div>
+                  </div>
+                  <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="send_sms_excel" name="send_sms" value="true" checked>
+                    <label class="form-check-label" for="send_sms_excel">
+                      <i class="fas fa-sms"></i> Send SMS notifications to tenants
+                    </label>
+                    <div class="form-text">Uncheck to import readings without sending SMS alerts</div>
+                  </div>
+                  <button type="submit" class="btn btn-success">Import Readings</button>
+                </form>
+
+                <!-- Excel Format Preview -->
+                <div class="mt-3">
+                  <h6>Expected Excel Format:</h6>
+                  <div class="excel-preview">
+                    <table class="table table-sm table-bordered">
+                      <thead>
+                        <tr>
+                          <th>house_number</th>
+                          <th>current_reading</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>A08</td>
+                          <td>30</td>
+                        </tr>
+                        <tr>
+                          <td>B12</td>
+                          <td>45.5</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="mt-2">
+                    <a href="{{ url_for('download_bulk_readings_template') }}" class="btn btn-outline-secondary btn-sm">
+                      Download Template
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Text Import Tab -->
+              <div class="tab-pane fade" id="text-import" role="tabpanel">
+                <form id="bulkReadingsTextForm" action="{{ url_for('bulk_import_readings_text') }}" method="post" enctype="multipart/form-data">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <div class="mb-3">
+                    <label for="readings_text_file" class="form-label">Text File</label>
+                    <input type="file" class="form-control" id="readings_text_file" name="readings_text_file" accept=".txt" required>
+                    <div class="form-text">Upload text file with readings (one per line)</div>
+                  </div>
+                  <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="send_sms_text" name="send_sms" value="true" checked>
+                    <label class="form-check-label" for="send_sms_text">
+                      <i class="fas fa-sms"></i> Send SMS notifications to tenants
+                    </label>
+                    <div class="form-text">Uncheck to import readings without sending SMS alerts</div>
+                  </div>
+                  <button type="submit" class="btn btn-success">Import Readings</button>
+                </form>
+
+                <!-- Text Format Preview -->
+                <div class="mt-3">
+                  <h6>Expected Text Format (one reading per line):</h6>
+                  <div class="excel-preview">
+                    <pre class="mb-0">A08 30
+B12 45.5
+C05 25
+D14 38</pre>
+                  </div>
+                  <small class="text-muted">Format: [house_number] [space] [reading]</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Spinner (hidden by default) -->
+            <div id="bulkReadingsSpinner" class="text-center mt-3" style="display: none;">
+              <div class="spinner-border text-success" role="status">
+                <span class="visually-hidden">Processing...</span>
+              </div>
+              <p class="mt-2">Processing bulk readings, please wait...</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="col-md-6">
@@ -513,12 +622,12 @@
     </div>
   </div>
 
-  <!-- Bootstrap Bundle JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <!-- Bootstrap Bundle JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <script>
     let charts = {};
@@ -706,12 +815,14 @@
       };
 
       {% for reading, tenant in readings %}
-        const usage = {{ reading.usage }};
-        if (usage <= 10) usageRanges['0-10 m³']++;
-        else if (usage <= 20) usageRanges['11-20 m³']++;
-        else if (usage <= 30) usageRanges['21-30 m³']++;
-        else if (usage <= 50) usageRanges['31-50 m³']++;
-        else usageRanges['50+ m³']++;
+        (function() {
+          const usage = {{ reading.usage }};
+          if (usage <= 10) usageRanges['0-10 m³']++;
+          else if (usage <= 20) usageRanges['11-20 m³']++;
+          else if (usage <= 30) usageRanges['21-30 m³']++;
+          else if (usage <= 50) usageRanges['31-50 m³']++;
+          else usageRanges['50+ m³']++;
+        })();
       {% endfor %}
 
       charts.usageDistribution = new Chart(usageDistCtx, {
@@ -773,6 +884,15 @@
       // This would trigger a backend endpoint to generate a comprehensive PDF report
       window.open('/generate_analytics_report', '_blank');
     }
+
+    // Bulk readings import handling
+    document.getElementById("bulkReadingsExcelForm").addEventListener("submit", function () {
+      document.getElementById("bulkReadingsSpinner").style.display = "block";
+    });
+
+    document.getElementById("bulkReadingsTextForm").addEventListener("submit", function () {
+      document.getElementById("bulkReadingsSpinner").style.display = "block";
+    });
   </script>
 </body>
 </html>
