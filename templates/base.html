@@ -31,18 +31,17 @@
           </li>
           <li class="nav-item">
             <a class="nav-link {% if request.endpoint == 'unallocated_payments' %}active{% endif %}" href="{{ url_for('unallocated_payments') }}">
-              <i class="fas fa-exclamation-triangle">Unallocated</i> 
+              <i class="bi bi-exclamation-triangle"></i> Unallocated
             </a>
           </li>
-
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('rent_dashboard') }}" class="btn btn-primary">
-              <i class="fas fa-money-bill"></i> Rent Dashboard
+              <i class="bi bi-cash"></i> Rent Dashboard
             </a>
           </li>
           <li class = "nav-item">
             <a href="{{ url_for('payments_dashboard') }}" class="nav-link">
-              <i class="fas fa-money-bill-wave"></i> Payments
+              <i class="bi bi-cash-stack"></i> Payments
             </a>
           </li>
           <li class="nav-item">
@@ -51,14 +50,13 @@
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('sms_config') }}">Settings</a>
           </li>
-
         </ul>
         <ul class="navbar-nav">
           <li class="nav-item">
             <a class=" nav-link"  href="{{ url_for('subscription') }}">
                 <i class="bi bi-star"></i> Subscription
             </a>
-          </li>
+        </li>
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
           </li>
