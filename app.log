@@ -989,3 +989,4 @@ MongoDB did not initialize—check MONGO_URI!
 MongoDB configuration error: The DNS operation timed out after 20.00025963783264 seconds
 MongoDB did not initialize—check MONGO_URI!
 Error getting M-Pesa token: 400 Client Error: Bad Request for url: https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials
+Error in payments dashboard: Could not build url for endpoint 'send_payment_reminders'. Did you mean 'manual_payment_reminders' instead?
