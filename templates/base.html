@@ -295,6 +295,15 @@
             <span class="sidebar-text flex-1 ml-3 whitespace-nowrap">Houses</span>
           </a>
         </li>
+        <!-- Unallocated Payments -->
+        <li>
+          <a href="{{ url_for('unallocated_payments') }}" class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100 {% if request.endpoint == 'unallocated_payments' %}bg-gray-100{% endif %}" title="Unallocated Payments">
+            <svg class="flex-shrink-0 w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
+            </svg>
+            <span class="sidebar-text flex-1 ml-3 whitespace-nowrap">Unallocated Funds</span>
+          </a>
+        </li>
 
         <!-- Rent Dashboard -->
         <li>
@@ -302,7 +311,7 @@
             <svg class="flex-shrink-0 w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
               <path d="M11.074 4 8.442.408A.95.95 0 0 0 7.014.254L2.926 4h8.148ZM9 13v-1a4 4 0 0 1 4-4h6V6a1 1 0 0 0-1-1H1a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h17a1 1 0 0 0 1-1v-2H9Z"/>
             </svg>
-            <span class="sidebar-text flex-1 ml-3 whitespace-nowrap">Rent Dashboard</span>
+            <span class="sidebar-text flex-1 ml-3 whitespace-nowrap">Rent Payments</span>
           </a>
         </li>
 
@@ -313,19 +322,11 @@
               <path d="M5 5V.13a2.96 2.96 0 0 0-1.293.749L.879 3.707A2.98 2.98 0 0 0 .13 5H5Z"/>
               <path d="M6.737 11.061a2.961 2.961 0 0 1 .81-1.515l6.117-6.116A4 4 0 0 1 19 7.828a4 4 0 0 1-1.172 2.828l-6.117 6.117a2.961 2.961 0 0 1-1.514.81l-3.136.746a.5.5 0 0 1-.608-.608l.746-3.136Z"/>
             </svg>
-            <span class="sidebar-text flex-1 ml-3 whitespace-nowrap">Payments</span>
+            <span class="sidebar-text flex-1 ml-3 whitespace-nowrap">Water Payments</span>
           </a>
         </li>
 
-        <!-- Unallocated Payments -->
-        <li>
-          <a href="{{ url_for('unallocated_payments') }}" class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100 {% if request.endpoint == 'unallocated_payments' %}bg-gray-100{% endif %}" title="Unallocated Payments">
-            <svg class="flex-shrink-0 w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
-            </svg>
-            <span class="sidebar-text flex-1 ml-3 whitespace-nowrap">Unallocated</span>
-          </a>
-        </li>
+        
 
         <!-- Maintenance Requests -->
         <li>
@@ -393,7 +394,7 @@
         </div>
       {% endif %}
     {% endwith %}
-
+        <br><br>
     {% block content %}{% endblock %}
   </div>
 

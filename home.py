@@ -1912,7 +1912,7 @@ def shorten_url(long_url, identifier=None):
 
 
 # Property Management Routes
-@app.route('/properties')
+@app.route('/properties',methods = ['GET','POST'])
 @login_required
 def properties():
     """Display all properties for the current admin"""
