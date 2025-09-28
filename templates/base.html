@@ -12,6 +12,8 @@
   <title>{% block title %}Water Billing System{% endblock %}</title>
   <!-- Bootstrap CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
   <!-- Flowbite CSS -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.css" rel="stylesheet" />
   <!-- Favicon (update path if available) -->
@@ -69,7 +71,7 @@
   </nav>
 
   <!-- Sidebar -->
-  <aside id="default-sidebar" class="fixed top-0 left-0 z-40 w-64 h-screen pt-20 transition-all duration-300 bg-white border-r border-gray-200" aria-label="Sidebar">
+  <aside id="default-sidebar" class="fixed top-0 left-0 z-40 w-64 h-screen pt-20 transition-all duration-300 bg-white border-r border-gray-200 -translate-x-full md:translate-x-0" aria-label="Sidebar">
     <div class="h-full px-3 py-4 overflow-y-auto bg-gray-50">
       <!-- Logo/Brand (Hidden when collapsed) -->
       <div class="sidebar-brand flex items-center justify-center mb-5">
@@ -80,7 +82,7 @@
         <!-- Dashboard -->
         <li>
           <a href="{{ url_for('dashboard') }}" class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100 {% if request.endpoint == 'dashboard' %}bg-gray-100{% endif %}" title="Dashboard">
-            <svg class="w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 22 21">
+            <svg class="w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 22 21">
               <path d="M16.975 11H10V4.025a1 1 0 0 0-1.066-.998 8.5 8.5 0 1 0 9.039 9.039.999.999 0 0 0-1-1.066h.002Z"/>
               <path d="M12.5 0c-.157 0-.311.01-.565.027A1 1 0 0 0 11 1.02V10h8.975a1 1 0 0 0 1-.935c.013-.188.028-.374.028-.565A8.51 8.51 0 0 0 12.5 0Z"/>
             </svg>
@@ -91,7 +93,7 @@
         <!-- Manage Tenants -->
         <li>
           <a href="{{ url_for('manage_tenants') }}" class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100 {% if request.endpoint == 'manage_tenants' %}bg-gray-100{% endif %}" title="Manage Tenants">
-            <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
+            <svg class="flex-shrink-0 w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
               <path d="M14 2a3.963 3.963 0 0 0-1.4.267 6.439 6.439 0 0 1-1.331 6.638A4 4 0 1 0 14 2Zm1 9h-1.264A6.957 6.957 0 0 1 15 15v2a2.97 2.97 0 0 1-.184 1H19a1 1 0 0 0 1-1v-1a5.006 5.006 0 0 0-5-5ZM6.5 9a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM8 10H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5Z"/>
             </svg>
             <span class="sidebar-text flex-1 ml-3 whitespace-nowrap">Manage Tenants</span>
@@ -101,7 +103,7 @@
         <!-- Utilities (Collapsible) -->
         <li class="utilities-dropdown">
           <button type="button" class="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100" aria-controls="dropdown-utilities" data-collapse-toggle="dropdown-utilities" title="Utilities">
-            <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 18 21">
+            <svg class="flex-shrink-0 w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 18 21">
               <path d="M15 12a1 1 0 0 0 .962-.726l2-7A1 1 0 0 0 17 3H3.77L3.175.745A1 1 0 0 0 2.208 0H1a1 1 0 0 0 0 2h.438l.6 2.255v.019l2 7 .746 2.986A3 3 0 1 0 9 17a2.966 2.966 0 0 0-.184-1h2.368c-.118.32-.18.659-.184 1a3 3 0 1 0 3-3H6.78l-.5-2H15Z"/>
             </svg>
             <span class="sidebar-text flex-1 ml-3 text-left whitespace-nowrap">Utilities</span>
@@ -112,7 +114,7 @@
           <ul id="dropdown-utilities" class="sidebar-text hidden py-2 space-y-2">
             <li>
               <a href="{{ url_for('water_utility') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 {% if request.endpoint == 'water_utility' %}bg-gray-100{% endif %}" title="Water">
-                <svg class="w-4 h-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                <svg class="w-4 h-4 text-blue-600" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M10 2L3 8v10a2 2 0 002 2h4v-6h2v6h4a2 2 0 002-2V8l-7-6z"/>
                 </svg>
                 <span class="ml-2">Water</span>
@@ -120,7 +122,7 @@
             </li>
             <li>
               <a href="{{ url_for('garbage_utility') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 {% if request.endpoint == 'garbage_utility' %}bg-gray-100{% endif %}" title="Garbage">
-                <svg class="w-4 h-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                <svg class="w-4 h-4 text-blue-600" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm8 5a1 1 0 11-2 0 1 1 0 012 0z"/>
                 </svg>
                 <span class="ml-2">Garbage</span>
@@ -132,7 +134,7 @@
         <!-- Water (Direct Link for Collapsed Mode) -->
         <li class="water-direct hidden">
           <a href="{{ url_for('water_utility') }}" class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100 {% if request.endpoint == 'water_utility' %}bg-gray-100{% endif %}" title="Water">
-            <svg class="w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 2L3 8v10a2 2 0 002 2h4v-6h2v6h4a2 2 0 002-2V8l-7-6z"/>
             </svg>
           </a>
@@ -141,7 +143,7 @@
         <!-- Garbage (Direct Link for Collapsed Mode) -->
         <li class="garbage-direct hidden">
           <a href="{{ url_for('garbage_utility') }}" class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100 {% if request.endpoint == 'garbage_utility' %}bg-gray-100{% endif %}" title="Garbage">
-            <svg class="w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
               <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm8 5a1 1 0 11-2 0 1 1 0 012 0z"/>
             </svg>
           </a>
@@ -150,7 +152,7 @@
         <!-- Properties -->
         <li>
           <a href="{{ url_for('properties') }}" class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100 {% if request.endpoint == 'properties' %}bg-gray-100{% endif %}" title="Properties">
-            <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="flex-shrink-0 w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
               <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
             </svg>
             <span class="sidebar-text flex-1 ml-3 whitespace-nowrap">Properties</span>
@@ -160,7 +162,7 @@
         <!-- Houses -->
         <li>
           <a href="{{ url_for('houses') }}" class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100 {% if request.endpoint == 'houses' %}bg-gray-100{% endif %}" title="Houses">
-            <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="flex-shrink-0 w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
               <path d="m17.418 3.623-.018-.008a6.713 6.713 0 0 0-2.4-.569V2a1 1 0 1 0-2 0v1h-2V2a1 1 0 1 0-2 0v1h-2V2a1 1 0 1 0-2 0v1H6a1 1 0 0 0-1 1v2H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-1V4a1 1 0 0 0-.582-.918Z"/>
             </svg>
             <span class="sidebar-text flex-1 ml-3 whitespace-nowrap">Houses</span>
@@ -170,7 +172,7 @@
         <!-- Rent Dashboard -->
         <li>
           <a href="{{ url_for('rent_dashboard') }}" class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100 {% if request.endpoint == 'rent_dashboard' %}bg-gray-100{% endif %}" title="Rent Dashboard">
-            <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="flex-shrink-0 w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
               <path d="M11.074 4 8.442.408A.95.95 0 0 0 7.014.254L2.926 4h8.148ZM9 13v-1a4 4 0 0 1 4-4h6V6a1 1 0 0 0-1-1H1a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h17a1 1 0 0 0 1-1v-2H9Z"/>
             </svg>
             <span class="sidebar-text flex-1 ml-3 whitespace-nowrap">Rent Dashboard</span>
@@ -180,7 +182,7 @@
         <!-- Payments Dashboard -->
         <li>
           <a href="{{ url_for('payments_dashboard') }}" class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100 {% if request.endpoint == 'payments_dashboard' %}bg-gray-100{% endif %}" title="Payments">
-            <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="flex-shrink-0 w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
               <path d="M5 5V.13a2.96 2.96 0 0 0-1.293.749L.879 3.707A2.98 2.98 0 0 0 .13 5H5Z"/>
               <path d="M6.737 11.061a2.961 2.961 0 0 1 .81-1.515l6.117-6.116A4 4 0 0 1 19 7.828a4 4 0 0 1-1.172 2.828l-6.117 6.117a2.961 2.961 0 0 1-1.514.81l-3.136.746a.5.5 0 0 1-.608-.608l.746-3.136Z"/>
             </svg>
@@ -191,7 +193,7 @@
         <!-- Unallocated Payments -->
         <li>
           <a href="{{ url_for('unallocated_payments') }}" class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100 {% if request.endpoint == 'unallocated_payments' %}bg-gray-100{% endif %}" title="Unallocated Payments">
-            <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="flex-shrink-0 w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
             </svg>
             <span class="sidebar-text flex-1 ml-3 whitespace-nowrap">Unallocated</span>
@@ -201,7 +203,7 @@
         <!-- Maintenance Requests -->
         <li>
           <a href="{{ url_for('maintenance_requests') }}" class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100 {% if request.endpoint == 'maintenance_requests' %}bg-gray-100{% endif %}" title="Maintenance Requests">
-            <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="flex-shrink-0 w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
               <path d="M17.25 2.5h-14.5A.75.75 0 0 0 2 3.25v11.5c0 .414.336.75.75.75H6L8 18h4l2-2.5h3.25a.75.75 0 0 0 .75-.75V3.25a.75.75 0 0 0-.75-.75ZM8.5 5.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1 0-1Zm7 5h-11a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1Zm0-2.5h-11a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1Z"/>
             </svg>
             <span class="sidebar-text flex-1 ml-3 whitespace-nowrap">Maintenance</span>
@@ -211,7 +213,7 @@
         <!-- Settings -->
         <li>
           <a href="{{ url_for('sms_config') }}" class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100" title="Settings">
-            <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
+            <svg class="flex-shrink-0 w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
               <path d="M6.5 9a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM8 10H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5Z"/>
             </svg>
             <span class="sidebar-text flex-1 ml-3 whitespace-nowrap">Settings</span>
@@ -221,7 +223,7 @@
         <!-- Subscription -->
         <li>
           <a href="{{ url_for('subscription') }}" class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100" title="Subscription">
-            <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 22 21">
+            <svg class="flex-shrink-0 w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 22 21">
               <path d="M16.975 11H10V4.025a1 1 0 0 0-1.066-.998 8.5 8.5 0 1 0 9.039 9.039.999.999 0 0 0-1-1.066h.002Z"/>
               <path d="M12.5 0c-.157 0-.311.01-.565.027A1 1 0 0 0 11 1.02V10h8.975a1 1 0 0 0 1-.935c.013-.188.028-.374.028-.565A8.51 8.51 0 0 0 12.5 0Z"/>
             </svg>
@@ -232,7 +234,7 @@
         <!-- Logout -->
         <li>
           <a href="{{ url_for('logout') }}" class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100" title="Logout">
-            <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="flex-shrink-0 w-5 h-5 text-blue-600 transition duration-75 group-hover:text-blue-700" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
             </svg>
             <span class="sidebar-text flex-1 ml-3 whitespace-nowrap">Logout</span>
@@ -243,7 +245,7 @@
   </aside>
 
   <!-- Main Content Area -->
-  <div id="main-content" class="p-4 pt-20 transition-all duration-300 ml-64">    
+  <div id="main-content" class="p-4 pt-20 transition-all duration-300 ml-0 md:ml-64">    
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
@@ -285,48 +287,81 @@
         const waterDirect = document.querySelector('.water-direct');
         const garbageDirect = document.querySelector('.garbage-direct');
 
+        // Check if required elements exist
+        if (!sidebarToggle || !sidebar || !mainContent) {
+            console.warn('Sidebar elements not found. Sidebar functionality disabled.');
+            return;
+        }
+
         let isCollapsed = false;
 
-        sidebarToggle.addEventListener('click', function() {
-            isCollapsed = !isCollapsed;
-
-            if (isCollapsed) {
-                // Collapse sidebar
-                sidebar.classList.remove('w-64');
-                sidebar.classList.add('w-16');
-                mainContent.classList.remove('ml-64');
-                mainContent.classList.add('ml-16');
-
-                // Hide text elements
-                sidebarTexts.forEach(text => {
-                    text.classList.add('hidden');
-                });
-                sidebarBrand.classList.add('hidden');
-
-                // Hide utilities dropdown, show direct links
-                utilitiesDropdown.classList.add('hidden');
-                waterDirect.classList.remove('hidden');
-                garbageDirect.classList.remove('hidden');
-
+        // Handle mobile responsiveness
+        function handleMobileView() {
+            if (window.innerWidth < 768) {
+                sidebar.classList.add('-translate-x-full', 'md:translate-x-0');
             } else {
-                // Expand sidebar
-                sidebar.classList.remove('w-16');
-                sidebar.classList.add('w-64');
-                mainContent.classList.remove('ml-16');
-                mainContent.classList.add('ml-64');
+                sidebar.classList.remove('-translate-x-full');
+            }
+        }
 
-                // Show text elements
-                sidebarTexts.forEach(text => {
-                    text.classList.remove('hidden');
-                });
-                sidebarBrand.classList.remove('hidden');
+        // Initial mobile check
+        handleMobileView();
+        window.addEventListener('resize', handleMobileView);
 
-                // Show utilities dropdown, hide direct links
-                utilitiesDropdown.classList.remove('hidden');
-                waterDirect.classList.add('hidden');
-                garbageDirect.classList.add('hidden');
+        sidebarToggle.addEventListener('click', function() {
+            // Handle mobile and desktop differently
+            if (window.innerWidth < 768) {
+                // Mobile: toggle sidebar visibility
+                sidebar.classList.toggle('-translate-x-full');
+            } else {
+                // Desktop: toggle sidebar width
+                isCollapsed = !isCollapsed;
+                localStorage.setItem('sidebarCollapsed', isCollapsed);
+
+                if (isCollapsed) {
+                    // Collapse sidebar
+                    sidebar.classList.remove('w-64');
+                    sidebar.classList.add('w-16');
+                    mainContent.classList.remove('md:ml-64');
+                    mainContent.classList.add('md:ml-16');
+
+                    // Hide text elements
+                    sidebarTexts.forEach(text => {
+                        text.classList.add('hidden');
+                    });
+                    if (sidebarBrand) sidebarBrand.classList.add('hidden');
+
+                    // Hide utilities dropdown, show direct links
+                    if (utilitiesDropdown) utilitiesDropdown.classList.add('hidden');
+                    if (waterDirect) waterDirect.classList.remove('hidden');
+                    if (garbageDirect) garbageDirect.classList.remove('hidden');
+
+                } else {
+                    // Expand sidebar
+                    sidebar.classList.remove('w-16');
+                    sidebar.classList.add('w-64');
+                    mainContent.classList.remove('md:ml-16');
+                    mainContent.classList.add('md:ml-64');
+
+                    // Show text elements
+                    sidebarTexts.forEach(text => {
+                        text.classList.remove('hidden');
+                    });
+                    if (sidebarBrand) sidebarBrand.classList.remove('hidden');
+
+                    // Show utilities dropdown, hide direct links
+                    if (utilitiesDropdown) utilitiesDropdown.classList.remove('hidden');
+                    if (waterDirect) waterDirect.classList.add('hidden');
+                    if (garbageDirect) garbageDirect.classList.add('hidden');
+                }
             }
         });
+
+        // Restore saved state
+        const savedState = localStorage.getItem('sidebarCollapsed');
+        if (savedState === 'true') {
+            sidebarToggle.click();
+        }
 
         // Property dropdown functionality
         const propertyDropdownToggle = document.getElementById('property-dropdown-toggle');
