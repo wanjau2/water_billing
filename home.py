@@ -2082,6 +2082,79 @@ def logout():
     flash('You have been logged out', 'danger')
     return redirect(url_for('login'))
 
+@app.route("/manage_tenants",methods=["GET","POST"])
+@login_required
+def manage_tenants():
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    
+    if mongo is None:
+        flash('Database connection error. Please try again later.', 'danger')
+        return render_template('error.html', error_message="Database unavailable")
+    
+    # Get pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', DEFAULT_PER_PAGE, type=int), 100)  # Limit max per_page
+    search_query = request.args.get('search', '').strip()
+    search_type = request.args.get('search_type', 'all')
+    
+    # Build query and get tenants with single database call
+    query = build_tenant_search_query(admin_id, search_query, search_type)
+    skip = (page - 1) * per_page
+    
+    # Use aggregation pipeline for better performance
+    pipeline = [
+        {"$match": query},
+        {"$facet": {
+            "tenants": [
+                {"$sort": {"name": 1}},
+                {"$skip": skip},
+                {"$limit": per_page}
+            ],
+            "total": [{"$count": "count"}]
+        }}
+    ]
+    
+    result = list(mongo.db.tenants.aggregate(pipeline))[0]
+    tenants = result['tenants']
+    total_count = result['total'][0]['count'] if result['total'] else 0
+    
+    # Add string ID for template compatibility
+    for tenant in tenants:
+        tenant['id'] = str(tenant['_id'])
+    
+    # Create pagination object
+    total_pages = (total_count + per_page - 1) // per_page
+    pagination = {
+        'page': page,
+        'per_page': per_page,
+        'total': total_count,
+        'pages': total_pages,
+        'has_prev': page > 1,
+        'has_next': page < total_pages,
+        'items': tenants
+    }
+        # Get rate per unit
+    rate_per_unit = get_rate_per_unit(admin_id)
+    # Add subscription info
+    admin = mongo.db.admins.find_one({"_id": admin_id})
+    tier = admin.get('subscription_tier', 'starter')
+    tier_config = SUBSCRIPTION_TIERS.get(tier, SUBSCRIPTION_TIERS['starter'])
+    return render_template(
+        'tenants.html',
+        tenants=tenants,
+        pagination=pagination,
+        subscription_tier_name=tier_config['name'],
+        search_query=search_query,
+        search_type=search_type,
+        rate_per_unit=rate_per_unit,
+        tenant_count=total_count,
+        max_tenants=tier_config['max_tenants']
+        )
+    
 # Optimized route handlers
 @app.route('/dashboard')
 @login_required
@@ -2096,6 +2169,7 @@ def dashboard():
     if mongo is None:
         flash('Database connection error. Please try again later.', 'danger')
         return render_template('error.html', error_message="Database unavailable")
+    
     
     # Get pagination parameters
     page = request.args.get('page', 1, type=int)
@@ -2192,12 +2266,12 @@ def dashboard():
     return render_template(
         'dashboard.html',
         tenants=tenants,
-        pagination=pagination,
+        #pagination=pagination,
         readings=formatted_readings,
         current_billing_period=current_billing_period,
         readings_count=readings_count,  # Add this line
-        search_query=search_query,
-        search_type=search_type,
+        #search_query=search_query,
+        #search_type=search_type,
         rate_per_unit=rate_per_unit,
         tenant_count=total_count,
         max_tenants=tier_config['max_tenants'],
@@ -2443,6 +2517,100 @@ def add_tenant():
         flash('An error occurred while adding the tenant', 'danger')
     
     return redirect(url_for('dashboard'))
+
+@app.route('/water' ,methods=['GET','POST'])
+@login_required
+def water_utility():
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    
+    if mongo is None:
+        flash('Database connection error. Please try again later.', 'danger')
+        return render_template('error.html', error_message="Database unavailable")
+    
+    
+ 
+    # Get pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', DEFAULT_PER_PAGE, type=int), 100)  # Limit max per_page
+    search_query = request.args.get('search', '').strip()
+    search_type = request.args.get('search_type', 'all')
+    
+    # Build query and get tenants with single database call
+    query = build_tenant_search_query(admin_id, search_query, search_type)
+    skip = (page - 1) * per_page
+    
+    # Use aggregation pipeline for better performance
+    pipeline = [
+        {"$match": query},
+        {"$facet": {
+            "tenants": [
+                {"$sort": {"name": 1}},
+                {"$skip": skip},
+                {"$limit": per_page}
+            ],
+            "total": [{"$count": "count"}]
+        }}
+    ]
+    
+    result = list(mongo.db.tenants.aggregate(pipeline))[0]
+    tenants = result['tenants']
+    total_count = result['total'][0]['count'] if result['total'] else 0
+    
+    # Add string ID for template compatibility
+    for tenant in tenants:
+        tenant['id'] = str(tenant['_id'])
+    
+    # Create pagination object
+    total_pages = (total_count + per_page - 1) // per_page
+    pagination = {
+        'page': page,
+        'per_page': per_page,
+        'total': total_count,
+        'pages': total_pages,
+        'has_prev': page > 1,
+        'has_next': page < total_pages,
+        'items': tenants
+    }
+    
+    # Get recent readings with optimized aggregation
+    readings_pipeline = [
+        {"$match": {"admin_id": admin_id}},
+        {"$lookup": {
+            "from": "tenants",
+            "localField": "tenant_id",
+            "foreignField": "_id",
+            "as": "tenant_info"
+        }},
+        {"$unwind": "$tenant_info"},
+        {"$sort": {"date_recorded": -1}},
+        {"$limit": 20},
+        {"$project": {
+            "_id": 1,
+            "current_reading": 1,
+            "previous_reading": 1,
+            "usage": 1,
+            "bill_amount": 1,
+            "date_recorded": 1,
+            "sms_status": 1,
+            "tenant_info": {
+                "_id": 1,
+                "name": 1,
+                "house_number": 1
+            }
+        }}
+    ]
+    
+    readings = list(mongo.db.meter_readings.aggregate(readings_pipeline))
+    return render_template('water.html',
+        tenants=tenants,
+        pagination=pagination,
+        search_query=search_query,
+        search_type=search_type)
+
 
 @app.route('/houses', methods=['GET'])
 @login_required

@@ -116,6 +116,7 @@
 </head>
 <body>
   <!-- Navigation Bar -->
+   <!-- Navigation Bar -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container">
       <a class="navbar-brand" href="{{ url_for('dashboard') }}">Water Billing System</a>
@@ -125,7 +126,13 @@
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav me-auto">
           <li class="nav-item">
-            <a class="nav-link active" href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'manage_tenants' %}active{% endif %}" href="{{ url_for('manage_tenants') }}">Manage Tenants</a>
+          </li>
+          <li class="nav-item ">
+            <a class="nav-link {% if request.endpoint == 'water_utility' %}active{% endif %}" href="{{ url_for('water_utility') }}">Water</a>
           </li>
           <li class="nav-item">
             <a class="nav-link {% if request.endpoint == 'unallocated_payments' %}active{% endif %}" href="{{ url_for('unallocated_payments') }}">
@@ -133,12 +140,12 @@
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('rent_dashboard') }}" class="btn btn-primary">
+            <a class="nav-link {% if request.endpoint == 'rent_dashboard' %}active{% endif %}" href="{{ url_for('rent_dashboard') }}" class="btn btn-primary">
               <i class="bi bi-cash"></i> Rent Dashboard
             </a>
           </li>
           <li class = "nav-item">
-            <a href="{{ url_for('payments_dashboard') }}" class="nav-link">
+            <a href="{{ url_for('payments_dashboard') }}" class="nav-link {% if request.endpoint == 'payments_dashboard' %}active{% endif %}">
               <i class="bi bi-cash-stack"></i> Payments
             </a>
           </li>
@@ -162,7 +169,6 @@
       </div>
     </div>
   </nav>
-
   <div class="container mt-4">    
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -210,316 +216,11 @@
             </div>
           </div>
         </div>
-                  <!-- Integrated Search -->
-          <div class="col-lg-8">
-            <div class="search-section">
-              <h6 class="mb-2"><i class="bi bi-search"></i> Quick Tenant Lookup</h6>
-              <form action="{{ url_for('dashboard') }}" method="GET" class="d-flex">
-                <input class="form-control me-2" type="search" placeholder="Search tenant for reading..." name="search" value="{{ search_query }}">
-                <button class="btn btn-primary btn-sm" type="submit">
-                  <i class="bi bi-search"></i> Search 
-                </button>
-                {% if search_query %}
-                  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm ms-1">
-                    <i class="bi bi-x"></i> Cancel
-                  </a>
-                {% endif %}
-                <input type="hidden" name="search_type" value="all">
-              </form>
-            </div>
-          </div>
-      </div>
-    </div>
-
-    <!-- Action Center -->
-    <div class="row mb-4">
-      <div class="col-md-6">
-        <!-- Add Tenant Form -->
-        <div class="card">
-          <div class="card-header">
-            <h5 class="mb-0"><i class="bi bi-person-plus"></i> Add New Tenant</h5>
-            {% if tenant_count >= (max_tenants * 0.8) and max_tenants != -1 %}
-              <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                  <strong>Approaching Limit!</strong> You are using {{ tenant_count }} of {{ max_tenants }} tenants in your {{ subscription_tier_name }} plan.
-                  <a href="{{ url_for('subscription') }}" class="alert-link">Upgrade now</a> to add more tenants.
-                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-              </div>
-            {% endif %}
-          </div>
-          <div class="card-body">
-            <form action="{{ url_for('add_tenant') }}" method="post">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <div class="mb-3">
-                <label for="name" class="form-label">Name</label>
-                <input type="text" class="form-control" id="name" name="name" required>
-              </div>
-              <div class="mb-3">
-                <label for="house_number" class="form-label">House Number</label>
-                <input type="text" class="form-control" id="house_number" name="house_number" required>
-              </div>
-              <div class="mb-3">
-                <label for="phone" class="form-label">Phone Number</label>
-                <input type="text" class="form-control" id="phone" name="phone" placeholder="+254..." required>
-              </div>
-              <button type="submit" class="btn btn-primary">Add Tenant</button>
-            </form>
-          </div>
-        </div>
-
-                        <!-- Bulk Readings Import -->
-        <div class="card mt-4">
-          <div class="card-header">
-            <h5 class="mb-0"><i class="bi bi-file-arrow-up"></i> Bulk Readings Import</h5>
-          </div>
-          <div class="card-body">
-            <ul class="nav nav-tabs" id="bulkReadingTabs" role="tablist">
-              <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="excel-tab" data-bs-toggle="tab" data-bs-target="#excel-import" type="button" role="tab">Excel File</button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="text-tab" data-bs-toggle="tab" data-bs-target="#text-import" type="button" role="tab">Text File</button>
-              </li>
-            </ul>
-
-            <div class="tab-content mt-3" id="bulkReadingContent">
-              <!-- Excel Import Tab -->
-              <div class="tab-pane fade show active" id="excel-import" role="tabpanel">
-                <form id="bulkReadingsExcelForm" action="{{ url_for('bulk_import_readings_excel') }}" method="post" enctype="multipart/form-data">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <div class="mb-3">
-                    <label for="readings_excel_file" class="form-label">Excel File</label>
-                    <input type="file" class="form-control" id="readings_excel_file" name="readings_excel_file" accept=".xlsx, .xls" required>
-                    <div class="form-text">Upload Excel file with house numbers and readings</div>
-                  </div>
-                  <div class="mb-3 form-check">
-                    <input type="checkbox" class="form-check-input" id="send_sms_excel" name="send_sms" value="true" checked>
-                    <label class="form-check-label" for="send_sms_excel">
-                      <i class="bi bi-chat-text"></i> Send SMS notifications to tenants
-                    </label>
-                    <div class="form-text">Uncheck to import readings without sending SMS alerts</div>
-                  </div>
-                  <button type="submit" class="btn btn-success">Import Readings</button>
-                </form>
-
-                <!-- Excel Format Preview -->
-                <div class="mt-3">
-                  <h6>Expected Excel Format:</h6>
-                  <div class="excel-preview">
-                    <table class="table table-sm table-bordered">
-                      <thead>
-                        <tr>
-                          <th>house_number</th>
-                          <th>current_reading</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td>A08</td>
-                          <td>30</td>
-                        </tr>
-                        <tr>
-                          <td>B12</td>
-                          <td>45.5</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  <div class="mt-2">
-                    <a href="{{ url_for('download_bulk_readings_template') }}" class="btn btn-outline-secondary btn-sm">
-                      Download Template
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Text Import Tab -->
-              <div class="tab-pane fade" id="text-import" role="tabpanel">
-                <form id="bulkReadingsTextForm" action="{{ url_for('bulk_import_readings_text') }}" method="post" enctype="multipart/form-data">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <div class="mb-3">
-                    <label for="readings_text_file" class="form-label">Text File</label>
-                    <input type="file" class="form-control" id="readings_text_file" name="readings_text_file" accept=".txt" required>
-                    <div class="form-text">Upload text file with readings (one per line)</div>
-                  </div>
-                  <div class="mb-3 form-check">
-                    <input type="checkbox" class="form-check-input" id="send_sms_text" name="send_sms" value="true" checked>
-                    <label class="form-check-label" for="send_sms_text">
-                      <i class="bi bi-chat-text"></i> Send SMS notifications to tenants
-                    </label>
-                    <div class="form-text">Uncheck to import readings without sending SMS alerts</div>
-                  </div>
-                  <button type="submit" class="btn btn-success">Import Readings</button>
-                </form>
-
-                <!-- Text Format Preview -->
-                <div class="mt-3">
-                  <h6>Expected Text Format (one reading per line):</h6>
-                  <div class="excel-preview">
-                    <pre class="mb-0">A08 30
-B12 45.5
-C05 25
-D14 38</pre>
-                  </div>
-                  <small class="text-muted">Format: [house_number] [space] [reading]</small>
-                </div>
-              </div>
-            </div>
-
-            <!-- Spinner (hidden by default) -->
-            <div id="bulkReadingsSpinner" class="text-center mt-3" style="display: none;">
-              <div class="spinner-border text-success" role="status">
-                <span class="visually-hidden">Processing...</span>
-              </div>
-              <p class="mt-2">Processing bulk readings, please wait...</p>
-            </div>
-          </div>
-        </div>
-
-
-
-      </div>
-
-      <div class="col-md-6">
-                <!-- Import Tenants from Excel -->
-        <div class="card mt-4">
-          <div class="card-header">
-            <h5 class="mb-0"><i class="bi bi-file-earmark-excel"></i> Import Tenants from Excel</h5>
-          </div>
-          <div class="card-body">
-            <form id="importForm" action="{{ url_for('import_tenants') }}" method="post" enctype="multipart/form-data">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <div class="mb-3">
-                <label for="excel_file" class="form-label">Excel File</label>
-                <input type="file" class="form-control" id="excel_file" name="excel_file" accept=".xlsx, .xls" required>
-                <div class="form-text">Upload Excel file with tenant data</div>
-              </div>
-              <button type="submit" class="btn btn-primary">Import Tenants</button>
-            </form>
-            
-            <!-- Spinner (hidden by default) -->
-            <div id="loadingSpinner" class="text-center mt-3" style="display: none;">
-              <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Uploading...</span>
-              </div>
-              <p class="mt-2">Processing your file, please wait...</p>
-            </div>
-            
-            <!-- Excel Format Preview -->
-            <div class="mt-3">
-              <h6>Expected Excel Format:</h6>
-              <div class="excel-preview">
-                <table class="table table-sm table-bordered">
-                  <thead>
-                    <tr>
-                      <th>name</th>
-                      <th>house</th>
-                      <th>phone</th>
-                      <th>last_reading</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>John</td>
-                      <td>A1</td>
-                      <td>07**</td>
-                      <td>100.5</td>
-                    </tr>
-                    <tr>
-                      <td>Jane</td>
-                      <td>B2</td>
-                      <td>072***</td>
-                      <td>85.2</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="mt-2">
-                <a href="{{ url_for('download_tenant_template') }}" class="btn btn-outline-secondary btn-sm">
-                  Download Template
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tenants List -->
-        <div class="card">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="bi bi-people"></i> Tenants</h5>
-            <span class="badge bg-light text-dark">{{ tenants|length }} Total</span>
-          </div>
-          <div class="card-body">
-            <div class="table-responsive">
-              <table class="table table-striped table-hover">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>House #</th>
-                    <th>Phone</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for tenant in tenants %}
-                    <tr>
-                      <td><a href="{{ url_for('tenant_details', tenant_id=tenant.id) }}" class="tenant-link">{{ tenant.name }}</a></td>
-                      <td>{{ tenant.house_number }}</td>
-                      <td>{{ tenant.phone }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-            
-            <!-- Pagination Controls -->
-            <nav aria-label="Tenant pagination">
-              <ul class="pagination justify-content-center mt-3">
-                {% if pagination.has_prev %}
-                <li class="page-item">
-                  <a class="page-link" href="{{ url_for('dashboard', page=pagination.page-1, search=search_query) }}" aria-label="Previous">
-                    <span aria-hidden="true">&laquo;</span>
-                  </a>
-                </li>
-                {% else %}
-                <li class="page-item disabled">
-                  <a class="page-link" href="#" aria-label="Previous">
-                    <span aria-hidden="true">&laquo;</span>
-                  </a>
-                </li>
-                {% endif %}
-                
-                {% for page_num in range(1, pagination.pages + 1) %}
-                  {% if page_num == pagination.page %}
-                  <li class="page-item active">
-                    <span class="page-link">{{ page_num }}</span>
-                  </li>
-                  {% else %}
-                  <li class="page-item">
-                    <a class="page-link" href="{{ url_for('dashboard', page=page_num, search=search_query) }}">{{ page_num }}</a>
-                  </li>
-                  {% endif %}
-                {% endfor %}
-                
-                {% if pagination.has_next %}
-                <li class="page-item">
-                  <a class="page-link" href="{{ url_for('dashboard', page=pagination.page+1, search=search_query) }}" aria-label="Next">
-                    <span aria-hidden="true">&raquo;</span>
-                  </a>
-                </li>
-                {% else %}
-                <li class="page-item disabled">
-                  <a class="page-link" href="#" aria-label="Next">
-                    <span aria-hidden="true">&raquo;</span>
-                  </a>
-                </li>
-                {% endif %}
-              </ul>
-            </nav>
-          </div>
-        </div>
-
 
       </div>
     </div>
+
+
 
     <!-- Analytics Dashboard -->
     <div class="row mb-4">

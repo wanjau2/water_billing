@@ -27,7 +27,13 @@
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav me-auto">
           <li class="nav-item">
-            <a class="nav-link active" href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'manage_tenants' %}active{% endif %}" href="{{ url_for('manage_tenants') }}">Manage Tenants</a>
+          </li>
+          <li class="nav-item ">
+            <a class="nav-link {% if request.endpoint == 'water_utility' %}active{% endif %}" href="{{ url_for('water_utility') }}">Water</a>
           </li>
           <li class="nav-item">
             <a class="nav-link {% if request.endpoint == 'unallocated_payments' %}active{% endif %}" href="{{ url_for('unallocated_payments') }}">
@@ -35,12 +41,12 @@
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('rent_dashboard') }}" class="btn btn-primary">
+            <a class="nav-link {% if request.endpoint == 'rent_dashboard' %}active{% endif %}" href="{{ url_for('rent_dashboard') }}" class="btn btn-primary">
               <i class="bi bi-cash"></i> Rent Dashboard
             </a>
           </li>
           <li class = "nav-item">
-            <a href="{{ url_for('payments_dashboard') }}" class="nav-link">
+            <a href="{{ url_for('payments_dashboard') }}" class="nav-link {% if request.endpoint == 'payments_dashboard' %}active{% endif %}">
               <i class="bi bi-cash-stack"></i> Payments
             </a>
           </li>
