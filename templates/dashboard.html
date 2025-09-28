@@ -266,5 +266,19 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   
   <!-- External JavaScript file (CSP compliant) -->
+  <script>
+    // Pass data from template to JavaScript
+    window.analyticsData = {
+      monthlyWaterData: {{ analytics_data.monthly_water_data | tojson if analytics_data else '[]' }},
+      monthlyRentData: {{ analytics_data.monthly_rent_data | tojson if analytics_data else '[]' }},
+      readings: [
+        {% if readings %}
+          {% for reading, tenant in readings %}
+            { usage: {{ reading.usage }}, tenantName: "{{ tenant.name }}" },
+          {% endfor %}
+        {% endif %}
+      ]
+    };
+  </script>
   <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

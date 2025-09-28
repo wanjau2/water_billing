@@ -12,12 +12,139 @@
   <title>{% block title %}Water Billing System{% endblock %}</title>
   <!-- Bootstrap CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
   <!-- Flowbite CSS -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.css" rel="stylesheet" />
   <!-- Favicon (update path if available) -->
   <link rel="icon" href="{{ url_for('static', filename='images.jpeg') }}" type="image/jpeg">
+  <!-- Custom CSS to replace Tailwind classes -->
+  <style>
+    /* Custom CSS replacing Tailwind classes */
+    .bg-gray-50 { background-color: #f9fafb; }
+    .bg-white { background-color: #ffffff; }
+    .border-gray-200 { border-color: #e5e7eb; }
+    .text-gray-900 { color: #111827; }
+    .text-gray-500 { color: #6b7280; }
+    .text-gray-700 { color: #374151; }
+    .text-blue-600 { color: #2563eb; }
+    .text-blue-700 { color: #1d4ed8; }
+    .hover\:text-blue-700:hover { color: #1d4ed8; }
+    .hover\:bg-gray-100:hover { background-color: #f3f4f6; }
+    .hover\:bg-gray-50:hover { background-color: #f9fafb; }
+    .bg-gray-100 { background-color: #f3f4f6; }
+    .bg-blue-50 { background-color: #eff6ff; }
+
+    /* Layout classes */
+    .fixed { position: fixed; }
+    .top-0 { top: 0; }
+    .left-0 { left: 0; }
+    .right-0 { right: 0; }
+    .z-40 { z-index: 40; }
+    .z-50 { z-index: 50; }
+    .w-16 { width: 4rem; }
+    .w-64 { width: 16rem; }
+    .w-full { width: 100%; }
+    .h-screen { height: 100vh; }
+    .h-full { height: 100%; }
+    .ml-0 { margin-left: 0; }
+    .ml-16 { margin-left: 4rem; }
+    .ml-64 { margin-left: 16rem; }
+    .ml-2 { margin-left: 0.5rem; }
+    .ml-3 { margin-left: 0.75rem; }
+    .mb-5 { margin-bottom: 1.25rem; }
+    .mt-2 { margin-top: 0.5rem; }
+    .mt-3 { margin-top: 0.75rem; }
+    .p-2 { padding: 0.5rem; }
+    .p-4 { padding: 1rem; }
+    .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+    .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+    .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+    .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+    .pt-20 { padding-top: 5rem; }
+    .pl-11 { padding-left: 2.75rem; }
+
+    /* Flexbox classes */
+    .flex { display: flex; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .justify-center { justify-content: center; }
+    .justify-start { justify-content: flex-start; }
+    .space-x-2 > * + * { margin-left: 0.5rem; }
+    .space-x-4 > * + * { margin-left: 1rem; }
+    .space-y-2 > * + * { margin-top: 0.5rem; }
+    .flex-1 { flex: 1 1 0%; }
+    .flex-shrink-0 { flex-shrink: 0; }
+
+    /* Border and rounded classes */
+    .border { border-width: 1px; }
+    .border-b { border-bottom-width: 1px; }
+    .border-r { border-right-width: 1px; }
+    .border-t { border-top-width: 1px; }
+    .border-gray-300 { border-color: #d1d5db; }
+    .rounded-lg { border-radius: 0.5rem; }
+    .rounded-md { border-radius: 0.375rem; }
+
+    /* Display classes */
+    .hidden { display: none; }
+    .block { display: block; }
+    .inline-flex { display: inline-flex; }
+
+    /* Text classes */
+    .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+    .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+    .text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+    .text-2xl { font-size: 1.5rem; line-height: 2rem; }
+    .text-xs { font-size: 0.75rem; line-height: 1rem; }
+    .font-medium { font-weight: 500; }
+    .font-semibold { font-weight: 600; }
+    .text-left { text-align: left; }
+    .whitespace-nowrap { white-space: nowrap; }
+
+    /* Size classes */
+    .w-3 { width: 0.75rem; }
+    .w-4 { width: 1rem; }
+    .w-5 { width: 1.25rem; }
+    .w-6 { width: 1.5rem; }
+    .w-48 { width: 12rem; }
+    .h-3 { height: 0.75rem; }
+    .h-4 { height: 1rem; }
+    .h-5 { height: 1.25rem; }
+    .h-6 { height: 1.5rem; }
+
+    /* Transition classes */
+    .transition-all { transition-property: all; }
+    .duration-75 { transition-duration: 75ms; }
+    .duration-300 { transition-duration: 300ms; }
+
+    /* Position classes */
+    .relative { position: relative; }
+    .absolute { position: absolute; }
+
+    /* Focus and outline */
+    .focus\:outline-none:focus { outline: 2px solid transparent; outline-offset: 2px; }
+    .focus\:ring-2:focus { --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color); --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color); box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000); }
+    .focus\:ring-gray-200:focus { --tw-ring-color: #e5e7eb; }
+    .focus\:ring-blue-500:focus { --tw-ring-color: #3b82f6; }
+
+    /* Overflow */
+    .overflow-y-auto { overflow-y: auto; }
+
+    /* Shadow */
+    .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+
+    /* Mobile responsive classes */
+    @media (min-width: 768px) {
+      .md\:ml-16 { margin-left: 4rem; }
+      .md\:ml-64 { margin-left: 16rem; }
+      .md\:translate-x-0 { transform: translateX(0); }
+    }
+
+    /* Transform classes */
+    .-translate-x-full { transform: translateX(-100%); }
+    .translate-x-0 { transform: translateX(0); }
+
+    /* Screen reader only */
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
+  </style>
   {% block styles %}{% endblock %}
 </head>
 <body class="bg-gray-50">
@@ -276,160 +403,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.js"></script>
 
   <!-- Sidebar Toggle Script -->
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        const sidebar = document.getElementById('default-sidebar');
-        const mainContent = document.getElementById('main-content');
-        const sidebarTexts = document.querySelectorAll('.sidebar-text');
-        const sidebarBrand = document.querySelector('.sidebar-brand');
-        const utilitiesDropdown = document.querySelector('.utilities-dropdown');
-        const waterDirect = document.querySelector('.water-direct');
-        const garbageDirect = document.querySelector('.garbage-direct');
-
-        // Check if required elements exist
-        if (!sidebarToggle || !sidebar || !mainContent) {
-            console.warn('Sidebar elements not found. Sidebar functionality disabled.');
-            return;
-        }
-
-        let isCollapsed = false;
-
-        // Handle mobile responsiveness
-        function handleMobileView() {
-            if (window.innerWidth < 768) {
-                sidebar.classList.add('-translate-x-full', 'md:translate-x-0');
-            } else {
-                sidebar.classList.remove('-translate-x-full');
-            }
-        }
-
-        // Initial mobile check
-        handleMobileView();
-        window.addEventListener('resize', handleMobileView);
-
-        sidebarToggle.addEventListener('click', function() {
-            // Handle mobile and desktop differently
-            if (window.innerWidth < 768) {
-                // Mobile: toggle sidebar visibility
-                sidebar.classList.toggle('-translate-x-full');
-            } else {
-                // Desktop: toggle sidebar width
-                isCollapsed = !isCollapsed;
-                localStorage.setItem('sidebarCollapsed', isCollapsed);
-
-                if (isCollapsed) {
-                    // Collapse sidebar
-                    sidebar.classList.remove('w-64');
-                    sidebar.classList.add('w-16');
-                    mainContent.classList.remove('md:ml-64');
-                    mainContent.classList.add('md:ml-16');
-
-                    // Hide text elements
-                    sidebarTexts.forEach(text => {
-                        text.classList.add('hidden');
-                    });
-                    if (sidebarBrand) sidebarBrand.classList.add('hidden');
-
-                    // Hide utilities dropdown, show direct links
-                    if (utilitiesDropdown) utilitiesDropdown.classList.add('hidden');
-                    if (waterDirect) waterDirect.classList.remove('hidden');
-                    if (garbageDirect) garbageDirect.classList.remove('hidden');
-
-                } else {
-                    // Expand sidebar
-                    sidebar.classList.remove('w-16');
-                    sidebar.classList.add('w-64');
-                    mainContent.classList.remove('md:ml-16');
-                    mainContent.classList.add('md:ml-64');
-
-                    // Show text elements
-                    sidebarTexts.forEach(text => {
-                        text.classList.remove('hidden');
-                    });
-                    if (sidebarBrand) sidebarBrand.classList.remove('hidden');
-
-                    // Show utilities dropdown, hide direct links
-                    if (utilitiesDropdown) utilitiesDropdown.classList.remove('hidden');
-                    if (waterDirect) waterDirect.classList.add('hidden');
-                    if (garbageDirect) garbageDirect.classList.add('hidden');
-                }
-            }
-        });
-
-        // Restore saved state
-        const savedState = localStorage.getItem('sidebarCollapsed');
-        if (savedState === 'true') {
-            sidebarToggle.click();
-        }
-
-        // Property dropdown functionality
-        const propertyDropdownToggle = document.getElementById('property-dropdown-toggle');
-        const propertyDropdownMenu = document.getElementById('property-dropdown-menu');
-        const currentPropertyName = document.getElementById('current-property-name');
-        const propertiesList = document.getElementById('properties-list');
-
-        if (propertyDropdownToggle) {
-            // Load properties on page load
-            loadProperties();
-
-            // Toggle dropdown
-            propertyDropdownToggle.addEventListener('click', function(e) {
-                e.stopPropagation();
-                propertyDropdownMenu.classList.toggle('hidden');
-            });
-
-            // Close dropdown when clicking outside
-            document.addEventListener('click', function(e) {
-                if (!propertyDropdownToggle.contains(e.target) && !propertyDropdownMenu.contains(e.target)) {
-                    propertyDropdownMenu.classList.add('hidden');
-                }
-            });
-        }
-
-        function loadProperties() {
-            fetch('/api/properties')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.properties) {
-                        // Update current property name
-                        const currentProperty = data.properties.find(p => p.is_current);
-                        if (currentProperty) {
-                            currentPropertyName.textContent = currentProperty.name;
-                        }
-
-                        // Populate dropdown
-                        propertiesList.innerHTML = '';
-                        data.properties.forEach(property => {
-                            const item = document.createElement('div');
-                            if (property.is_current) {
-                                item.innerHTML = `
-                                    <div class="px-4 py-2 text-sm text-gray-900 bg-blue-50">
-                                        <div class="flex items-center justify-between">
-                                            <span>${property.name}</span>
-                                            <span class="text-blue-600 text-xs">Current</span>
-                                        </div>
-                                    </div>
-                                `;
-                            } else {
-                                item.innerHTML = `
-                                    <form method="POST" action="/switch_property/${property.id}" class="m-0">
-                                        <button type="submit" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                            ${property.name}
-                                        </button>
-                                    </form>
-                                `;
-                            }
-                            propertiesList.appendChild(item);
-                        });
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading properties:', error);
-                });
-        }
-    });
-  </script>
+  <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
 
   <!-- Custom CSS for Sidebar -->
   <style>

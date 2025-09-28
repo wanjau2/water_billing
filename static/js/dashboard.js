@@ -17,9 +17,9 @@ function initializeCharts() {
   const topConsumersCtx = document.getElementById('topConsumersChart').getContext('2d');
   const usageDistCtx = document.getElementById('usageDistributionChart').getContext('2d');
 
-  // Get monthly data from analytics_data passed by backend
-  const monthlyWaterData = {{ analytics_data.monthly_water_data | tojson }};
-  const monthlyRentData = {{ analytics_data.monthly_rent_data | tojson }};
+  // Get monthly data from window.analyticsData
+  const monthlyWaterData = window.analyticsData?.monthlyWaterData || [];
+  const monthlyRentData = window.analyticsData?.monthlyRentData || [];
 
   // Create a combined dataset with all months
   const allMonths = new Set();
@@ -190,10 +190,12 @@ function initializeCharts() {
 
   // Top Consumers Chart
   const tenantUsage = {};
-  {% for reading, tenant in readings %}
-    if (!tenantUsage['{{ tenant.name }}']) tenantUsage['{{ tenant.name }}'] = 0;
-    tenantUsage['{{ tenant.name }}'] += {{ reading.usage }};
-  {% endfor %}
+  if (window.analyticsData?.readings) {
+    window.analyticsData.readings.forEach(reading => {
+      if (!tenantUsage[reading.tenantName]) tenantUsage[reading.tenantName] = 0;
+      tenantUsage[reading.tenantName] += reading.usage;
+    });
+  }
 
   const sortedTenants = Object.entries(tenantUsage)
     .sort(([, a], [, b]) => b - a)
@@ -229,16 +231,16 @@ function initializeCharts() {
   // Usage Distribution Chart
   const usageRanges = { '0-10 m³': 0, '11-20 m³': 0, '21-30 m³': 0, '31-50 m³': 0, '50+ m³': 0 };
 
-  {% for reading, tenant in readings %}
-    (function () {
-      const usage = {{ reading.usage }};
+  if (window.analyticsData?.readings) {
+    window.analyticsData.readings.forEach(reading => {
+      const usage = reading.usage;
       if (usage <= 10) usageRanges['0-10 m³']++;
       else if (usage <= 20) usageRanges['11-20 m³']++;
       else if (usage <= 30) usageRanges['21-30 m³']++;
       else if (usage <= 50) usageRanges['31-50 m³']++;
       else usageRanges['50+ m³']++;
-    })();
-  {% endfor %}
+    });
+  }
 
   charts.usageDistribution = new Chart(usageDistCtx, {
     type: 'pie',
