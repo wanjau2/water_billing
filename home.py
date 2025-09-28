@@ -35,6 +35,8 @@ import pymongo
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from flask_caching import Cache
+import hashlib
+import base64
 
 
     
@@ -50,6 +52,10 @@ DEFAULT_PER_PAGE = int(os.environ.get("DEFAULT_PER_PAGE", 10))
 # MongoDB connection parameters
 MONGO_URI = os.getenv("MONGO_URI")
 DATABASE_NAME = os.getenv("DATABASE_NAME")
+
+# URL Shortening configuration
+BITLY_ACCESS_TOKEN = os.getenv("BITLY_ACCESS_TOKEN")
+ENABLE_URL_SHORTENING = os.getenv("ENABLE_URL_SHORTENING", "true").lower() == "true"
 
 # Create Flask app
 app = Flask(__name__)
@@ -243,10 +249,12 @@ def check_subscription_limit(resource_type='tenant'):
                 
                 if resource_type == 'tenant':
                     max_allowed = tier_config['max_tenants']
-                    current_count = mongo.db.tenants.count_documents({"admin_id": admin_id})
+                    # Use total tenant count across all properties for subscription limits
+                    current_count = get_total_tenant_count()
                     resource_name = 'tenants'
                 elif resource_type == 'house':
                     max_allowed = tier_config['max_houses']
+                    # Count houses across all properties
                     current_count = mongo.db.houses.count_documents({"admin_id": admin_id})
                     resource_name = 'houses'
                 else:
@@ -315,6 +323,82 @@ def initialize_subscriptions():
         
     except Exception as e:
         app.logger.error(f"Error initializing subscriptions: {e}")
+        return False
+
+def initialize_properties_collection():
+    """Create properties collection for multi-property support"""
+    try:
+        # Create properties collection if it doesn't exist
+        if 'properties' not in mongo.db.list_collection_names():
+            mongo.db.create_collection('properties')
+
+        # Create indexes for properties
+        mongo.db.properties.create_index([('admin_id', 1)])
+        mongo.db.properties.create_index([('name', 1), ('admin_id', 1)])
+
+        # Create default property for existing admins who don't have one
+        admins_without_properties = mongo.db.admins.find({})
+        for admin in admins_without_properties:
+            # Check if admin already has a property
+            existing_property = mongo.db.properties.find_one({"admin_id": admin["_id"]})
+            if not existing_property:
+                # Create default property
+                default_property = {
+                    "_id": ObjectId(),
+                    "admin_id": admin["_id"],
+                    "name": "Main Property",
+                    "address": "",
+                    "description": "Default property created automatically",
+                    "created_at": datetime.now(),
+                    "is_default": True,
+                    "settings": {
+                        "currency": "KES",
+                        "billing_cycle": "monthly",
+                        "water_rate_per_unit": RATE_PER_UNIT,
+                        "billing": {
+                            "enable_water_billing": True,
+                            "enable_garbage_billing": False,
+                            "garbage_rate": 0,
+                            "late_payment_fee": 0,
+                            "billing_day": 1  # Day of month when bills are generated
+                        },
+                        "payment_methods": {
+                            "mpesa": {
+                                "enabled": False,
+                                "consumer_key": "",
+                                "consumer_secret": "",
+                                "shortcode": "",
+                                "passkey": "",
+                                "environment": "sandbox"  # sandbox or production
+                            },
+                            "cash": {
+                                "enabled": True
+                            },
+                            "bank_transfer": {
+                                "enabled": False,
+                                "account_details": ""
+                            }
+                        }
+                    }
+                }
+                property_result = mongo.db.properties.insert_one(default_property)
+                property_id = property_result.inserted_id
+
+                # Update existing tenants and houses to belong to this property
+                mongo.db.tenants.update_many(
+                    {"admin_id": admin["_id"], "property_id": {"$exists": False}},
+                    {"$set": {"property_id": property_id}}
+                )
+                mongo.db.houses.update_many(
+                    {"admin_id": admin["_id"], "property_id": {"$exists": False}},
+                    {"$set": {"property_id": property_id}}
+                )
+
+        app.logger.info("Properties collection initialized")
+        return True
+
+    except Exception as e:
+        app.logger.error(f"Error initializing properties collection: {e}")
         return False
 
 
@@ -1339,7 +1423,12 @@ def check_subscription_expiry():
         for admin in expiring_admins:
             # Send SMS reminder
             if admin.get('phone'):
-                message = f"Your {SUBSCRIPTION_TIERS[admin['subscription_tier']]['name']} subscription expires soon. Renew at app.waterbilling.com/subscription"
+                # Create shortened URL for subscription renewal
+                long_subscription_url = f"{request.url_root.rstrip('/')}/subscription"
+                short_subscription_url = shorten_url(long_subscription_url, f"sub_{admin['_id']}_{datetime.now().strftime('%Y%m')}")
+
+                days_remaining = (admin['subscription_end_date'] - datetime.now()).days
+                message = f"Your {SUBSCRIPTION_TIERS[admin['subscription_tier']]['name']} subscription expires in {days_remaining} days. Renew now: {short_subscription_url}"
                 send_message(admin['phone'], message)
                 
         # Downgrade expired subscriptions
@@ -1356,6 +1445,211 @@ def check_subscription_expiry():
         
     except Exception as e:
         app.logger.error(f"Error checking subscriptions: {e}")
+
+def send_payment_reminders():
+    """Send automated payment reminders to tenants with overdue bills"""
+    try:
+        # Find bills that are overdue (unpaid bills where due_date is past)
+        overdue_cutoff = datetime.now() - timedelta(days=1)
+
+        overdue_bills = list(mongo.db.payments.find({
+            'payment_status': {'$in': ['unpaid', 'partial']},
+            'due_date': {'$lt': overdue_cutoff},
+            'reminder_sent': {'$ne': True}  # Only send reminder once
+        }))
+
+        reminder_count = 0
+
+        for bill in overdue_bills:
+            try:
+                # Get tenant and admin info
+                tenant = mongo.db.tenants.find_one({'_id': bill['tenant_id']})
+                admin = mongo.db.admins.find_one({'_id': bill['admin_id']})
+
+                if not tenant or not admin or not tenant.get('phone'):
+                    continue
+
+                # Get property-specific payment info
+                property_id = bill.get('property_id')
+                payment_info = get_property_payment_info(admin, property_id)
+
+                # Calculate overdue amount
+                outstanding_amount = bill['bill_amount'] - bill.get('amount_paid', 0)
+                days_overdue = (datetime.now() - bill['due_date']).days
+
+                # Calculate late payment fine
+                property_settings = get_property_billing_settings(bill.get('property_id'), bill['admin_id'])
+                fine_amount = calculate_late_payment_fine(bill, property_settings)
+                total_due = outstanding_amount + fine_amount
+
+                # Generate short tenant portal link
+                access_token = generate_tenant_access_token(tenant['_id'], bill['admin_id'], expires_in_hours=72)
+                long_portal_link = f"{request.url_root}tenant_portal/{access_token}"
+                portal_link = shorten_url(long_portal_link, f"reminder_{tenant['_id']}_{datetime.now().strftime('%Y%m%d')}")
+
+                # Create reminder message with fine information
+                bill_type = bill.get('bill_type', 'Water').title()
+                if fine_amount > 0:
+                    message = (
+                        f"Payment Reminder: {tenant['name']}, your {bill_type} bill of KES {outstanding_amount:.2f} "
+                        f"is {days_overdue} days overdue. Late fee: KES {fine_amount:.2f}. "
+                        f"Total due: KES {total_due:.2f}. {payment_info} "
+                        f"View details: {portal_link} "
+                        f"Contact: {admin.get('phone', 'N/A')}"
+                    )
+                else:
+                    message = (
+                        f"Payment Reminder: {tenant['name']}, your {bill_type} bill of KES {outstanding_amount:.2f} "
+                        f"is {days_overdue} days overdue. {payment_info} "
+                        f"View bill details: {portal_link} "
+                        f"Contact: {admin.get('phone', 'N/A')}"
+                    )
+
+                # Send SMS
+                response = send_message(tenant['phone'], message)
+
+                if "error" not in response:
+                    # Mark reminder as sent
+                    mongo.db.payments.update_one(
+                        {'_id': bill['_id']},
+                        {
+                            '$set': {
+                                'reminder_sent': True,
+                                'reminder_sent_date': datetime.now()
+                            }
+                        }
+                    )
+                    reminder_count += 1
+                    app.logger.info(f"Payment reminder sent to {tenant['name']} for bill {bill['_id']}")
+                else:
+                    app.logger.error(f"Failed to send reminder to {tenant['name']}: {response.get('error', 'Unknown error')}")
+
+            except Exception as tenant_error:
+                app.logger.error(f"Error sending reminder for bill {bill['_id']}: {str(tenant_error)}")
+                continue
+
+        app.logger.info(f"Sent {reminder_count} payment reminders")
+        return reminder_count
+
+    except Exception as e:
+        app.logger.error(f"Error in send_payment_reminders: {str(e)}")
+        return 0
+
+def get_property_payment_info(admin, property_id=None):
+    """Get property-specific payment information for SMS"""
+    try:
+        # Get property-specific payment config if available
+        if property_id:
+            property_doc = mongo.db.properties.find_one({'_id': property_id})
+            if property_doc and property_doc.get('payment_methods', {}).get('mpesa', {}).get('enabled'):
+                mpesa_config = property_doc['payment_methods']['mpesa']
+                if mpesa_config.get('shortcode'):
+                    return f"Pay via PayBill: {mpesa_config['shortcode']}"
+
+        # Fall back to admin-level payment config
+        if admin.get('payment_method') == 'till' and admin.get('till'):
+            return f"Pay via Till: {admin['till']}"
+        elif admin.get('payment_method') == 'paybill' and admin.get('business_number'):
+            account_name = admin.get('account_name', admin.get('name', 'Main'))
+            return f"Pay via PayBill: {admin['business_number']}, Account: {account_name}"
+        else:
+            # Fallback
+            till_number = admin.get('till', 'N/A')
+            return f"Pay via Till: {till_number}"
+
+    except Exception as e:
+        app.logger.error(f"Error getting payment info: {str(e)}")
+        return "Contact landlord for payment details"
+
+@app.route('/send_payment_reminders')
+@login_required
+def manual_payment_reminders():
+    """Manual trigger for payment reminders (admin only)"""
+    try:
+        admin_id = get_admin_id()
+        admin = mongo.db.admins.find_one({'_id': admin_id})
+
+        if not admin:
+            flash('Admin not found', 'danger')
+            return redirect(url_for('dashboard'))
+
+        # Send reminders for this admin's tenants only
+        overdue_cutoff = datetime.now() - timedelta(days=1)
+
+        overdue_bills = list(mongo.db.payments.find({
+            'admin_id': admin_id,
+            'payment_status': {'$in': ['unpaid', 'partial']},
+            'due_date': {'$lt': overdue_cutoff}
+        }))
+
+        reminder_count = 0
+
+        for bill in overdue_bills:
+            try:
+                tenant = mongo.db.tenants.find_one({'_id': bill['tenant_id']})
+
+                if not tenant or not tenant.get('phone'):
+                    continue
+
+                # Get property-specific payment info
+                property_id = bill.get('property_id')
+                payment_info = get_property_payment_info(admin, property_id)
+
+                outstanding_amount = bill['bill_amount'] - bill.get('amount_paid', 0)
+                days_overdue = (datetime.now() - bill['due_date']).days
+
+                # Calculate late payment fine
+                property_settings = get_property_billing_settings(property_id, admin_id)
+                fine_amount = calculate_late_payment_fine(bill, property_settings)
+                total_due = outstanding_amount + fine_amount
+
+                # Generate short tenant portal link
+                access_token = generate_tenant_access_token(tenant['_id'], admin_id, expires_in_hours=72)
+                long_portal_link = f"{request.url_root}tenant_portal/{access_token}"
+                portal_link = shorten_url(long_portal_link, f"manual_{tenant['_id']}_{datetime.now().strftime('%Y%m%d%H')}")
+
+                bill_type = bill.get('bill_type', 'Water').title()
+                if fine_amount > 0:
+                    message = (
+                        f"Payment Reminder: {tenant['name']}, your {bill_type} bill of KES {outstanding_amount:.2f} "
+                        f"is {days_overdue} days overdue. Late fee: KES {fine_amount:.2f}. "
+                        f"Total due: KES {total_due:.2f}. {payment_info} "
+                        f"View details: {portal_link} "
+                        f"Contact: {admin.get('phone', 'N/A')}"
+                    )
+                else:
+                    message = (
+                        f"Payment Reminder: {tenant['name']}, your {bill_type} bill of KES {outstanding_amount:.2f} "
+                        f"is {days_overdue} days overdue. {payment_info} "
+                        f"View details: {portal_link} "
+                        f"Contact: {admin.get('phone', 'N/A')}"
+                    )
+
+                response = send_message(tenant['phone'], message)
+
+                if "error" not in response:
+                    mongo.db.payments.update_one(
+                        {'_id': bill['_id']},
+                        {
+                            '$set': {
+                                'manual_reminder_sent': True,
+                                'manual_reminder_sent_date': datetime.now()
+                            }
+                        }
+                    )
+                    reminder_count += 1
+
+            except Exception as tenant_error:
+                app.logger.error(f"Error sending manual reminder for bill {bill['_id']}: {str(tenant_error)}")
+                continue
+
+        flash(f'Sent {reminder_count} payment reminders successfully', 'success')
+        return redirect(url_for('payments_dashboard'))
+
+    except Exception as e:
+        app.logger.error(f"Error in manual payment reminders: {str(e)}")
+        flash('Error sending payment reminders', 'danger')
+        return redirect(url_for('dashboard'))
 
 
 # Call this function when the app starts
@@ -1377,11 +1671,623 @@ def get_admin_id():
     except (KeyError, TypeError):
         raise ValueError("Invalid admin session")
 
+def get_current_property_id():
+    """Get current property ID from session or return default property."""
+    try:
+        admin_id = get_admin_id()
 
+        # If property_id is in session, use it
+        if 'property_id' in session:
+            return ObjectId(session['property_id'])
+
+        # Otherwise, get the default property for this admin
+        default_property = mongo.db.properties.find_one({
+            "admin_id": admin_id,
+            "is_default": True
+        })
+
+        if default_property:
+            session['property_id'] = str(default_property['_id'])
+            return default_property['_id']
+
+        # If no default property exists, get the first one
+        first_property = mongo.db.properties.find_one({"admin_id": admin_id})
+        if first_property:
+            session['property_id'] = str(first_property['_id'])
+            return first_property['_id']
+
+        # If no properties exist, create one
+        new_property = {
+            "_id": ObjectId(),
+            "admin_id": admin_id,
+            "name": "Main Property",
+            "address": "",
+            "description": "Default property",
+            "created_at": datetime.now(),
+            "is_default": True,
+            "settings": {
+                "currency": "KES",
+                "billing_cycle": "monthly"
+            }
+        }
+        property_result = mongo.db.properties.insert_one(new_property)
+        session['property_id'] = str(property_result.inserted_id)
+        return property_result.inserted_id
+
+    except Exception as e:
+        app.logger.error(f"Error getting current property: {e}")
+        raise ValueError("Invalid property session")
+
+def get_user_properties():
+    """Get all properties for the current admin."""
+    try:
+        admin_id = get_admin_id()
+        properties = list(mongo.db.properties.find({"admin_id": admin_id}).sort("name", 1))
+        return properties
+    except Exception as e:
+        app.logger.error(f"Error getting user properties: {e}")
+        return []
+
+def get_total_tenant_count():
+    """Get total tenant count across all properties for subscription calculation."""
+    try:
+        admin_id = get_admin_id()
+        total_count = mongo.db.tenants.count_documents({"admin_id": admin_id})
+        return total_count
+    except Exception as e:
+        app.logger.error(f"Error getting total tenant count: {e}")
+        return 0
+
+def get_property_settings(property_id=None):
+    """Get billing settings for a specific property."""
+    try:
+        if not property_id:
+            property_id = get_current_property_id()
+
+        admin_id = get_admin_id()
+        property_doc = mongo.db.properties.find_one({
+            "_id": ObjectId(property_id),
+            "admin_id": admin_id
+        })
+
+        if property_doc and 'settings' in property_doc:
+            return property_doc['settings']
+
+        # Return default settings if none found
+        return {
+            "currency": "KES",
+            "billing_cycle": "monthly",
+            "water_rate_per_unit": RATE_PER_UNIT,
+            "billing": {
+                "enable_water_billing": True,
+                "enable_garbage_billing": False,
+                "garbage_rate": 0,
+                "late_payment_fee": 0,
+                "billing_day": 1
+            },
+            "payment_methods": {
+                "mpesa": {"enabled": False},
+                "cash": {"enabled": True},
+                "bank_transfer": {"enabled": False}
+            }
+        }
+    except Exception as e:
+        app.logger.error(f"Error getting property settings: {e}")
+        return None
+
+def get_property_water_rate(property_id=None):
+    """Get water rate for specific property."""
+    try:
+        settings = get_property_settings(property_id)
+        if settings:
+            return settings.get('water_rate_per_unit', RATE_PER_UNIT)
+        return RATE_PER_UNIT
+    except Exception as e:
+        app.logger.error(f"Error getting property water rate: {e}")
+        return RATE_PER_UNIT
+
+def get_property_mpesa_config(property_id=None):
+    """Get M-Pesa configuration for specific property."""
+    try:
+        settings = get_property_settings(property_id)
+        if settings and 'payment_methods' in settings:
+            mpesa_config = settings['payment_methods'].get('mpesa', {})
+            if mpesa_config.get('enabled', False):
+                return mpesa_config
+
+        # Fall back to admin-level M-Pesa config
+        admin_id = get_admin_id()
+        admin_mpesa = mongo.db.mpesa_config.find_one({"admin_id": admin_id})
+        if admin_mpesa:
+            return decrypt_mpesa_credentials(admin_mpesa)
+
+        return None
+    except Exception as e:
+        app.logger.error(f"Error getting property M-Pesa config: {e}")
+        return None
+
+def get_property_mpesa_api(property_id=None):
+    """Get property-specific M-Pesa API instance."""
+    try:
+        config = get_property_mpesa_config(property_id)
+        if config and config.get('consumer_key') and config.get('consumer_secret'):
+            return MpesaAPI(
+                consumer_key=config.get('consumer_key'),
+                consumer_secret=config.get('consumer_secret'),
+                shortcode=config.get('shortcode'),
+                passkey=config.get('passkey'),
+                env=config.get('environment', 'sandbox')
+            )
+
+        # Fall back to default M-Pesa API
+        return mpesa
+
+    except Exception as e:
+        app.logger.error(f"Error creating property M-Pesa API: {e}")
+        return mpesa  # Return default as fallback
+
+def shorten_url_bitly(long_url):
+    """Shorten URL using Bitly API."""
+    try:
+        if not BITLY_ACCESS_TOKEN:
+            return None
+
+        import requests
+
+        headers = {
+            'Authorization': f'Bearer {BITLY_ACCESS_TOKEN}',
+            'Content-Type': 'application/json',
+        }
+
+        data = {
+            'long_url': long_url,
+            'domain': 'bit.ly'  # You can use custom domains if you have them
+        }
+
+        response = requests.post('https://api-ssl.bitly.com/v4/shorten',
+                               json=data, headers=headers)
+
+        if response.status_code == 200 or response.status_code == 201:
+            result = response.json()
+            return result.get('link')
+        else:
+            app.logger.error(f"Bitly API error: {response.status_code} - {response.text}")
+            return None
+
+    except Exception as e:
+        app.logger.error(f"Error shortening URL with Bitly: {e}")
+        return None
+
+def create_custom_short_url(long_url, identifier=None):
+    """Create a custom short URL using our own database."""
+    try:
+        # Generate short code
+        if identifier:
+            # Use provided identifier for consistent URLs
+            short_code = hashlib.md5(identifier.encode()).hexdigest()[:8]
+        else:
+            # Generate random short code
+            short_code = hashlib.md5(long_url.encode()).hexdigest()[:8]
+
+        # Check if short URL already exists
+        existing = mongo.db.short_urls.find_one({"short_code": short_code})
+        if existing:
+            return f"{request.url_root}s/{short_code}"
+
+        # Store in database
+        short_url_doc = {
+            "short_code": short_code,
+            "long_url": long_url,
+            "created_at": datetime.now(),
+            "click_count": 0,
+            "identifier": identifier
+        }
+
+        mongo.db.short_urls.insert_one(short_url_doc)
+        return f"{request.url_root}s/{short_code}"
+
+    except Exception as e:
+        app.logger.error(f"Error creating custom short URL: {e}")
+        return long_url  # Return original URL as fallback
+
+def shorten_url(long_url, identifier=None):
+    """Shorten URL using preferred method."""
+    try:
+        if not ENABLE_URL_SHORTENING:
+            return long_url
+
+        # Try Bitly first if configured
+        if BITLY_ACCESS_TOKEN:
+            short_url = shorten_url_bitly(long_url)
+            if short_url:
+                return short_url
+
+        # Fallback to custom shortener
+        return create_custom_short_url(long_url, identifier)
+
+    except Exception as e:
+        app.logger.error(f"Error in URL shortening: {e}")
+        return long_url  # Return original URL as fallback
+
+
+
+# Property Management Routes
+@app.route('/properties')
+@login_required
+def properties():
+    """Display all properties for the current admin"""
+    try:
+        admin_id = get_admin_id()
+        properties = get_user_properties()
+        current_property_id = get_current_property_id()
+
+        # Get tenant counts for each property
+        for prop in properties:
+            prop['tenant_count'] = mongo.db.tenants.count_documents({
+                "admin_id": admin_id,
+                "property_id": prop['_id']
+            })
+            prop['house_count'] = mongo.db.houses.count_documents({
+                "admin_id": admin_id,
+                "property_id": prop['_id']
+            })
+
+        total_tenants = get_total_tenant_count()
+
+        return render_template('properties.html',
+                             properties=properties,
+                             current_property_id=current_property_id,
+                             total_tenants=total_tenants)
+
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    except Exception as e:
+        app.logger.error(f"Error in properties route: {e}")
+        flash('An error occurred while loading properties.', 'danger')
+        return redirect(url_for('dashboard'))
+
+@app.route('/switch_property/<property_id>', methods=['POST'])
+@login_required
+def switch_property(property_id):
+    """Switch to a different property"""
+    try:
+        admin_id = get_admin_id()
+        property_id_obj = ObjectId(property_id)
+
+        # Verify property belongs to current admin
+        property_doc = mongo.db.properties.find_one({
+            "_id": property_id_obj,
+            "admin_id": admin_id
+        })
+
+        if not property_doc:
+            flash('Property not found or access denied.', 'danger')
+            return redirect(url_for('properties'))
+
+        # Update session
+        session['property_id'] = str(property_id_obj)
+        flash(f'Switched to {property_doc["name"]}', 'success')
+
+        return redirect(url_for('dashboard'))
+
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    except Exception as e:
+        app.logger.error(f"Error switching property: {e}")
+        flash('Error switching property.', 'danger')
+        return redirect(url_for('properties'))
+
+@app.route('/add_property', methods=['POST'])
+@login_required
+def add_property():
+    """Add a new property"""
+    try:
+        admin_id = get_admin_id()
+
+        name = request.form.get('name', '').strip()
+        address = request.form.get('address', '').strip()
+        description = request.form.get('description', '').strip()
+
+        if not name:
+            flash('Property name is required.', 'danger')
+            return redirect(url_for('properties'))
+
+        # Check for duplicate property name
+        existing = mongo.db.properties.find_one({
+            "admin_id": admin_id,
+            "name": name
+        })
+
+        if existing:
+            flash('Property name already exists.', 'danger')
+            return redirect(url_for('properties'))
+
+        # Create new property
+        new_property = {
+            "_id": ObjectId(),
+            "admin_id": admin_id,
+            "name": name,
+            "address": address,
+            "description": description,
+            "created_at": datetime.now(),
+            "is_default": False,
+            "settings": {
+                "currency": "KES",
+                "billing_cycle": "monthly"
+            }
+        }
+
+        mongo.db.properties.insert_one(new_property)
+        flash(f'Property "{name}" created successfully!', 'success')
+
+        return redirect(url_for('properties'))
+
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    except Exception as e:
+        app.logger.error(f"Error adding property: {e}")
+        flash('Error creating property.', 'danger')
+        return redirect(url_for('properties'))
+
+@app.route('/edit_property/<property_id>', methods=['POST'])
+@login_required
+def edit_property(property_id):
+    """Edit property details"""
+    try:
+        admin_id = get_admin_id()
+        property_id_obj = ObjectId(property_id)
+
+        # Verify property belongs to current admin
+        property_doc = mongo.db.properties.find_one({
+            "_id": property_id_obj,
+            "admin_id": admin_id
+        })
+
+        if not property_doc:
+            flash('Property not found or access denied.', 'danger')
+            return redirect(url_for('properties'))
+
+        name = request.form.get('name', '').strip()
+        address = request.form.get('address', '').strip()
+        description = request.form.get('description', '').strip()
+
+        if not name:
+            flash('Property name is required.', 'danger')
+            return redirect(url_for('properties'))
+
+        # Check for duplicate name (excluding current property)
+        existing = mongo.db.properties.find_one({
+            "admin_id": admin_id,
+            "name": name,
+            "_id": {"$ne": property_id_obj}
+        })
+
+        if existing:
+            flash('Property name already exists.', 'danger')
+            return redirect(url_for('properties'))
+
+        # Update property
+        mongo.db.properties.update_one(
+            {"_id": property_id_obj},
+            {"$set": {
+                "name": name,
+                "address": address,
+                "description": description,
+                "updated_at": datetime.now()
+            }}
+        )
+
+        flash(f'Property "{name}" updated successfully!', 'success')
+        return redirect(url_for('properties'))
+
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    except Exception as e:
+        app.logger.error(f"Error editing property: {e}")
+        flash('Error updating property.', 'danger')
+        return redirect(url_for('properties'))
+
+@app.route('/property_settings/<property_id>')
+@login_required
+def property_settings(property_id):
+    """Property-specific billing and payment settings"""
+    try:
+        admin_id = get_admin_id()
+        property_id_obj = ObjectId(property_id)
+
+        # Verify property belongs to current admin
+        property_doc = mongo.db.properties.find_one({
+            "_id": property_id_obj,
+            "admin_id": admin_id
+        })
+
+        if not property_doc:
+            flash('Property not found or access denied.', 'danger')
+            return redirect(url_for('properties'))
+
+        # Get current settings
+        settings = get_property_settings(property_id)
+
+        return render_template('property_settings.html',
+                             property=property_doc,
+                             settings=settings)
+
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+    except Exception as e:
+        app.logger.error(f"Error loading property settings: {e}")
+        flash('Error loading property settings.', 'danger')
+        return redirect(url_for('properties'))
+
+@app.route('/update_property_settings/<property_id>', methods=['POST'])
+@login_required
+def update_property_settings(property_id):
+    """Update property-specific billing settings"""
+    try:
+        admin_id = get_admin_id()
+        property_id_obj = ObjectId(property_id)
+
+        # Verify property belongs to current admin
+        property_doc = mongo.db.properties.find_one({
+            "_id": property_id_obj,
+            "admin_id": admin_id
+        })
+
+        if not property_doc:
+            flash('Property not found or access denied.', 'danger')
+            return redirect(url_for('properties'))
+
+        # Extract form data
+        water_rate = float(request.form.get('water_rate_per_unit', RATE_PER_UNIT))
+        enable_water_billing = 'enable_water_billing' in request.form
+        enable_garbage_billing = 'enable_garbage_billing' in request.form
+        garbage_rate = float(request.form.get('garbage_rate', 0))
+        late_payment_fee = float(request.form.get('late_payment_fee', 0))
+        billing_day = int(request.form.get('billing_day', 1))
+
+        # Late payment fine settings
+        enable_late_payment_fines = 'enable_late_payment_fines' in request.form
+        grace_period_days = int(request.form.get('grace_period_days', 7))
+        fine_type = request.form.get('fine_type', 'percentage')
+        fine_rate = float(request.form.get('fine_rate', 5))
+        fine_frequency = request.form.get('fine_frequency', 'one_time')
+        max_fine_amount = float(request.form.get('max_fine_amount', 0))
+
+        # M-Pesa settings
+        mpesa_enabled = 'mpesa_enabled' in request.form
+        mpesa_consumer_key = request.form.get('mpesa_consumer_key', '').strip()
+        mpesa_consumer_secret = request.form.get('mpesa_consumer_secret', '').strip()
+        mpesa_shortcode = request.form.get('mpesa_shortcode', '').strip()
+        mpesa_passkey = request.form.get('mpesa_passkey', '').strip()
+        mpesa_environment = request.form.get('mpesa_environment', 'sandbox')
+
+        # Payment method settings
+        cash_enabled = 'cash_enabled' in request.form
+        bank_transfer_enabled = 'bank_transfer_enabled' in request.form
+        bank_account_details = request.form.get('bank_account_details', '').strip()
+
+        # Build updated settings
+        updated_settings = {
+            "currency": "KES",
+            "billing_cycle": "monthly",
+            "water_rate_per_unit": water_rate,
+            "billing": {
+                "enable_water_billing": enable_water_billing,
+                "enable_garbage_billing": enable_garbage_billing,
+                "garbage_rate": garbage_rate,
+                "late_payment_fee": late_payment_fee,
+                "billing_day": billing_day,
+                "enable_late_payment_fines": enable_late_payment_fines,
+                "grace_period_days": grace_period_days,
+                "fine_type": fine_type,
+                "fine_rate": fine_rate,
+                "fine_frequency": fine_frequency,
+                "max_fine_amount": max_fine_amount
+            },
+            "payment_methods": {
+                "mpesa": {
+                    "enabled": mpesa_enabled,
+                    "consumer_key": mpesa_consumer_key,
+                    "consumer_secret": mpesa_consumer_secret,
+                    "shortcode": mpesa_shortcode,
+                    "passkey": mpesa_passkey,
+                    "environment": mpesa_environment
+                },
+                "cash": {
+                    "enabled": cash_enabled
+                },
+                "bank_transfer": {
+                    "enabled": bank_transfer_enabled,
+                    "account_details": bank_account_details
+                }
+            }
+        }
+
+        # Update property settings
+        mongo.db.properties.update_one(
+            {"_id": property_id_obj},
+            {"$set": {
+                "settings": updated_settings,
+                "updated_at": datetime.now()
+            }}
+        )
+
+        flash('Property billing settings updated successfully!', 'success')
+        return redirect(url_for('property_settings', property_id=property_id))
+
+    except ValueError as e:
+        if "invalid literal" in str(e).lower():
+            flash('Please enter valid numeric values for rates and fees.', 'danger')
+        else:
+            flash('Session expired. Please login again.', 'danger')
+            return redirect(url_for('login'))
+        return redirect(url_for('property_settings', property_id=property_id))
+    except Exception as e:
+        app.logger.error(f"Error updating property settings: {e}")
+        flash('Error updating property settings.', 'danger')
+        return redirect(url_for('property_settings', property_id=property_id))
+
+@app.route('/s/<short_code>')
+def redirect_short_url(short_code):
+    """Handle short URL redirects."""
+    try:
+        # Find the short URL in database
+        short_url_doc = mongo.db.short_urls.find_one({"short_code": short_code})
+
+        if not short_url_doc:
+            flash('Link not found or expired.', 'danger')
+            return redirect(url_for('login'))
+
+        # Increment click count
+        mongo.db.short_urls.update_one(
+            {"short_code": short_code},
+            {"$inc": {"click_count": 1}, "$set": {"last_accessed": datetime.now()}}
+        )
+
+        # Redirect to the original URL
+        return redirect(short_url_doc['long_url'])
+
+    except Exception as e:
+        app.logger.error(f"Error handling short URL redirect: {e}")
+        flash('Invalid link.', 'danger')
+        return redirect(url_for('login'))
+
+@app.route('/api/properties')
+@login_required
+def api_properties():
+    """API endpoint to get properties for dropdown"""
+    try:
+        admin_id = get_admin_id()
+        current_property_id = get_current_property_id()
+        properties = get_user_properties()
+
+        # Format properties for dropdown
+        properties_data = []
+        for prop in properties:
+            properties_data.append({
+                'id': str(prop['_id']),
+                'name': prop['name'],
+                'is_current': str(prop['_id']) == str(current_property_id)
+            })
+
+        return jsonify({
+            'properties': properties_data,
+            'current_property_id': str(current_property_id)
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error getting properties API: {e}")
+        return jsonify({'error': 'Failed to load properties'}), 500
 
 # Add to your initialization block
 if mongo:
     with app.app_context():
+        initialize_properties_collection()  # Add this line
         initialize_houses_collection()
         migrate_existing_data()
         migrate_existing_readings_to_payments()
@@ -1473,12 +2379,23 @@ def format_phone_number(phone):
     return phone  # Add this return statement
     
 
-def get_rate_per_unit(admin_id):
-    """Get rate per unit for admin with fallback."""
+def get_rate_per_unit(admin_id, property_id=None):
+    """Get rate per unit for admin with property-specific override."""
+    # First check if property-specific rate is available
+    if property_id:
+        try:
+            property_rate = get_property_water_rate(property_id)
+            if property_rate:
+                return property_rate
+        except Exception as e:
+            app.logger.error(f"Error getting property rate: {e}")
+
+    # Fall back to SMS config rate
     sms_config = mongo.db.sms_config.find_one({"admin_id": admin_id})
     if sms_config:
         return sms_config.get('rate_per_unit', RATE_PER_UNIT)
 
+    # Finally fall back to admin default rate
     admin = mongo.db.admins.find_one({"_id": admin_id})
     return admin.get('rate_per_unit', RATE_PER_UNIT) if admin else RATE_PER_UNIT
 
@@ -1551,10 +2468,62 @@ def calculate_dashboard_analytics(admin_id):
         tenant_count = mongo.db.tenants.count_documents({"admin_id": admin_id})
         avg_usage = monthly_consumption / tenant_count if tenant_count > 0 else 0
 
+        # Monthly breakdown for charts (last 12 months)
+        twelve_months_ago = datetime.now() - timedelta(days=365)
+
+        # Monthly water revenue
+        monthly_water_pipeline = [
+            {
+                "$match": {
+                    "admin_id": admin_id,
+                    "date_recorded": {"$gte": twelve_months_ago}
+                }
+            },
+            {
+                "$group": {
+                    "_id": {
+                        "year": {"$year": "$date_recorded"},
+                        "month": {"$month": "$date_recorded"}
+                    },
+                    "revenue": {"$sum": "$bill_amount"},
+                    "consumption": {"$sum": "$usage"}
+                }
+            },
+            {"$sort": {"_id.year": 1, "_id.month": 1}}
+        ]
+
+        monthly_water_data = list(mongo.db.meter_readings.aggregate(monthly_water_pipeline))
+
+        # Monthly rent revenue
+        monthly_rent_pipeline = [
+            {
+                "$match": {
+                    "admin_id": admin_id,
+                    "collection_date": {"$gte": twelve_months_ago}
+                }
+            },
+            {
+                "$group": {
+                    "_id": {
+                        "year": {"$year": "$collection_date"},
+                        "month": {"$month": "$collection_date"}
+                    },
+                    "revenue": {"$sum": "$amount_paid"}
+                }
+            },
+            {"$sort": {"_id.year": 1, "_id.month": 1}}
+        ]
+
+        monthly_rent_data = list(mongo.db.payment_collections.aggregate(monthly_rent_pipeline))
+
         return {
             'monthly_consumption': round(monthly_consumption, 1),
             'total_revenue': round(total_revenue, 2),
-            'avg_usage': round(avg_usage, 1)
+            'avg_usage': round(avg_usage, 1),
+            'monthly_water_data': monthly_water_data,
+            'monthly_rent_data': monthly_rent_data,
+            'water_revenue': round(water_revenue, 2),
+            'rent_revenue': round(rent_revenue, 2)
         }
 
     except Exception as e:
@@ -1562,7 +2531,11 @@ def calculate_dashboard_analytics(admin_id):
         return {
             'monthly_consumption': 0,
             'total_revenue': 0,
-            'avg_usage': 0
+            'avg_usage': 0,
+            'monthly_water_data': [],
+            'monthly_rent_data': [],
+            'water_revenue': 0,
+            'rent_revenue': 0
         }
 
 
@@ -1863,6 +2836,106 @@ def calculate_total_arrears(admin_id, tenant_id, bill_type=None, exclude_current
         app.logger.error(f"Error calculating arrears for tenant {tenant_id}: {str(e)}")
         return 0.0
 
+def calculate_late_payment_fine(bill, property_settings):
+    """Calculate late payment fine for a bill based on property settings"""
+    try:
+        # Check if late payment fines are enabled
+        billing_settings = property_settings.get('billing', {})
+        if not billing_settings.get('enable_late_payment_fines', False):
+            return 0.0
+
+        # Get current date and bill due date
+        current_date = datetime.now()
+        due_date = bill.get('due_date')
+
+        if not due_date:
+            return 0.0
+
+        # Convert due_date if it's a string
+        if isinstance(due_date, str):
+            try:
+                due_date = datetime.strptime(due_date, '%Y-%m-%d')
+            except ValueError:
+                return 0.0
+
+        # Calculate days overdue
+        days_overdue = (current_date - due_date).days
+        grace_period = billing_settings.get('grace_period_days', 7)
+
+        # No fine if within grace period or bill is fully paid
+        if days_overdue <= grace_period or bill.get('payment_status') == 'paid':
+            return 0.0
+
+        # Calculate outstanding amount
+        bill_amount = float(bill.get('bill_amount', 0))
+        amount_paid = float(bill.get('amount_paid', 0))
+        outstanding_amount = bill_amount - amount_paid
+
+        if outstanding_amount <= 0:
+            return 0.0
+
+        # Get fine configuration
+        fine_type = billing_settings.get('fine_type', 'percentage')
+        fine_rate = float(billing_settings.get('fine_rate', 5))
+        fine_frequency = billing_settings.get('fine_frequency', 'one_time')
+        max_fine_amount = float(billing_settings.get('max_fine_amount', 0))
+
+        # Calculate base fine
+        if fine_type == 'fixed':
+            base_fine = fine_rate
+        else:  # percentage
+            base_fine = outstanding_amount * (fine_rate / 100)
+
+        # Apply frequency multiplier for compound fines
+        final_fine = base_fine
+        if fine_frequency == 'monthly':
+            # Calculate how many months overdue (after grace period)
+            effective_overdue_days = max(0, days_overdue - grace_period)
+            months_overdue = max(1, (effective_overdue_days // 30) + 1)
+            final_fine = base_fine * months_overdue
+
+        # Apply maximum fine limit if set
+        if max_fine_amount > 0:
+            final_fine = min(final_fine, max_fine_amount)
+
+        return round(final_fine, 2)
+
+    except Exception as e:
+        app.logger.error(f"Error calculating fine for bill {bill.get('_id', 'unknown')}: {str(e)}")
+        return 0.0
+
+def get_property_billing_settings(property_id, admin_id):
+    """Get billing settings for a property, with fallback to admin defaults"""
+    try:
+        if property_id:
+            property_doc = mongo.db.properties.find_one({
+                '_id': ObjectId(property_id),
+                'admin_id': admin_id
+            })
+            if property_doc and 'billing_settings' in property_doc:
+                return property_doc['billing_settings']
+
+        # Fallback to admin defaults
+        admin = mongo.db.admins.find_one({'_id': admin_id})
+        if admin and 'default_billing_settings' in admin:
+            return admin['default_billing_settings']
+
+        # Default settings if none found
+        return {
+            'billing': {
+                'enable_late_payment_fines': False,
+                'grace_period_days': 7,
+                'fine_type': 'percentage',
+                'fine_rate': 5,
+                'fine_frequency': 'one_time',
+                'max_fine_amount': 1000
+            }
+        }
+
+    except Exception as e:
+        app.logger.error(f"Error getting property billing settings: {str(e)}")
+        return {}
+
 
 def get_all_bills(admin_id, tenant_id=None):
     """Get all bills for admin or specific tenant regardless of payment status"""
@@ -2137,8 +3210,9 @@ def manage_tenants():
         'has_next': page < total_pages,
         'items': tenants
     }
-        # Get rate per unit
-    rate_per_unit = get_rate_per_unit(admin_id)
+        # Get rate per unit for current property
+    property_id = get_current_property_id()
+    rate_per_unit = get_rate_per_unit(admin_id, property_id)
     # Add subscription info
     admin = mongo.db.admins.find_one({"_id": admin_id})
     tier = admin.get('subscription_tier', 'starter')
@@ -2278,7 +3352,9 @@ def dashboard():
         subscription_tier_name=tier_config['name'],
         monthly_consumption=analytics_data['monthly_consumption'],
         total_revenue=analytics_data['total_revenue'],
-        avg_usage=analytics_data['avg_usage']
+        avg_usage=analytics_data['avg_usage'],
+        properties=list(mongo.db.properties.find({'admin_id': admin_id})) or [{'name': 'Main Property'}],
+        analytics_data=analytics_data
     )
 
 @app.route('/tenant/<tenant_id>')
@@ -2403,7 +3479,72 @@ def tenant_readings_data(tenant_id):
     except Exception as e:
         app.logger.error(f"Error getting tenant readings data: {str(e)}")
         return jsonify({"error": "Failed to fetch readings"}), 500
-    
+
+@app.route('/api/maintenance_request', methods=['POST'])
+def maintenance_request():
+    """Handle maintenance request submissions from tenant portal"""
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        required_fields = ['tenant_id', 'property_id', 'type', 'description', 'contact_phone']
+        if not all(field in data for field in required_fields):
+            return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+
+        # Get tenant and property information
+        tenant_id = ObjectId(data['tenant_id'])
+        property_id = ObjectId(data['property_id'])
+
+        tenant = mongo.db.tenants.find_one({'_id': tenant_id})
+        property_doc = mongo.db.properties.find_one({'_id': property_id})
+
+        if not tenant or not property_doc:
+            return jsonify({'success': False, 'message': 'Invalid tenant or property'}), 400
+
+        # Create maintenance request document
+        maintenance_request = {
+            'tenant_id': tenant_id,
+            'property_id': property_id,
+            'admin_id': tenant['admin_id'],
+            'tenant_name': tenant['name'],
+            'tenant_phone': tenant['phone'],
+            'house_number': tenant.get('house_number', ''),
+            'property_name': property_doc['name'],
+            'request_type': data['type'],
+            'description': data['description'],
+            'contact_phone': data['contact_phone'],
+            'priority': data.get('priority', 'medium'),
+            'status': 'pending',
+            'created_at': datetime.now(),
+            'updated_at': datetime.now(),
+            'notes': []
+        }
+
+        # Insert maintenance request
+        result = mongo.db.maintenance_requests.insert_one(maintenance_request)
+
+        if result.inserted_id:
+            # Send SMS notification to landlord if configured
+            try:
+                admin = mongo.db.admins.find_one({'_id': tenant['admin_id']})
+                if admin and admin.get('phone'):
+                    message = f"New maintenance request from {tenant['name']} at {property_doc['name']} - {data['type']}: {data['description'][:50]}{'...' if len(data['description']) > 50 else ''}"
+                    send_sms(admin['phone'], message, tenant['admin_id'])
+            except Exception as e:
+                app.logger.error(f"Failed to send maintenance request SMS: {str(e)}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Maintenance request submitted successfully',
+                'request_id': str(result.inserted_id)
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Failed to submit request'}), 500
+
+    except Exception as e:
+        app.logger.error(f"Error in maintenance request: {str(e)}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
 @app.route('/add_tenant', methods=['POST'])
 @login_required
 @check_subscription_limit('tenant')  # Add this decorator
@@ -2460,12 +3601,15 @@ def add_tenant():
         
         # Create new tenant
         tenant_id = ObjectId()
+        property_id = get_current_property_id()
+
         new_tenant = {
             "_id": tenant_id,
             "name": name,
             "phone": formatted_phone,
             "house_number": house_number,
             "admin_id": admin_id,
+            "property_id": property_id,
             "created_at": datetime.now()
         }
         
@@ -2610,6 +3754,28 @@ def water_utility():
         pagination=pagination,
         search_query=search_query,
         search_type=search_type)
+
+
+@app.route('/garbage', methods=['GET','POST'])
+@login_required
+def garbage_utility():
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+
+    if mongo is None:
+        flash('Database connection error', 'danger')
+        return redirect(url_for('db_error'))
+
+    # For now, just render a placeholder template
+    flash('Garbage management feature coming soon!', 'info')
+    return render_template('water.html',
+                         title="Garbage Management",
+                         tenants=[],
+                         current_month=datetime.now().strftime('%B'),
+                         current_year=datetime.now().year)
 
 
 @app.route('/houses', methods=['GET'])
@@ -3177,10 +4343,11 @@ def record_reading():
         if current_reading <= previous_reading:
             flash('Current reading must be greater than previous reading', 'danger')
             return redirect(url_for('dashboard'))
-        
-        # Calculate billing
+
+        # Calculate billing using property-specific rate
         usage = current_reading - previous_reading
-        rate_per_unit = get_rate_per_unit(admin_id)
+        property_id = get_current_property_id()
+        rate_per_unit = get_rate_per_unit(admin_id, property_id)
         bill_amount = usage * rate_per_unit
         
         # Create reading records
@@ -3251,27 +4418,64 @@ def record_reading():
             # In record_reading function around line 1972
             current_month_year = get_current_month_year()
             total_arrears = calculate_total_arrears(admin_id, tenant_id_obj, bill_type='water', exclude_current_month=current_month_year)
+
+            # Calculate late payment fine for current bill
+            current_bill = {
+                'bill_amount': bill_amount,
+                'amount_paid': 0,
+                'due_date': datetime.now() + timedelta(days=30),  # Assuming 30 day payment period
+                'payment_status': 'unpaid',
+                'property_id': tenant.get('property_id')  # Get property from tenant if available
+            }
+            property_settings = get_property_billing_settings(current_bill.get('property_id'), admin_id)
+            late_fine = calculate_late_payment_fine(current_bill, property_settings)
+
             # Generate secure access token for tenant portal
             access_token = generate_tenant_access_token(tenant_id_obj, admin_id, expires_in_hours=24)
-            portal_link = f"{request.url_root}tenant_portal/{access_token}"
+            long_portal_link = f"{request.url_root}tenant_portal/{access_token}"
+            portal_link = shorten_url(long_portal_link, f"tenant_{tenant_id_obj}_{datetime.now().strftime('%Y%m')}")
 
+            # Construct message with fine information
             if total_arrears > 1:
-                message = (
-                    f"Water Bill Alert: {tenant['name']}, House {house_number}. "
-                    f"Current bill: KES {bill_amount:.2f}. "
-                    f"Outstanding arrears: KES {total_arrears:.2f}. "
-                    f"{payment_info} "
-                    f"View your usage history: {portal_link} "
-                    f"From {admin_name} - {admin_phone}"
-                )
+                if late_fine > 0:
+                    message = (
+                        f"Water Bill Alert: {tenant['name']}, House {house_number}. "
+                        f"Current bill: KES {bill_amount:.2f}. "
+                        f"Outstanding arrears: KES {total_arrears:.2f}. "
+                        f"Late payment fine: KES {late_fine:.2f}. "
+                        f"Total due: KES {bill_amount + total_arrears + late_fine:.2f}. "
+                        f"{payment_info} "
+                        f"View details: {portal_link} "
+                        f"From {admin_name} - {admin_phone}"
+                    )
+                else:
+                    message = (
+                        f"Water Bill Alert: {tenant['name']}, House {house_number}. "
+                        f"Current bill: KES {bill_amount:.2f}. "
+                        f"Outstanding arrears: KES {total_arrears:.2f}. "
+                        f"{payment_info} "
+                        f"View your usage history: {portal_link} "
+                        f"From {admin_name} - {admin_phone}"
+                    )
             else:
-                message = (
-                    f"Water Bill Alert: {tenant['name']}, House {house_number}.\n "
-                    f"Current bill: KES {bill_amount:.2f}. \n"
-                    f"{payment_info}\n"
-                    f"View your usage history: {portal_link}\n"
-                    f" From {admin_name} - {admin_phone}"
-                )
+                if late_fine > 0:
+                    message = (
+                        f"Water Bill Alert: {tenant['name']}, House {house_number}. "
+                        f"Current bill: KES {bill_amount:.2f}. "
+                        f"Late payment fine: KES {late_fine:.2f}. "
+                        f"Total due: KES {bill_amount + late_fine:.2f}. "
+                        f"{payment_info} "
+                        f"View details: {portal_link} "
+                        f"From {admin_name} - {admin_phone}"
+                    )
+                else:
+                    message = (
+                        f"Water Bill Alert: {tenant['name']}, House {house_number}. "
+                        f"Current bill: KES {bill_amount:.2f}. "
+                        f"{payment_info} "
+                        f"View your usage history: {portal_link} "
+                        f"From {admin_name} - {admin_phone}"
+                    )
         
         # Send SMS (assuming send_message function exists)
         try:
@@ -3355,10 +4559,12 @@ def record_tenant_reading(tenant_id):
         # Get the house document to retrieve house_id
         house = mongo.db.houses.find_one({"house_number": house_number, "admin_id": admin_id})
         house_id = house.get('_id') if house else None
-        
-        # Calculate billing
+
+        # Calculate billing using property-specific rate
         usage = current_reading - previous_reading
-        rate_per_unit = get_rate_per_unit(admin_id)
+        # Get property_id from tenant record
+        property_id = tenant.get('property_id')
+        rate_per_unit = get_rate_per_unit(admin_id, property_id)
         bill_amount = usage * rate_per_unit
         
         # Create reading records
@@ -3428,7 +4634,8 @@ def record_tenant_reading(tenant_id):
             total_arrears = calculate_total_arrears(admin_id, tenant_id_obj, bill_type='water', exclude_current_month=current_month_year)
             # Generate secure access token for tenant portal
             access_token = generate_tenant_access_token(tenant_id_obj, admin_id, expires_in_hours=24)
-            portal_link = f"{request.url_root}tenant_portal/{access_token}"
+            long_portal_link = f"{request.url_root}tenant_portal/{access_token}"
+            portal_link = shorten_url(long_portal_link, f"tenant_{tenant_id_obj}_{datetime.now().strftime('%Y%m')}")
 
             if total_arrears > 1:
                 message = (
@@ -3579,7 +4786,8 @@ def generate_rent_bills():
 
                 # Generate secure access token for tenant portal
                 access_token = generate_tenant_access_token(tenant_id_obj, admin_id, expires_in_hours=24)
-                portal_link = f"{request.url_root}tenant_portal/{access_token}"
+                long_portal_link = f"{request.url_root}tenant_portal/{access_token}"
+            portal_link = shorten_url(long_portal_link, f"tenant_{tenant_id_obj}_{datetime.now().strftime('%Y%m')}")
 
                 # Create SMS message with arrears info
                 if total_arrears > 1:  # Use smaller threshold for precision
@@ -3745,8 +4953,15 @@ def payments_dashboard():
                 bill['house_number'] = house['house_number'] if house else 'Unknown'
             
             bill['outstanding_amount'] = bill['bill_amount'] - bill.get('amount_paid', 0)
+
+            # Calculate late payment fine
+            property_settings = get_property_billing_settings(bill.get('property_id'), admin_id)
+            fine_amount = calculate_late_payment_fine(bill, property_settings)
+            bill['late_payment_fine'] = fine_amount
+            bill['total_amount_due'] = bill['outstanding_amount'] + fine_amount
+
             enriched_bills.append(bill)
-        
+
         return render_template('payments_dashboard.html', 
                                bills=enriched_bills, 
                                total_ever_billed=billing_summary['total_ever_billed'],
@@ -4084,6 +5299,157 @@ def record_payment(payment_id):
     
     # Redirect back to the referring page
     return redirect(request.referrer or url_for('payments_dashboard'))
+
+@app.route('/maintenance_requests')
+@login_required
+def maintenance_requests():
+    """View and manage maintenance requests for all properties"""
+    try:
+        admin_id = get_admin_id()
+
+        # Get filter parameters
+        status_filter = request.args.get('status', 'all')
+        property_filter = request.args.get('property', 'all')
+        priority_filter = request.args.get('priority', 'all')
+
+        # Build query
+        query = {'admin_id': admin_id}
+
+        if status_filter != 'all':
+            query['status'] = status_filter
+
+        if property_filter != 'all':
+            query['property_id'] = ObjectId(property_filter)
+
+        if priority_filter != 'all':
+            query['priority'] = priority_filter
+
+        # Get maintenance requests with pagination
+        page = request.args.get('page', 1, type=int)
+        per_page = 10
+
+        total_requests = mongo.db.maintenance_requests.count_documents(query)
+        requests_list = list(mongo.db.maintenance_requests.find(query)
+                           .sort('created_at', -1)
+                           .skip((page - 1) * per_page)
+                           .limit(per_page))
+
+        # Get properties for filter dropdown
+        properties = list(mongo.db.properties.find({'admin_id': admin_id}))
+
+        # Calculate summary stats
+        stats = {
+            'total': mongo.db.maintenance_requests.count_documents({'admin_id': admin_id}),
+            'pending': mongo.db.maintenance_requests.count_documents({'admin_id': admin_id, 'status': 'pending'}),
+            'in_progress': mongo.db.maintenance_requests.count_documents({'admin_id': admin_id, 'status': 'in_progress'}),
+            'completed': mongo.db.maintenance_requests.count_documents({'admin_id': admin_id, 'status': 'completed'}),
+        }
+
+        # Pagination info
+        pagination = {
+            'page': page,
+            'per_page': per_page,
+            'total': total_requests,
+            'has_prev': page > 1,
+            'has_next': (page * per_page) < total_requests,
+            'prev_num': page - 1 if page > 1 else None,
+            'next_num': page + 1 if (page * per_page) < total_requests else None,
+            'pages': (total_requests + per_page - 1) // per_page
+        }
+
+        return render_template('maintenance_requests.html',
+                             requests=requests_list,
+                             properties=properties,
+                             stats=stats,
+                             pagination=pagination,
+                             current_filters={
+                                 'status': status_filter,
+                                 'property': property_filter,
+                                 'priority': priority_filter
+                             })
+
+    except Exception as e:
+        app.logger.error(f"Error loading maintenance requests: {str(e)}")
+        flash('Error loading maintenance requests', 'danger')
+        return redirect(url_for('dashboard'))
+
+@app.route('/update_maintenance_request/<request_id>', methods=['POST'])
+@login_required
+def update_maintenance_request(request_id):
+    """Update maintenance request status and add notes"""
+    try:
+        admin_id = get_admin_id()
+
+        # Get the maintenance request
+        maintenance_req = mongo.db.maintenance_requests.find_one({
+            '_id': ObjectId(request_id),
+            'admin_id': admin_id
+        })
+
+        if not maintenance_req:
+            flash('Maintenance request not found', 'danger')
+            return redirect(url_for('maintenance_requests'))
+
+        # Get form data
+        new_status = request.form.get('status')
+        note = request.form.get('note', '').strip()
+
+        # Prepare update
+        update_data = {
+            'updated_at': datetime.now()
+        }
+
+        if new_status and new_status != maintenance_req['status']:
+            update_data['status'] = new_status
+
+        # Add note if provided
+        if note:
+            update_data['$push'] = {
+                'notes': {
+                    'text': note,
+                    'added_at': datetime.now(),
+                    'added_by': 'admin'
+                }
+            }
+
+        # Update the request
+        result = mongo.db.maintenance_requests.update_one(
+            {'_id': ObjectId(request_id)},
+            {'$set': update_data} if '$push' not in update_data else {
+                '$set': {k: v for k, v in update_data.items() if k != '$push'},
+                '$push': update_data['$push']
+            }
+        )
+
+        if result.modified_count > 0:
+            # Send SMS notification to tenant if status changed
+            if new_status and new_status != maintenance_req['status']:
+                try:
+                    tenant = mongo.db.tenants.find_one({'_id': maintenance_req['tenant_id']})
+                    if tenant and tenant.get('phone'):
+                        status_text = {
+                            'pending': 'received and is pending review',
+                            'in_progress': 'being worked on',
+                            'completed': 'completed'
+                        }.get(new_status, new_status)
+
+                        message = f"Your maintenance request for {maintenance_req['request_type']} is now {status_text}."
+                        if note:
+                            message += f" Note: {note}"
+
+                        send_sms(tenant['phone'], message, admin_id)
+                except Exception as e:
+                    app.logger.error(f"Failed to send maintenance update SMS: {str(e)}")
+
+            flash('Maintenance request updated successfully', 'success')
+        else:
+            flash('No changes made to the request', 'info')
+
+    except Exception as e:
+        app.logger.error(f"Error updating maintenance request: {str(e)}")
+        flash('Error updating maintenance request', 'danger')
+
+    return redirect(url_for('maintenance_requests'))
 
 
 @app.route('/export_tenant_data/<tenant_id>')
@@ -5656,9 +7022,11 @@ def process_bulk_reading(admin_id, house_number, current_reading, send_sms=True)
         else:
             previous_reading = 0
 
-        # Calculate usage and bill
+        # Calculate usage and bill using property-specific rate
         usage = max(0, current_reading - previous_reading)
-        rate_per_unit = get_rate_per_unit(admin_id)
+        # Get property_id from tenant record
+        property_id = tenant.get('property_id')
+        rate_per_unit = get_rate_per_unit(admin_id, property_id)
         bill_amount = usage * rate_per_unit
 
         # Create reading record
@@ -5720,7 +7088,8 @@ def process_bulk_reading(admin_id, house_number, current_reading, send_sms=True)
 
                 # Generate secure access token for tenant portal
                 access_token = generate_tenant_access_token(tenant_id, admin_id, expires_in_hours=24)
-                portal_link = f"https://{request.host}/tenant_portal/{access_token}"
+                long_portal_link = f"https://{request.host}/tenant_portal/{access_token}"
+                portal_link = shorten_url(long_portal_link, f"tenant_{tenant_id}_{datetime.now().strftime('%Y%m')}")
 
                 # Create message based on arrears
                 if total_arrears > 1:

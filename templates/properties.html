@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Property Management - Water Billing System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Property Management</h1>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
+            <i class="fas fa-plus"></i> Add New Property
+        </button>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-left-primary">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Properties</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ properties|length }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-building fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-left-success">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Tenants (All Properties)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_tenants }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-left-info">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Current Property</div>
+                            <div class="h6 mb-0 font-weight-bold text-gray-800">
+                                {% for prop in properties %}
+                                    {% if prop._id == current_property_id %}{{ prop.name }}{% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-map-marker-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Properties List -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Your Properties</h6>
+        </div>
+        <div class="card-body">
+            {% if properties %}
+                <div class="row">
+                    {% for property in properties %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100 {% if property._id == current_property_id %}border-primary{% endif %}">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h5 class="card-title">{{ property.name }}</h5>
+                                    {% if property._id == current_property_id %}
+                                        <span class="badge badge-primary">Current</span>
+                                    {% endif %}
+                                </div>
+
+                                {% if property.address %}
+                                    <p class="card-text text-muted mb-2">
+                                        <i class="fas fa-map-marker-alt"></i> {{ property.address }}
+                                    </p>
+                                {% endif %}
+
+                                {% if property.description %}
+                                    <p class="card-text">{{ property.description }}</p>
+                                {% endif %}
+
+                                <!-- Property Stats -->
+                                <div class="row text-center mb-3">
+                                    <div class="col-6">
+                                        <div class="border-right">
+                                            <div class="h6 mb-0">{{ property.tenant_count or 0 }}</div>
+                                            <small class="text-muted">Tenants</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="h6 mb-0">{{ property.house_count or 0 }}</div>
+                                        <small class="text-muted">Houses</small>
+                                    </div>
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="btn-group-vertical w-100" role="group">
+                                    {% if property._id != current_property_id %}
+                                        <form method="POST" action="{{ url_for('switch_property', property_id=property._id) }}" class="mb-2">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                                                <i class="fas fa-exchange-alt"></i> Switch To
+                                            </button>
+                                        </form>
+                                    {% endif %}
+
+                                    <div class="btn-group mb-2" role="group">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#editPropertyModal"
+                                                data-property-id="{{ property._id }}"
+                                                data-property-name="{{ property.name }}"
+                                                data-property-address="{{ property.address or '' }}"
+                                                data-property-description="{{ property.description or '' }}">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </button>
+                                        <a href="{{ url_for('property_settings', property_id=property._id) }}"
+                                           class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-cog"></i> Settings
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer text-muted">
+                                <small>Created: {{ property.created_at.strftime('%Y-%m-%d') if property.created_at else 'Unknown' }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-building fa-3x text-gray-300 mb-3"></i>
+                    <h5>No Properties Yet</h5>
+                    <p class="text-muted">Create your first property to start managing tenants and houses.</p>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
+                        Create First Property
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Property Modal -->
+<div class="modal fade" id="addPropertyModal" tabindex="-1" aria-labelledby="addPropertyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('add_property') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addPropertyModalLabel">Add New Property</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="propertyName" class="form-label">Property Name *</label>
+                        <input type="text" class="form-control" id="propertyName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="propertyAddress" class="form-label">Address</label>
+                        <textarea class="form-control" id="propertyAddress" name="address" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="propertyDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="propertyDescription" name="description" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Property</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Property Modal -->
+<div class="modal fade" id="editPropertyModal" tabindex="-1" aria-labelledby="editPropertyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="editPropertyForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editPropertyModalLabel">Edit Property</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editPropertyName" class="form-label">Property Name *</label>
+                        <input type="text" class="form-control" id="editPropertyName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPropertyAddress" class="form-label">Address</label>
+                        <textarea class="form-control" id="editPropertyAddress" name="address" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPropertyDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editPropertyDescription" name="description" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Property</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle edit property modal
+    const editModal = document.getElementById('editPropertyModal');
+    editModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const propertyId = button.getAttribute('data-property-id');
+        const propertyName = button.getAttribute('data-property-name');
+        const propertyAddress = button.getAttribute('data-property-address');
+        const propertyDescription = button.getAttribute('data-property-description');
+
+        // Update form action
+        document.getElementById('editPropertyForm').action = `/edit_property/${propertyId}`;
+
+        // Fill form fields
+        document.getElementById('editPropertyName').value = propertyName;
+        document.getElementById('editPropertyAddress').value = propertyAddress;
+        document.getElementById('editPropertyDescription').value = propertyDescription;
+    });
+});
+</script>
+{% endblock %}

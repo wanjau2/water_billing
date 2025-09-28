@@ -39,3 +39,4 @@ openpyxl==3.1.5
 schedule
 rich
 beautifulsoup4
+bitlyshortener

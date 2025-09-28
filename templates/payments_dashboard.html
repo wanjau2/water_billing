@@ -23,13 +23,23 @@
 
                     </div>
                     <div class="col-md-4 text-md-end">
-                        <a href="{{ url_for('dashboard') }}" 
-                           class="btn btn-primary d-inline-flex align-items-center">
-                            <svg width="20" height="20" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                            </svg>
-                            <span>Back to Dashboard</span>
-                        </a>
+                        <div class="d-flex flex-column flex-md-row gap-2 justify-content-md-end">
+                            <a href="{{ url_for('send_payment_reminders') }}"
+                               class="btn btn-warning d-inline-flex align-items-center"
+                               onclick="return confirm('Send payment reminders to all tenants with overdue bills?')">
+                                <svg width="20" height="20" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                </svg>
+                                <span>Send Reminders</span>
+                            </a>
+                            <a href="{{ url_for('dashboard') }}"
+                               class="btn btn-primary d-inline-flex align-items-center">
+                                <svg width="20" height="20" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                                </svg>
+                                <span>Back to Dashboard</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -96,8 +106,8 @@
                                 </svg>
                             </div>
                             <div>
-                                <p class="small fw-medium text-muted mb-0">Outstanding Balance</p>
-                                <p class="fs-4 fw-bold mb-0">KES {{ "%.2f"|format(bills|sum(attribute='outstanding_amount')) }}</p>
+                                <p class="small fw-medium text-muted mb-0">Total Due (Bills + Fines)</p>
+                                <p class="fs-4 fw-bold mb-0">KES {{ "%.2f"|format(bills|sum(attribute='total_amount_due')) }}</p>
                             </div>
                         </div>
                     </div>
@@ -184,6 +194,8 @@
                             <th>Bill Amount</th>
                             <th>Paid</th>
                             <th>Outstanding</th>
+                            <th>Late Fee</th>
+                            <th>Total Due</th>
                             <th>Status</th>
                             <th>Due Date</th>
                             <th>Actions</th>
@@ -208,7 +220,15 @@
                             <td>{{ bill.month_year }}</td>
                             <td class="fw-semibold">KES {{ "%.2f"|format(bill.bill_amount) }}</td>
                             <td class="text-success fw-medium">KES {{ "%.2f"|format(bill.amount_paid or 0) }}</td>
-                            <td class="text-danger fw-medium">KES {{ "%.2f"|format(bill.outstanding_amount) }}</td>
+                            <td class="text-warning fw-medium">KES {{ "%.2f"|format(bill.outstanding_amount) }}</td>
+                            <td class="text-danger fw-medium">
+                                {% if bill.late_payment_fine > 0 %}
+                                    KES {{ "%.2f"|format(bill.late_payment_fine) }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-danger fw-bold">KES {{ "%.2f"|format(bill.total_amount_due) }}</td>
                             <td>
                                 <span class="badge {% if bill.payment_status == 'paid' %}bg-success{% elif bill.payment_status == 'partial' %}bg-warning{% else %}bg-danger{% endif %} d-flex align-items-center">
                                     {% if bill.payment_status == 'paid' %}

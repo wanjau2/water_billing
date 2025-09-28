@@ -17,51 +17,96 @@ function initializeCharts() {
   const topConsumersCtx = document.getElementById('topConsumersChart').getContext('2d');
   const usageDistCtx = document.getElementById('usageDistributionChart').getContext('2d');
 
-  // These objects will be populated by Jinja during rendering
-  const monthlyData = {};
-  const monthlyRevenue = {};
-  let readingDate, monthYear;
+  // Get monthly data from analytics_data passed by backend
+  const monthlyWaterData = {{ analytics_data.monthly_water_data | tojson }};
+  const monthlyRentData = {{ analytics_data.monthly_rent_data | tojson }};
 
-  {% for reading, tenant in readings %}
-    readingDate = new Date('{{ reading.date_recorded.strftime("%Y-%m-%d") }}');
-    monthYear = readingDate.toLocaleString('default', { month: 'short', year: 'numeric' });
+  // Create a combined dataset with all months
+  const allMonths = new Set();
 
-    if (!monthlyData[monthYear]) {
-      monthlyData[monthYear] = 0;
-      monthlyRevenue[monthYear] = 0;
-    }
-    monthlyData[monthYear] += {{ reading.usage }};
-    monthlyRevenue[monthYear] += {{ reading.bill_amount }};
-  {% endfor %}
-
-  const months = Object.keys(monthlyData).sort((a, b) => {
-    const dateA = new Date(a);
-    const dateB = new Date(b);
-    return dateA - dateB;
+  // Add months from water data
+  monthlyWaterData.forEach(item => {
+    const monthKey = `${item._id.year}-${String(item._id.month).padStart(2, '0')}`;
+    allMonths.add(monthKey);
   });
 
-  const monthlyUsage = months.map(month => monthlyData[month]);
-  const monthlyRevenueData = months.map(month => monthlyRevenue[month]);
+  // Add months from rent data
+  monthlyRentData.forEach(item => {
+    const monthKey = `${item._id.year}-${String(item._id.month).padStart(2, '0')}`;
+    allMonths.add(monthKey);
+  });
+
+  // Sort months chronologically
+  const sortedMonths = Array.from(allMonths).sort();
+
+  // Create month labels for display
+  const monthLabels = sortedMonths.map(monthKey => {
+    const [year, month] = monthKey.split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1);
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  });
+
+  // Create consumption data
+  const consumptionData = sortedMonths.map(monthKey => {
+    const [year, month] = monthKey.split('-');
+    const waterItem = monthlyWaterData.find(item =>
+      item._id.year === parseInt(year) && item._id.month === parseInt(month)
+    );
+    return waterItem ? waterItem.consumption : 0;
+  });
+
+  // Create water revenue data
+  const waterRevenueData = sortedMonths.map(monthKey => {
+    const [year, month] = monthKey.split('-');
+    const waterItem = monthlyWaterData.find(item =>
+      item._id.year === parseInt(year) && item._id.month === parseInt(month)
+    );
+    return waterItem ? waterItem.revenue : 0;
+  });
+
+  // Create rent revenue data
+  const rentRevenueData = sortedMonths.map(monthKey => {
+    const [year, month] = monthKey.split('-');
+    const rentItem = monthlyRentData.find(item =>
+      item._id.year === parseInt(year) && item._id.month === parseInt(month)
+    );
+    return rentItem ? rentItem.revenue : 0;
+  });
 
   // Consumption Chart
   charts.consumption = new Chart(consumptionCtx, {
     type: 'line',
     data: {
-      labels: months,
+      labels: monthLabels,
       datasets: [{
         label: 'Water Consumption (m³)',
-        data: monthlyUsage,
-        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-        borderColor: 'rgba(102, 126, 234, 1)',
+        data: consumptionData,
+        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+        borderColor: 'rgba(54, 162, 235, 1)',
         borderWidth: 3,
         fill: true,
-        tension: 0.4
+        tension: 0.4,
+        pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 6
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: true, position: 'top' } },
+      plugins: {
+        legend: { display: true, position: 'top' },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            label: function(context) {
+              return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} m³`;
+            }
+          }
+        }
+      },
       scales: {
         y: {
           beginAtZero: true,
@@ -74,32 +119,72 @@ function initializeCharts() {
     }
   });
 
-  // Revenue Chart
+  // Revenue Chart - Dual Line Chart for Water and Rent
   charts.revenue = new Chart(revenueCtx, {
-    type: 'bar',
+    type: 'line',
     data: {
-      labels: months,
-      datasets: [{
-        label: 'Monthly Revenue (KES)',
-        data: monthlyRevenueData,
-        backgroundColor: 'rgba(40, 167, 69, 0.8)',
-        borderColor: 'rgba(40, 167, 69, 1)',
-        borderWidth: 2,
-        borderRadius: 8
-      }]
+      labels: monthLabels,
+      datasets: [
+        {
+          label: 'Water Revenue (KES)',
+          data: waterRevenueData,
+          backgroundColor: 'rgba(54, 162, 235, 0.1)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 3,
+          fill: false,
+          tension: 0.4,
+          pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 6
+        },
+        {
+          label: 'Rent Revenue (KES)',
+          data: rentRevenueData,
+          backgroundColor: 'rgba(255, 99, 132, 0.1)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          borderWidth: 3,
+          fill: false,
+          tension: 0.4,
+          pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 6
+        }
+      ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: true, position: 'top' } },
+      plugins: {
+        legend: { display: true, position: 'top' },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            label: function(context) {
+              return `${context.dataset.label}: KES ${context.parsed.y.toLocaleString()}`;
+            }
+          }
+        }
+      },
       scales: {
         y: {
           beginAtZero: true,
           grid: { color: 'rgba(0, 0, 0, 0.1)' },
-          title: { display: true, text: 'Revenue (KES)' }
+          title: { display: true, text: 'Revenue (KES)' },
+          ticks: {
+            callback: function(value) {
+              return 'KES ' + value.toLocaleString();
+            }
+          }
         },
-        x: { grid: { display: false } }
-      }
+        x: {
+          grid: { color: 'rgba(0, 0, 0, 0.1)' },
+          title: { display: true, text: 'Month' }
+        }
+      },
+      interaction: { intersect: false, mode: 'index' }
     }
   });
 

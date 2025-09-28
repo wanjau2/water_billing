@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+
+{% block title %}{{ property.name }} - Billing Settings{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">{{ property.name }} - Billing Settings</h1>
+            <p class="text-muted">Configure property-specific billing rates and payment methods</p>
+        </div>
+        <a href="{{ url_for('properties') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Properties
+        </a>
+    </div>
+
+    <form method="POST" action="{{ url_for('update_property_settings', property_id=property._id) }}">
+        <div class="row">
+            <!-- Billing Configuration -->
+            <div class="col-lg-8">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Billing Configuration</h6>
+                    </div>
+                    <div class="card-body">
+                        <!-- Water Billing -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="enable_water_billing"
+                                           name="enable_water_billing"
+                                           {% if settings.billing.enable_water_billing %}checked{% endif %}>
+                                    <label class="form-check-label" for="enable_water_billing">
+                                        <strong>Enable Water Billing</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="water_rate_per_unit" class="form-label">Water Rate per Unit (KES)</label>
+                                <input type="number" class="form-control" id="water_rate_per_unit"
+                                       name="water_rate_per_unit" step="0.01" min="0"
+                                       value="{{ settings.water_rate_per_unit }}">
+                            </div>
+                        </div>
+
+                        <!-- Garbage Billing -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="enable_garbage_billing"
+                                           name="enable_garbage_billing"
+                                           {% if settings.billing.enable_garbage_billing %}checked{% endif %}>
+                                    <label class="form-check-label" for="enable_garbage_billing">
+                                        <strong>Enable Garbage Collection Billing</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="garbage_rate" class="form-label">Garbage Collection Rate (KES/month)</label>
+                                <input type="number" class="form-control" id="garbage_rate"
+                                       name="garbage_rate" step="0.01" min="0"
+                                       value="{{ settings.billing.garbage_rate }}">
+                            </div>
+                        </div>
+
+                        <!-- Late Payment Fee -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="late_payment_fee" class="form-label">Late Payment Fee (KES)</label>
+                                <input type="number" class="form-control" id="late_payment_fee"
+                                       name="late_payment_fee" step="0.01" min="0"
+                                       value="{{ settings.billing.late_payment_fee }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="billing_day" class="form-label">Monthly Billing Day</label>
+                                <select class="form-select" id="billing_day" name="billing_day">
+                                    {% for day in range(1, 29) %}
+                                        <option value="{{ day }}" {% if settings.billing.billing_day == day %}selected{% endif %}>
+                                            {{ day }}{% if day == 1 %}st{% elif day == 2 %}nd{% elif day == 3 %}rd{% else %}th{% endif %} of the month
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Late Payment Fines -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Late Payment Fines</h6>
+                    </div>
+                    <div class="card-body">
+                        <!-- Enable Late Payment Fines -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="enable_late_payment_fines"
+                                           name="enable_late_payment_fines"
+                                           {% if settings.billing.enable_late_payment_fines %}checked{% endif %}>
+                                    <label class="form-check-label" for="enable_late_payment_fines">
+                                        <strong>Enable Late Payment Fines</strong>
+                                    </label>
+                                </div>
+                                <small class="text-muted">Automatically add fines for payments made after the grace period</small>
+                            </div>
+                        </div>
+
+                        <div id="late_payment_config" class="{% if not settings.billing.enable_late_payment_fines %}d-none{% endif %}">
+                            <!-- Grace Period -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="grace_period_days" class="form-label">Grace Period (Days)</label>
+                                    <input type="number" class="form-control" id="grace_period_days"
+                                           name="grace_period_days" min="0" max="30"
+                                           value="{{ settings.billing.grace_period_days or 7 }}">
+                                    <small class="text-muted">Days after due date before fine applies</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="fine_type" class="form-label">Fine Type</label>
+                                    <select class="form-select" id="fine_type" name="fine_type">
+                                        <option value="percentage" {% if settings.billing.fine_type == 'percentage' %}selected{% endif %}>
+                                            Percentage of Outstanding Amount
+                                        </option>
+                                        <option value="fixed" {% if settings.billing.fine_type == 'fixed' %}selected{% endif %}>
+                                            Fixed Amount (KES)
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Fine Rate/Amount -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="fine_rate" class="form-label">
+                                        <span id="fine_rate_label">
+                                            {% if settings.billing.fine_type == 'fixed' %}Fine Amount (KES){% else %}Fine Rate (%){% endif %}
+                                        </span>
+                                    </label>
+                                    <input type="number" class="form-control" id="fine_rate"
+                                           name="fine_rate" step="0.01" min="0"
+                                           value="{{ settings.billing.fine_rate or 5 }}">
+                                    <small class="text-muted" id="fine_rate_help">
+                                        {% if settings.billing.fine_type == 'fixed' %}Fixed amount to add as fine{% else %}Percentage of outstanding amount{% endif %}
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="fine_frequency" class="form-label">Fine Frequency</label>
+                                    <select class="form-select" id="fine_frequency" name="fine_frequency">
+                                        <option value="one_time" {% if settings.billing.fine_frequency == 'one_time' %}selected{% endif %}>
+                                            One-time fine
+                                        </option>
+                                        <option value="monthly" {% if settings.billing.fine_frequency == 'monthly' %}selected{% endif %}>
+                                            Monthly compound fine
+                                        </option>
+                                    </select>
+                                    <small class="text-muted">How often the fine is applied for ongoing late payments</small>
+                                </div>
+                            </div>
+
+                            <!-- Maximum Fine -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="max_fine_amount" class="form-label">Maximum Fine Amount (KES)</label>
+                                    <input type="number" class="form-control" id="max_fine_amount"
+                                           name="max_fine_amount" step="0.01" min="0"
+                                           value="{{ settings.billing.max_fine_amount or 1000 }}">
+                                    <small class="text-muted">Cap the total fine amount (optional, 0 = no limit)</small>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Example:</strong> With 7 days grace period and 5% fine rate, a tenant with KES 1000 outstanding bill will be charged KES 50 fine if payment is made 8+ days after due date.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Methods -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Payment Methods</h6>
+                    </div>
+                    <div class="card-body">
+                        <!-- M-Pesa Configuration -->
+                        <div class="mb-4">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="mpesa_enabled"
+                                       name="mpesa_enabled"
+                                       {% if settings.payment_methods.mpesa.enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="mpesa_enabled">
+                                    <strong>Enable M-Pesa Payments</strong>
+                                </label>
+                            </div>
+
+                            <div id="mpesa_config" class="{% if not settings.payment_methods.mpesa.enabled %}d-none{% endif %}">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="mpesa_consumer_key" class="form-label">Consumer Key</label>
+                                        <input type="text" class="form-control" id="mpesa_consumer_key"
+                                               name="mpesa_consumer_key"
+                                               value="{{ settings.payment_methods.mpesa.consumer_key or '' }}">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="mpesa_consumer_secret" class="form-label">Consumer Secret</label>
+                                        <input type="password" class="form-control" id="mpesa_consumer_secret"
+                                               name="mpesa_consumer_secret"
+                                               value="{{ settings.payment_methods.mpesa.consumer_secret or '' }}">
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="mpesa_shortcode" class="form-label">Shortcode (Paybill/Till)</label>
+                                        <input type="text" class="form-control" id="mpesa_shortcode"
+                                               name="mpesa_shortcode"
+                                               value="{{ settings.payment_methods.mpesa.shortcode or '' }}">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="mpesa_passkey" class="form-label">Passkey</label>
+                                        <input type="password" class="form-control" id="mpesa_passkey"
+                                               name="mpesa_passkey"
+                                               value="{{ settings.payment_methods.mpesa.passkey or '' }}">
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="mpesa_environment" class="form-label">Environment</label>
+                                        <select class="form-select" id="mpesa_environment" name="mpesa_environment">
+                                            <option value="sandbox" {% if settings.payment_methods.mpesa.environment == 'sandbox' %}selected{% endif %}>
+                                                Sandbox (Testing)
+                                            </option>
+                                            <option value="production" {% if settings.payment_methods.mpesa.environment == 'production' %}selected{% endif %}>
+                                                Production (Live)
+                                            </option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i>
+                                    <strong>Note:</strong> These M-Pesa credentials are specific to this property.
+                                    They will override any account-level M-Pesa settings when processing payments for this property.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Other Payment Methods -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="cash_enabled"
+                                           name="cash_enabled"
+                                           {% if settings.payment_methods.cash.enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="cash_enabled">
+                                        <strong>Enable Cash Payments</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="bank_transfer_enabled"
+                                           name="bank_transfer_enabled"
+                                           {% if settings.payment_methods.bank_transfer.enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="bank_transfer_enabled">
+                                        <strong>Enable Bank Transfer</strong>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="bank_transfer_config" class="{% if not settings.payment_methods.bank_transfer.enabled %}d-none{% endif %}">
+                            <label for="bank_account_details" class="form-label">Bank Account Details</label>
+                            <textarea class="form-control" id="bank_account_details" name="bank_account_details"
+                                      rows="3" placeholder="Enter bank account details that tenants will see">{{ settings.payment_methods.bank_transfer.account_details or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary & Actions -->
+            <div class="col-lg-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Property Summary</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Property:</strong> {{ property.name }}</p>
+                        {% if property.address %}
+                            <p><strong>Address:</strong> {{ property.address }}</p>
+                        {% endif %}
+                        <p><strong>Created:</strong> {{ property.created_at.strftime('%Y-%m-%d') if property.created_at else 'Unknown' }}</p>
+
+                        <hr>
+
+                        <h6 class="font-weight-bold">Current Settings</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-tint text-primary"></i> Water: {{ settings.water_rate_per_unit }} KES/unit</li>
+                            <li><i class="fas fa-trash text-success"></i> Garbage: {{ settings.billing.garbage_rate }} KES/month</li>
+                            <li><i class="fas fa-calendar text-info"></i> Billing Day: {{ settings.billing.billing_day }}</li>
+                        </ul>
+
+                        <hr>
+
+                        <h6 class="font-weight-bold">Late Payment Fines</h6>
+                        <ul class="list-unstyled">
+                            <li>
+                                <i class="fas fa-exclamation-triangle {% if settings.billing.enable_late_payment_fines %}text-warning{% else %}text-muted{% endif %}"></i>
+                                Fines: {% if settings.billing.enable_late_payment_fines %}Enabled{% else %}Disabled{% endif %}
+                            </li>
+                            {% if settings.billing.enable_late_payment_fines %}
+                                <li class="ms-3">
+                                    <small class="text-muted">
+                                        {{ settings.billing.grace_period_days or 7 }} days grace period
+                                    </small>
+                                </li>
+                                <li class="ms-3">
+                                    <small class="text-muted">
+                                        {% if settings.billing.fine_type == 'fixed' %}
+                                            KES {{ settings.billing.fine_rate or 50 }} fixed fine
+                                        {% else %}
+                                            {{ settings.billing.fine_rate or 5 }}% of outstanding amount
+                                        {% endif %}
+                                    </small>
+                                </li>
+                                <li class="ms-3">
+                                    <small class="text-muted">
+                                        {{ settings.billing.fine_frequency or 'one_time'|title }} frequency
+                                    </small>
+                                </li>
+                            {% endif %}
+                        </ul>
+
+                        <hr>
+
+                        <h6 class="font-weight-bold">Payment Methods</h6>
+                        <ul class="list-unstyled">
+                            <li>
+                                <i class="fas fa-mobile-alt {% if settings.payment_methods.mpesa.enabled %}text-success{% else %}text-muted{% endif %}"></i>
+                                M-Pesa: {% if settings.payment_methods.mpesa.enabled %}Enabled{% else %}Disabled{% endif %}
+                            </li>
+                            <li>
+                                <i class="fas fa-money-bill {% if settings.payment_methods.cash.enabled %}text-success{% else %}text-muted{% endif %}"></i>
+                                Cash: {% if settings.payment_methods.cash.enabled %}Enabled{% else %}Disabled{% endif %}
+                            </li>
+                            <li>
+                                <i class="fas fa-university {% if settings.payment_methods.bank_transfer.enabled %}text-success{% else %}text-muted{% endif %}"></i>
+                                Bank Transfer: {% if settings.payment_methods.bank_transfer.enabled %}Enabled{% else %}Disabled{% endif %}
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Save Button -->
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save"></i> Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle M-Pesa configuration
+    const mpesaEnabled = document.getElementById('mpesa_enabled');
+    const mpesaConfig = document.getElementById('mpesa_config');
+
+    mpesaEnabled.addEventListener('change', function() {
+        if (this.checked) {
+            mpesaConfig.classList.remove('d-none');
+        } else {
+            mpesaConfig.classList.add('d-none');
+        }
+    });
+
+    // Toggle Bank Transfer configuration
+    const bankTransferEnabled = document.getElementById('bank_transfer_enabled');
+    const bankTransferConfig = document.getElementById('bank_transfer_config');
+
+    bankTransferEnabled.addEventListener('change', function() {
+        if (this.checked) {
+            bankTransferConfig.classList.remove('d-none');
+        } else {
+            bankTransferConfig.classList.add('d-none');
+        }
+    });
+
+    // Toggle Late Payment Fines configuration
+    const latePaymentEnabled = document.getElementById('enable_late_payment_fines');
+    const latePaymentConfig = document.getElementById('late_payment_config');
+
+    latePaymentEnabled.addEventListener('change', function() {
+        if (this.checked) {
+            latePaymentConfig.classList.remove('d-none');
+        } else {
+            latePaymentConfig.classList.add('d-none');
+        }
+    });
+
+    // Update fine rate labels based on fine type
+    const fineType = document.getElementById('fine_type');
+    const fineRateLabel = document.getElementById('fine_rate_label');
+    const fineRateHelp = document.getElementById('fine_rate_help');
+
+    function updateFineTypeLabels() {
+        if (fineType.value === 'fixed') {
+            fineRateLabel.textContent = 'Fine Amount (KES)';
+            fineRateHelp.textContent = 'Fixed amount to add as fine';
+        } else {
+            fineRateLabel.textContent = 'Fine Rate (%)';
+            fineRateHelp.textContent = 'Percentage of outstanding amount';
+        }
+    }
+
+    fineType.addEventListener('change', updateFineTypeLabels);
+
+    // Initialize labels on page load
+    updateFineTypeLabels();
+});
+</script>
+{% endblock %}

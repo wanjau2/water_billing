@@ -189,28 +189,34 @@
           <!-- Compact Analytics Cards -->
           <div class="col-lg-12">
             <div class="row">
-              <div class="col-lg-3 col-md-6 mb-2">
+              <div class="col-lg-2 col-md-4 col-6 mb-2">
+                <div class="stats-card">
+                  <div class="stats-number" id="total-properties">{{ properties|length if properties else 1 }}</div>
+                  <div class="stats-label">Total Properties</div>
+                </div>
+              </div>
+              <div class="col-lg-2 col-md-4 col-6 mb-2">
                 <div class="stats-card">
                   <div class="stats-number" id="total-tenants">{{ tenants|length }}</div>
                   <div class="stats-label">Total Tenants</div>
                 </div>
               </div>
-              <div class="col-lg-3 col-md-6 mb-2">
+              <div class="col-lg-2 col-md-4 col-6 mb-2">
+                <div class="stats-card">
+                  <div class="stats-number" id="combined-revenue">{{ "%.0f"|format(total_revenue or 0) }}</div>
+                  <div class="stats-label">Combined Revenue (KES)</div>
+                </div>
+              </div>
+              <div class="col-lg-3 col-md-6 col-6 mb-2">
                 <div class="stats-card">
                   <div class="stats-number" id="monthly-consumption">{{ "%.1f"|format(monthly_consumption or 0) }}</div>
                   <div class="stats-label">Monthly Consumption (m³)</div>
                 </div>
               </div>
-              <div class="col-lg-3 col-md-6 mb-2">
-                <div class="stats-card">
-                  <div class="stats-number" id="total-revenue">{{ "%.1f"|format(total_revenue or 0) }}</div>
-                  <div class="stats-label">Combined Revenue (KES)</div>
-                </div>
-              </div>
-              <div class="col-lg-3 col-md-6 mb-2">
+              <div class="col-lg-3 col-md-6 col-6 mb-2">
                 <div class="stats-card">
                   <div class="stats-number" id="avg-usage">{{ "%.1f"|format(avg_usage or 0) }}</div>
-                  <div class="stats-label">Avg Usage per Tenant (m³)</div>
+                  <div class="stats-label">Average Usage per Tenant (m³)</div>
                 </div>
               </div>
             </div>
@@ -234,7 +240,7 @@
       <div class="col-md-6">
         <div class="card">
           <div class="card-header">
-            <h5 class="mb-0">Monthly Consumption Trends</h5>
+            <h5 class="mb-0"><i class="bi bi-droplet"></i> Monthly Water Consumption</h5>
           </div>
           <div class="card-body">
             <div class="chart-container">
@@ -246,7 +252,7 @@
       <div class="col-md-6">
         <div class="card">
           <div class="card-header">
-            <h5 class="mb-0">Revenue Trends</h5>
+            <h5 class="mb-0"><i class="bi bi-graph-up"></i> Revenue Trends (Water & Rent)</h5>
           </div>
           <div class="card-body">
             <div class="chart-container">
