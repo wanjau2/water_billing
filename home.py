@@ -4787,18 +4787,18 @@ def generate_rent_bills():
                 # Generate secure access token for tenant portal
                 access_token = generate_tenant_access_token(tenant_id_obj, admin_id, expires_in_hours=24)
                 long_portal_link = f"{request.url_root}tenant_portal/{access_token}"
-            portal_link = shorten_url(long_portal_link, f"tenant_{tenant_id_obj}_{datetime.now().strftime('%Y%m')}")
+                portal_link = shorten_url(long_portal_link, f"tenant_{tenant_id_obj}_{datetime.now().strftime('%Y%m')}")
 
                 # Create SMS message with arrears info
-                if total_arrears > 1:  # Use smaller threshold for precision
-                    message = (
-                        f"Rent Bill Alert: {tenant['name']}, House {house_number}. "
-                        f"Current bill: KES {rent_amount:.2f}. "
-                        f"Outstanding arrears: KES {total_arrears:.2f}. "
-                        f"Total amount due: KES {rent_amount + total_arrears:.2f}. "
-                        f"{payment_text} View history: {portal_link} From {admin_name} - {admin_phone}"
-                    )
-                else:
+            if total_arrears > 1:  # Use smaller threshold for precision
+                message = (
+                    f"Rent Bill Alert: {tenant['name']}, House {house_number}. "
+                    f"Current bill: KES {rent_amount:.2f}. "
+                    f"Outstanding arrears: KES {total_arrears:.2f}. "
+                    f"Total amount due: KES {rent_amount + total_arrears:.2f}. "
+                    f"{payment_text} View history: {portal_link} From {admin_name} - {admin_phone}"
+                )
+            else:
                     message = (
                         f"Rent Bill Alert: {tenant['name']}, House {house_number}. "
                         f"Current bill: KES {rent_amount:.2f}. "
@@ -4806,18 +4806,18 @@ def generate_rent_bills():
                     )
                 
                 # Send SMS
-                try:
-                    if tenant.get('phone'):
-                        response = send_message(tenant['phone'], message)
+            try:
+                if tenant.get('phone'):
+                    response = send_message(tenant['phone'], message)
                         
-                        if "error" not in response:
-                            sms_sent += 1
-                        else:
-                            app.logger.error(f"SMS error for tenant {tenant['name']}: {response.get('error')}")
+                    if "error" not in response:
+                        sms_sent += 1
                     else:
-                        app.logger.warning(f"No phone number for tenant {tenant['name']}")
+                        app.logger.error(f"SMS error for tenant {tenant['name']}: {response.get('error')}")
+                else:
+                    app.logger.warning(f"No phone number for tenant {tenant['name']}")
                         
-                except Exception as sms_error:
+            except Exception as sms_error:
                     app.logger.error(f"SMS error for tenant {tenant['name']}: {sms_error}")
         
         # Invalidate billing summary cache
