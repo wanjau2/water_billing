@@ -1,0 +1,47 @@
+.tenant-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+}
+
+.status-badge {
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.reading-card {
+    transition: transform 0.2s;
+    border-left: 4px solid #007bff;
+}
+
+.reading-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.usage-meter {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.payment-status-paid {
+    color: #28a745;
+}
+
+.payment-status-partial {
+    color: #ffc107;
+}
+
+.payment-status-unpaid {
+    color: #dc3545;
+}
+
+.footer-info {
+    background: #f8f9fa;
+    padding: 2rem 0;
+    margin-top: 3rem;
+    border-top: 1px solid #dee2e6;
+}

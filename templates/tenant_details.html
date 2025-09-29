@@ -2,6 +2,10 @@
 
 {% block title %}{{ tenant.name }} - Billing History{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tenant-details.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
       <div>
@@ -107,7 +111,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <form action="{{ url_for('delete_tenant', tenant_id=tenant._id) }}" method="post" style="display: inline;">
+          <form action="{{ url_for('delete_tenant', tenant_id=tenant._id) }}" method="post" class="inline-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-danger">Delete Permanently</button>
           </form>
@@ -167,7 +171,7 @@
     </div>
     <div class="card-body">
       <!-- Add a fixed height container to prevent collapsing on hover -->
-      <div style="height: 400px; position: relative;">
+      <div class="chart-container">
         <canvas id="billingChart"></canvas>
       </div>
     </div>
@@ -209,134 +213,10 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-
-  document.addEventListener('DOMContentLoaded', function() {
-    // Safely parse JSON data from Flask
-    let labels = [];
-    let usageData = [];
-    
-    try {
-      labels = {{ labels|tojson }};
-      usageData = {{ usage_data|tojson }};
-      
-      console.log('Labels:', labels);
-      console.log('Usage Data:', usageData);
-    } catch (e) {
-      console.error('Error parsing chart data:', e);
-    }
-    
-    // Ensure we have valid arrays
-    if (!Array.isArray(labels)) labels = [];
-    if (!Array.isArray(usageData)) usageData = [];
-    
-    // If no data is provided, use some dummy data for visualization
-    if (labels.length === 0) {
-      console.warn("No chart data provided. Using fallback dummy data.");
-      labels = ["2025-01-01", "2025-02-01", "2025-03-01"];
-      usageData = [50, 75, 60];
-    }
-    
-    // Handle duplicate dates by adding time information
-    const uniqueLabels = [];
-    const uniqueUsageData = [];
-    
-    // Process data to handle duplicates
-    for (let i = 0; i < labels.length; i++) {
-      let label = labels[i];
-      // If this date already exists, add a suffix
-      let count = 0;
-      for (let j = 0; j < i; j++) {
-        if (labels[j] === label) count++;
-      }
-      if (count > 0) {
-        label = `${label} (${count + 1})`;
-      }
-      uniqueLabels.push(label);
-      uniqueUsageData.push(usageData[i]);
-    }
-    
-    const ctx = document.getElementById('billingChart').getContext('2d');
-    const billingChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: uniqueLabels,
-        datasets: [
-          {
-            label: 'Water Usage (m³)',
-            data: uniqueUsageData,
-            borderColor: 'rgba(54, 162, 235, 1)',
-            backgroundColor: 'rgba(54, 162, 235, 0.2)',
-            borderWidth: 3,
-            tension: 0.4,
-            fill: true,
-            pointRadius: 5,
-            pointHoverRadius: 7
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,  // Change to false to respect container dimensions
-        plugins: {
-          title: {
-            display: true,
-            text: 'Water Usage Trend',
-            font: {
-              size: 16
-            }
-          },
-          legend: {
-            position: 'top'
-          },
-          tooltip: {
-            mode: 'index',
-            intersect: false
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            title: {
-              display: true,
-              text: 'Water Usage (m³)',
-              font: {
-                weight: 'bold'
-              }
-            },
-            ticks: {
-              precision: 0
-            }
-          },
-          x: {
-            title: {
-              display: true,
-              text: 'Date',
-              font: {
-                weight: 'bold'
-              }
-            }
-          }
-        }
-      }
-    });
-  });
-  const tenantId = "{{ tenant._id }}";
-  const previousReadingInput = document.getElementById('previous_reading');
-  fetch(`/api/tenant/${tenantId}/readings`)
-                    .then(response => response.json())
-                    .then(data => {
-                      if (data && data.length > 0) {
-                        // Get the most recent reading (last item in the array)
-                        const lastReading = data[0];
-                        previousReadingInput.value = lastReading.current_reading;
-                      } else {
-                        // No previous readings, start from 0
-                        previousReadingInput.value = '0';
-                      }
-                    })
-                    .catch(error => {
-                      console.error('Error fetching readings:', error);
-                      previousReadingInput.value = '';
-                    });
+  // Pass data from Flask to JavaScript securely
+  window.chartLabels = {{ labels|tojson }};
+  window.chartUsageData = {{ usage_data|tojson }};
+  window.tenantId = "{{ tenant._id }}";
 </script>
+<script src="{{ url_for('static', filename='js/tenant-details.js') }}"></script>
 {% endblock %}

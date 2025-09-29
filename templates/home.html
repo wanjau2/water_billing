@@ -12,14 +12,17 @@
     <meta name="keywords" content="water billing, utility management, water meter reading, online water bill payment">
     <title>WaterBill Pro | Efficient Water Utility Management System</title>
     <!-- TailwindCSS -->
-    <link 
-    href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" 
+    <link
+    href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
     rel="stylesheet">
 
 <!-- Font Awesome (via jsDelivr) -->
-    <link 
-    href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" 
+    <link
+    href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css"
     rel="stylesheet">
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
 
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images.jpeg') }}">    <!-- Open Graph tags for social sharing -->
     <meta property="og:title" content="WaterBill Pro | Efficient Water Utility Management System">
@@ -42,99 +45,11 @@
       },
       "description": "Comprehensive water utility management and billing system"
     }
-    </script>
-    <style>
-        .hero-image {
-            max-width: 100%;
-            height: auto;
-            filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.1));
-            transition: all 0.3s ease;
-            mix-blend-mode: multiply;
-            border: none;
-            border-radius: 0;
-            background: transparent;
-            /* Add these properties for better blending */
-            object-fit: contain;
-            margin: 0;
-            padding: 0;
-        }
-        
-        /* Add a new class for the logo image */
-        .logo-image {
-            max-width: 100%;
-            height: auto;
-            mix-blend-mode: multiply;
-            border: none;
-            border-radius: 0;
-            background: transparent;
-            filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.08));
-            object-fit: contain;
-            margin: 0;
-            padding: 0;
-        }
-        
-        .hero-background {
-            background: linear-gradient(to bottom, #E0F7FF, #3498db);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .hero-background::before,
-        .hero-background::after {
-            content: '';
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 150%;
-            height: 300px;
-            border-radius: 50%;
-        }
-        
-        .hero-background::before {
-        bottom: 40%;
-        background: rgba(255, 255, 255, 0.3);
-        height: 250px;
-        }
-    
-        .hero-background::after {
-        bottom: 5%;
-        background: rgba(130, 207, 255, 0.7);
-        height: 200px;
-        }
-        
-        .cloud {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.6);
-            border-radius: 50%;
-        }
-        
-        .cloud-large {
-        width: 150px;
-        height: 50px;
-        top: 10%;
-        right: 10%;
-        }
-    
-        .cloud-small {
-        width: 80px;
-        height: 30px;
-        top: 25%;
-        left: 15%;
-        }
-    
-        /* Add a third cloud for more visual interest */
-        .cloud-medium {
-            width: 100px;
-            height: 35px;
-            bottom: 30%;
-            right: 25%;
-        }
-    </style>
     
 </head>
 <body class="font-sans text-gray-800 antialiased">
     <!-- Header -->
-    <header class="bg-white shadow-sm sticky top-0 z-50" style="background-color:#F0F4FE;">
+    <header class="bg-white shadow-sm sticky top-0 z-50 header-sticky">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center">
                 <div class="text-2xl font-bold text-blue-600">
@@ -161,7 +76,7 @@
     </header>
 
     <!-- Hero Section -->
-    <section class="py-20" style="background-color:#F0F4FE; color:inherit;">
+    <section class="py-20 section-bg-light">
         <div class="container mx-auto px-4 relative z-10">
             <div class="flex flex-col md:flex-row items-center">
                 <div class="md:w-1/2 mb-10 md:mb-0">
@@ -179,7 +94,7 @@
     </section>
 
     <!-- Features Section -->
-    <section id="features" class="py-20" style="background-color:#F0F4FE;">
+    <section id="features" class="py-20 section-bg-light">
         <div class="container mx-auto px-4">
             <div class="text-center mb-16">
                 <h2 class="text-3xl md:text-4xl font-bold mb-4">Powerful Features</h2>
@@ -242,7 +157,7 @@
                     <img src="{{ url_for('static', filename='images/hero.png') }}" alt="Water Utility Management Benefits" class="logo-image">
                 </div>
                 <div class="md:w-1/2 md:pl-12">
-                    <h2 class="text-3xl md:text-4xl font-bold mb-6" style="color: #003B73;">Why Choose Our System?</h2>
+                    <h2 class="text-3xl md:text-4xl font-bold mb-6 text-dark-blue">Why Choose Our System?</h2>
                     <div class="space-y-6">
                         <div class="flex">
                             <div class="flex-shrink-0 mt-1">
@@ -251,7 +166,7 @@
                                 </div>
                             </div>
                             <div class="ml-4">
-                                <h3 class="text-xl font-semibold mb-1" style="color: #003B73;">Reduce Operational Costs</h3>
+                                <h3 class="text-xl font-semibold mb-1 text-dark-blue">Reduce Operational Costs</h3>
                                 <p class="text-gray-600">Automate manual processes and reduce the resources needed for billing and customer service.</p>
                             </div>
                         </div>
@@ -262,7 +177,7 @@
                                 </div>
                             </div>
                             <div class="ml-4">
-                                <h3 class="text-xl font-semibold mb-1" style="color: #003B73;">Improve Accuracy</h3>
+                                <h3 class="text-xl font-semibold mb-1 text-dark-blue">Improve Accuracy</h3>
                                 <p class="text-gray-600">Eliminate human errors in meter reading, billing calculations, and payment processing.</p>
                             </div>
                         </div>
@@ -273,7 +188,7 @@
                                 </div>
                             </div>
                             <div class="ml-4">
-                                <h3 class="text-xl font-semibold mb-1" style="color: #003B73;">Enhance Customer Satisfaction</h3>
+                                <h3 class="text-xl font-semibold mb-1 text-dark-blue">Enhance Customer Satisfaction</h3>
                                 <p class="text-gray-600">Provide transparent billing, convenient payment options, and responsive customer service.</p>
                             </div>
                         </div>
@@ -284,7 +199,7 @@
                                 </div>
                             </div>
                             <div class="ml-4">
-                                <h3 class="text-xl font-semibold mb-1" style="color: #003B73;">Data-Driven Decisions</h3>
+                                <h3 class="text-xl font-semibold mb-1 text-dark-blue">Data-Driven Decisions</h3>
                                 <p class="text-gray-600">Gain insights from comprehensive analytics to optimize operations and resource allocation.</p>
                             </div>
                         </div>
@@ -725,6 +640,8 @@
       });
     });
 </script>
+    <!-- External JavaScript with improved functionality -->
+    <script src="{{ url_for('static', filename='js/home.js') }}"></script>
 </body>
 </html>
 

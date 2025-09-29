@@ -1,7 +1,33 @@
 <!DOCTYPE html>
-<html>
-    <head>
-         <style>
+<html lang="en">
+<head>
+  <!--ads-->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8848769163686423"
+     crossorigin="anonymous"></script>
+
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sign up for a water billing account with SMS notifications, tenant management, and water usage tracking.">
+  <meta name="keywords" content="water billing signup, create account, water utility management">
+  <meta name="author" content="https://wanjau.netlify.app">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://water-billing-1.onrender.com/signup">
+  <title>Sign Up - Water Billing System</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Flowbite CSS -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.css" rel="stylesheet" />
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <!-- Favicon (update path if available) -->
+  <link rel="icon" href="{{ url_for('static', filename='images.jpeg') }}" type="image/jpeg">
+
+  <style>
     body {
         min-height: 100vh;
         display: flex;
@@ -75,205 +101,182 @@
 
     </head>
    
-    <body>
-    <!-- Header -->
-    <header class="bg-white shadow-sm">
-        <div class="container mx-auto px-4 py-3">
-            <div class="flex items-center">
-                <a href="{{ url_for('index') }}" class="text-2xl font-bold text-blue-600">
-                    <span class="flex items-center">
-                        <i class="fas fa-water mr-2"></i>
-                        WaterBill Pro
-                    </span>
-                </a>
+<body>
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="position-fixed top-0 end-0 p-3" style="z-index: 1050;">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
             </div>
-        </div>
-    </header>
+        {% endif %}
+    {% endwith %}
+
     <!-- Signup Section -->
-    <main class="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-md w-full">
-            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-                <div class="bg-gradient-to-r from-blue-500 to-blue-700 px-6 py-8 text-center text-white">
-                    <h1 class="text-3xl font-bold">Create Account</h1>
-                    <p class="mt-2 text-blue-100">Sign up to manage your water utility billing</p>
+    <main class="signup-main">
+        <div class="signup-container">
+            <div class="signup-card">
+                <div class="signup-header">
+                    <h1 class="h3 mb-2">Create Account</h1>
+                    <p class="mb-0 opacity-75">Sign up to manage your water utility billing</p>
                 </div>
                 
-                <div class="px-6 py-8">
-                    <form id="signupForm" class="space-y-5" action="{{ url_for('signup') }}" method="POST">
-                        <!-- Name Input -->
+                <div class="signup-body">
+                    <form id="signupForm" action="{{ url_for('signup') }}" method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <div>
-                            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fas fa-user text-gray-400"></i>
-                                </div>
-                                <input id="name" name="name" type="text" required 
-                                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+
+                        <!-- Name Input -->
+                        <div class="form-group">
+                            <label for="name">Full Name</label>
+                            <div class="input-group">
+                                <i class="fas fa-user input-icon"></i>
+                                <input id="name" name="name" type="text" required
+                                    class="form-control form-control-icon"
                                     placeholder="Enter your full name">
                             </div>
                         </div>
                         
-                        <!-- Till Number Input -->
                         <!-- Payment Method Selection -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-                            <div class="flex space-x-4 mb-3">
-                                <div class="flex items-center">
-                                    <input id="till_option" name="payment_method" type="radio" value="till" 
-                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
-                                    <label for="till_option" class="ml-2 block text-sm text-gray-700">Till Number</label>
+                        <div class="form-group">
+                            <label>Payment Method</label>
+                            <div class="d-flex gap-4 mb-3">
+                                <div class="form-check">
+                                    <input id="till_option" name="payment_method" type="radio" value="till"
+                                        class="form-check-input">
+                                    <label for="till_option" class="form-check-label">Till Number</label>
                                 </div>
-                                <div class="flex items-center">
-                                    <input id="paybill_option" name="payment_method" type="radio" value="paybill" 
-                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
-                                    <label for="paybill_option" class="ml-2 block text-sm text-gray-700">PayBill</label>
+                                <div class="form-check">
+                                    <input id="paybill_option" name="payment_method" type="radio" value="paybill"
+                                        class="form-check-input">
+                                    <label for="paybill_option" class="form-check-label">PayBill</label>
                                 </div>
                             </div>
                             
                             <!-- Till Number Input (initially hidden) -->
-                            <div id="till_input" class="hidden">
-                                <label for="till" class="block text-sm font-medium text-gray-700 mb-1">Till Number</label>
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <i class="fas fa-cash-register text-gray-400"></i>
+                            <div id="till_input" class="d-none">
+                                <label for="till" class="form-label">Till Number</label>
+                                <div class="input-group">
+                                    <i class="fas fa-cash-register input-icon"></i>
+                                    <input id="till" name="till" type="text" maxlength="10"
+                                           placeholder="Enter till number (6-10 digits)"
+                                           class="form-control form-control-icon"
+                                           pattern="\d{6,10}" title="Till number must be between 6-10 digits">
+                                    <div class="invalid-feedback">
+                                        Till number must be between 6-10 digits
                                     </div>
-                                    <input id="till" 
-                                           name="till" 
-                                           type="text" 
-                                           maxlength="10" 
-                                           placeholder="Enter  till number"   
-                                           class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                           oninput="validateTill(this)"
-                                           required>
-                                    <p id="till_feedback" class="text-xs mt-1 text-gray-500">Enter  Till Number</p>
                                 </div>
                             </div>
                             
                             <!-- PayBill Fields (initially hidden) -->
-                            <!-- PayBill Fields (initially hidden) -->
-                            <div id="paybill_input" class="hidden space-y-3">
-                                <div>
-                                    <label for="business_number" class="block text-sm font-medium text-gray-700 mb-1">Business Number</label>
-                                    <div class="relative">
-                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <i class="fas fa-building text-gray-400"></i>
-                                        </div>
-                                        <input id="business_number" name="business_number" type="number" 
-                                            class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            <div id="paybill_input" class="d-none">
+                                <div class="form-group">
+                                    <label for="business_number">Business Number</label>
+                                    <div class="input-group">
+                                        <i class="fas fa-building input-icon"></i>
+                                        <input id="business_number" name="business_number" type="number"
+                                            class="form-control form-control-icon"
                                             placeholder="Enter business number">
                                     </div>
                                 </div>
-                                <div>
-                                    <label for="account_name" class="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
-                                    <div class="relative">
-                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <i class="fas fa-user text-gray-400"></i>
-                                        </div>
-                                        <!-- FIXED: Changed name from "business_number" to "account_name" -->
-                                        <input id="account_name" name="account_name" type="text" 
-                                            class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                <div class="form-group">
+                                    <label for="account_name">Account Name</label>
+                                    <div class="input-group">
+                                        <i class="fas fa-user input-icon"></i>
+                                        <input id="account_name" name="account_name" type="text"
+                                            class="form-control form-control-icon"
                                             placeholder="Enter Account Name">
                                     </div>
                                 </div>
                             </div>
-
-                        <!-- Till Number Input (Moved below PayBill Fields) -->
                         </div>
-                        
-                        <!-- Cost of Units Input (Moved below Till Number) -->
-                        <div>
-                            <label for="cost" class="block text-sm font-medium text-gray-700 mb-1">Cost of Units</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fas fa-dollar-sign text-gray-400"></i>
-                                </div>
-                                <input id="cost" name="cost" type="number" step="0.01" min="0" required 
-                                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+
+
+                        <!-- Cost of Units Input -->
+                        <div class="form-group">
+                            <label for="cost">Cost per Unit</label>
+                            <div class="input-group">
+                                <i class="fas fa-dollar-sign input-icon"></i>
+                                <input id="cost" name="cost" type="number" step="0.01" min="0" required
+                                    class="form-control form-control-icon"
                                     placeholder="Enter cost per unit">
                             </div>
                         </div>
                         
                         <!-- Password Input -->
-                        <div>
-                            <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fas fa-lock text-gray-400"></i>
-                                </div>
-                                <input id="password" name="password" type="password" required 
-                                    class="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <div class="input-group">
+                                <i class="fas fa-lock input-icon"></i>
+                                <input id="password" name="password" type="password" required
+                                    class="form-control form-control-icon"
                                     placeholder="Create a password"
                                     pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
                                     title="Must contain at least one number, one uppercase and lowercase letter, and at least 8 characters">
-                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
-                                    <button type="button" id="togglePassword" class="text-gray-400 hover:text-gray-500 focus:outline-none">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                </div>
+                                <button type="button" id="togglePassword" class="btn-toggle-password">
+                                    <i class="fas fa-eye"></i>
+                                </button>
                             </div>
                             <!-- Password strength indicator -->
                             <div class="mt-1">
-                                <div class="w-full bg-gray-200 rounded-full h-1.5">
-                                    <div id="password-strength" class="bg-red-500 h-1.5 rounded-full" style="width: 0%"></div>
+                                <div class="progress" style="height: 6px;">
+                                    <div id="password-strength" class="progress-bar bg-danger" style="width: 0%"></div>
                                 </div>
-                                <p id="password-strength-text" class="text-xs mt-1 text-gray-500">Password strength: Too weak</p>
+                                <small id="password-strength-text" class="text-muted">Password strength: Too weak</small>
                             </div>
                         </div>
                         
                         <!-- Confirm Password Input -->
-                        <div>
-                            <label for="confirm-password" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fas fa-lock text-gray-400"></i>
-                                </div>
-                                <input id="confirm-password" name="confirm-password" type="password" required 
-                                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        <div class="form-group">
+                            <label for="confirm-password">Confirm Password</label>
+                            <div class="input-group">
+                                <i class="fas fa-lock input-icon"></i>
+                                <input id="confirm-password" name="confirm-password" type="password" required
+                                    class="form-control form-control-icon"
                                     placeholder="Confirm your password">
                             </div>
-                            <p id="password-match" class="text-xs mt-1 hidden text-red-500">Passwords do not match</p>
-                        </div>
-                        
-                        <!-- Terms and Conditions Checkbox -->
-                        <div class="flex items-start">
-                            <div class="flex items-center h-5">
-                                <input id="terms" name="terms" type="checkbox" required
-                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <div id="password-match" class="d-none">
+                                <small class="text-danger">Passwords do not match</small>
                             </div>
-                            <div class="ml-3 text-sm">
-                                <label for="terms" class="text-gray-700">
-                                    I agree to the <a href="{{ url_for('terms') }}" class="text-blue-600 hover:text-blue-500">Terms of Service</a> and <a href="{{ url_for('privacy') }}" class="text-blue-600 hover:text-blue-500">Privacy Policy</a>
+                        </div>
+
+                        <!-- Terms and Conditions Checkbox -->
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input id="terms" name="terms" type="checkbox" required class="form-check-input">
+                                <label for="terms" class="form-check-label">
+                                    I agree to the <a href="{{ url_for('terms') }}" class="text-primary">Terms of Service</a> and <a href="{{ url_for('privacy') }}" class="text-primary">Privacy Policy</a>
                                 </label>
                             </div>
                         </div>
-                        
+
                         <!-- Signup Button -->
-                        <div>
-                            <button type="submit" 
-                                class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">
-                                <span class="mr-2">Create Account</span>
-                                <i class="fas fa-user-plus"></i>
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="fas fa-user-plus me-2"></i>Create Account
                             </button>
                         </div>
                     </form>
                     
                     <!-- Login Link -->
-                    <div class="mt-6 text-center">
-                        <p class="text-sm text-gray-600">
-                            Already have an account? 
-                            <a href="{{ url_for('login') }}" class="font-medium text-blue-600 hover:text-blue-500">
+                    <div class="text-center">
+                        <p class="text-muted mb-0">
+                            Already have an account?
+                            <a href="{{ url_for('login') }}" class="text-primary text-decoration-none">
                                 Sign in
                             </a>
                         </p>
                     </div>
                 </div>
             </div>
-            
+
             <!-- Security Notice -->
-            <div class="mt-6 text-center">
-                <p class="text-xs text-gray-500 flex items-center justify-center">
-                    <i class="fas fa-shield-alt mr-1"></i>
+            <div class="text-center mt-4">
+                <p class="text-muted small">
+                    <i class="fas fa-shield-alt me-1"></i>
                     Secure registration | Your data is protected
                 </p>
             </div>
@@ -281,16 +284,15 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-white border-t border-gray-200 py-6">
-        <div class="container mx-auto px-4">
-            <div class="text-center text-gray-500 text-sm">
-                <p>&copy; 2025 WaterBill Pro. All rights reserved.</p>
-                <p><a href="https:wanjau.netlify.app"  class="underline hover:decoration-pink-500">  Developed By:Wanjau</a></p>
-
-                <div class="mt-2 space-x-4">
-                    <a href="{{ url_for('privacy') }}" class="text-gray-500 hover:text-gray-700">Privacy Policy</a>
-                    <a href="{{ url_for('terms') }}" class="text-gray-500 hover:text-gray-700">Terms of Service</a>
-                    <a href="{{ url_for('contact') }}" class="text-gray-500 hover:text-gray-700">Contact Support</a>
+    <footer class="footer-section">
+        <div class="container">
+            <div class="text-center text-muted">
+                <p class="mb-2">&copy; 2025 Water Billing System. All rights reserved.</p>
+                <p class="mb-2"><a href="https://wanjau.netlify.app" class="text-decoration-none">Developed By: Wanjau</a></p>
+                <div>
+                    <a href="{{ url_for('privacy') }}" class="text-muted text-decoration-none me-3">Privacy Policy</a>
+                    <a href="{{ url_for('terms') }}" class="text-muted text-decoration-none me-3">Terms of Service</a>
+                    <a href="{{ url_for('contact') }}" class="text-muted text-decoration-none">Contact Support</a>
                 </div>
             </div>
         </div>
@@ -370,16 +372,16 @@
             });
             
             function showTillInput() {
-                elements.payment.till.input.classList.remove('hidden');
-                elements.payment.paybill.input.classList.add('hidden');
+                elements.payment.till.input.classList.remove('d-none');
+                elements.payment.paybill.input.classList.add('d-none');
                 elements.payment.till.field.setAttribute('required', '');
                 elements.payment.paybill.businessNumber.removeAttribute('required');
                 elements.payment.paybill.accountName.removeAttribute('required');
             }
-            
+
             function showPaybillInput() {
-                elements.payment.paybill.input.classList.remove('hidden');
-                elements.payment.till.input.classList.add('hidden');
+                elements.payment.paybill.input.classList.remove('d-none');
+                elements.payment.till.input.classList.add('d-none');
                 elements.payment.till.field.removeAttribute('required');
                 elements.payment.paybill.businessNumber.setAttribute('required', '');
                 elements.payment.paybill.accountName.setAttribute('required', '');
@@ -422,17 +424,17 @@
                 
                 // Update color and text based on strength
                 if (strength < 50) {
-                    elements.password.strength.bar.className = 'bg-red-500 h-1.5 rounded-full';
+                    elements.password.strength.bar.className = 'progress-bar bg-danger';
                     elements.password.strength.text.textContent = 'Password strength: Weak';
-                    elements.password.strength.text.className = 'text-xs mt-1 text-red-500';
+                    elements.password.strength.text.className = 'text-danger small';
                 } else if (strength < 75) {
-                    elements.password.strength.bar.className = 'bg-yellow-500 h-1.5 rounded-full';
+                    elements.password.strength.bar.className = 'progress-bar bg-warning';
                     elements.password.strength.text.textContent = 'Password strength: Medium';
-                    elements.password.strength.text.className = 'text-xs mt-1 text-yellow-600';
+                    elements.password.strength.text.className = 'text-warning small';
                 } else {
-                    elements.password.strength.bar.className = 'bg-green-500 h-1.5 rounded-full';
+                    elements.password.strength.bar.className = 'progress-bar bg-success';
                     elements.password.strength.text.textContent = 'Password strength: Strong';
-                    elements.password.strength.text.className = 'text-xs mt-1 text-green-500';
+                    elements.password.strength.text.className = 'text-success small';
                 }
             });
         }
@@ -444,9 +446,9 @@
             
             function checkPasswordMatch() {
                 if (elements.password.input.value !== elements.confirmPassword.input.value) {
-                    elements.confirmPassword.match.classList.remove('hidden');
+                    elements.confirmPassword.match.classList.remove('d-none');
                 } else {
-                    elements.confirmPassword.match.classList.add('hidden');
+                    elements.confirmPassword.match.classList.add('d-none');
                 }
             }
         }
@@ -460,14 +462,14 @@
                 // Check if passwords match
                 if (elements.password.input.value !== elements.confirmPassword.input.value) {
                     errors.push('Passwords do not match');
-                    elements.confirmPassword.match.classList.remove('hidden');
+                    elements.confirmPassword.match.classList.remove('d-none');
                 }
                 
                 // Validate payment method fields
                 if (elements.payment.till.option.checked) {
                     const tillValue = elements.payment.till.field.value.trim();
                     if (!/^\d{6,10}$/.test(tillValue)) {
-                        errors.push('Till number must be atleast 6 digits');
+                        errors.push('Till number must be between 6-10 digits');
                     }
                 } else if (elements.payment.paybill.option.checked) {
                     const businessNumber = elements.payment.paybill.businessNumber.value.trim();
@@ -518,5 +520,8 @@
         }
         });
     </script>
+
+    <!-- Bootstrap JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

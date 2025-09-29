@@ -3072,8 +3072,8 @@ def signup():
             # Validate payment method and related fields
             if payment_method == 'till':
                 till = request.form.get('till', '').strip()
-                if not till or not re.match(r'^\d{6}$', till):
-                    flash('Till number must be exactly 6 digits', 'danger')
+                if not till or not re.match(r'^\d{6,10}$', till):
+                    flash('Till number must be between 6-10 digits', 'danger')
                     return render_template('signup.html')
                 
                 # Check if till already exists

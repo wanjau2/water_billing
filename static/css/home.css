@@ -1,0 +1,98 @@
+.hero-image {
+    max-width: 100%;
+    height: auto;
+    filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.1));
+    transition: all 0.3s ease;
+    mix-blend-mode: multiply;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    /* Add these properties for better blending */
+    object-fit: contain;
+    margin: 0;
+    padding: 0;
+}
+
+/* Add a new class for the logo image */
+.logo-image {
+    max-width: 100%;
+    height: auto;
+    mix-blend-mode: multiply;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.08));
+    object-fit: contain;
+    margin: 0;
+    padding: 0;
+}
+
+.hero-background {
+    background: linear-gradient(to bottom, #E0F7FF, #3498db);
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-background::before,
+.hero-background::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 150%;
+    height: 300px;
+    border-radius: 50%;
+}
+
+.hero-background::before {
+    bottom: 40%;
+    background: rgba(255, 255, 255, 0.3);
+    height: 250px;
+}
+
+.hero-background::after {
+    bottom: 5%;
+    background: rgba(130, 207, 255, 0.7);
+    height: 200px;
+}
+
+.cloud {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+}
+
+.cloud-large {
+    width: 150px;
+    height: 50px;
+    top: 10%;
+    right: 10%;
+}
+
+.cloud-small {
+    width: 80px;
+    height: 30px;
+    top: 25%;
+    left: 15%;
+}
+
+/* Add a third cloud for more visual interest */
+.cloud-medium {
+    width: 100px;
+    height: 35px;
+    bottom: 30%;
+    right: 25%;
+}
+
+.header-sticky {
+    background-color: #F0F4FE;
+}
+
+.section-bg-light {
+    background-color: #F0F4FE;
+    color: inherit;
+}
+
+.text-dark-blue {
+    color: #003B73;
+}
