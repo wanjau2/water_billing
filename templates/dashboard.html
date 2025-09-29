@@ -2,10 +2,8 @@
 
 {% block title %}Water Billing - Dashboard {% endblock %}
 
-{% block content %}
-<br>
+{% block styles %}
 <style>
-  
     .tenant-link {
       color: #0d6efd;
       text-decoration: none;
@@ -13,35 +11,6 @@
     }
     .tenant-link:hover {
       text-decoration: underline;
-    }
-    .card {
-      box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-      margin-bottom: 1.5rem;
-      border: none;
-      border-radius: 10px;
-    }
-    .card-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border-bottom: none;
-      border-radius: 10px 10px 0 0 !important;
-    }
-    .table-responsive {
-      overflow-x: auto;
-    }
-    .excel-preview {
-      border: 1px solid #dee2e6;
-      padding: 10px;
-      background-color: #f8f9fa;
-      margin-top: 10px;
-      border-radius: 4px;
-    }
-    .excel-preview table {
-      width: 100%;
-      margin-bottom: 0;
-    }
-    .excel-preview th {
-      background-color: #e9ecef;
     }
     .sticky-analytics {
       position: sticky;
@@ -73,42 +42,16 @@
       font-size: 0.75rem;
       opacity: 0.9;
     }
-    .search-section {
-      background: white;
-      border-radius: 10px;
-      padding: 1rem;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    }
     .chart-container {
       position: relative;
       height: 250px;
       margin: 1rem 0;
     }
-    .metric-card {
-      background: white;
-      border-radius: 10px;
-      padding: 1rem;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      transition: transform 0.2s;
-    }
-    .metric-card:hover {
-      transform: translateY(-2px);
-    }
-    .refresh-btn {
-      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-      border: none;
-      color: white;
-      padding: 0.5rem 1rem;
-      border-radius: 25px;
-      transition: all 0.3s;
-    }
-    .refresh-btn:hover {
-      transform: scale(1.05);
-      box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
-    }
-  
 </style>
-  <div class="container mt-4">    
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">    
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}

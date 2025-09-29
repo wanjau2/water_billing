@@ -16,6 +16,7 @@
     </div>
 
     <form method="POST" action="{{ url_for('update_property_settings', property_id=property._id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="row">
             <!-- Billing Configuration -->
             <div class="col-lg-8">

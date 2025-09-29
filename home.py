@@ -3769,13 +3769,410 @@ def garbage_utility():
         flash('Database connection error', 'danger')
         return redirect(url_for('db_error'))
 
-    # For now, just render a placeholder template
-    flash('Garbage management feature coming soon!', 'info')
-    return render_template('water.html',
-                         title="Garbage Management",
-                         tenants=[],
-                         current_month=datetime.now().strftime('%B'),
-                         current_year=datetime.now().year)
+    # Get current property
+    try:
+        current_property_id = session.get('current_property_id')
+        if not current_property_id:
+            # Get first property for this admin
+            property_doc = mongo.db.properties.find_one({"admin_id": admin_id})
+            if property_doc:
+                current_property_id = property_doc['_id']
+                session['current_property_id'] = str(current_property_id)
+            else:
+                flash('No properties found. Please create a property first.', 'warning')
+                return redirect(url_for('properties'))
+        else:
+            current_property_id = ObjectId(current_property_id)
+    except Exception as e:
+        flash('Property selection error. Please try again.', 'danger')
+        return redirect(url_for('properties'))
+
+    # Get property settings
+    property_settings = mongo.db.properties.find_one({"_id": current_property_id})
+    if not property_settings:
+        flash('Property not found.', 'danger')
+        return redirect(url_for('properties'))
+
+    # Check if garbage billing is enabled
+    garbage_billing_enabled = property_settings.get('billing', {}).get('enable_garbage_billing', False)
+    garbage_rate = property_settings.get('billing', {}).get('garbage_rate', 0)
+
+    if not garbage_billing_enabled:
+        flash('Garbage billing is not enabled for this property. Please enable it in property settings.', 'warning')
+        return redirect(url_for('update_property_settings', property_id=current_property_id))
+
+    # Get pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', DEFAULT_PER_PAGE, type=int), 100)
+    search_query = request.args.get('search', '').strip()
+    month_filter = request.args.get('month', '')
+
+    # Get all tenants for this property
+    tenants = list(mongo.db.tenants.find({"admin_id": admin_id, "property_id": current_property_id}))
+
+    # Build query for garbage bills
+    bills_query = {"admin_id": admin_id, "property_id": current_property_id, "bill_type": "garbage"}
+
+    if search_query:
+        escaped_query = re.escape(search_query)
+        bills_query["tenant_name"] = {"$regex": escaped_query, "$options": "i"}
+
+    if month_filter:
+        try:
+            filter_date = datetime.strptime(month_filter, '%Y-%m')
+            start_date = filter_date.replace(day=1)
+            if filter_date.month == 12:
+                end_date = filter_date.replace(year=filter_date.year + 1, month=1, day=1)
+            else:
+                end_date = filter_date.replace(month=filter_date.month + 1, day=1)
+            bills_query["bill_month"] = {"$gte": start_date, "$lt": end_date}
+        except ValueError:
+            pass
+
+    # Get garbage bills with pagination
+    bills_pipeline = [
+        {"$match": bills_query},
+        {"$facet": {
+            "bills": [
+                {"$sort": {"bill_month": -1, "tenant_name": 1}},
+                {"$skip": (page - 1) * per_page},
+                {"$limit": per_page}
+            ],
+            "total": [{"$count": "count"}]
+        }}
+    ]
+
+    bills_result = list(mongo.db.bills.aggregate(bills_pipeline))
+    garbage_bills = bills_result[0]['bills'] if bills_result else []
+    total_bills = bills_result[0]['total'][0]['count'] if bills_result and bills_result[0]['total'] else 0
+
+    # Create pagination object
+    total_pages = (total_bills + per_page - 1) // per_page
+    pagination = {
+        'page': page,
+        'per_page': per_page,
+        'total': total_bills,
+        'pages': total_pages,
+        'has_prev': page > 1,
+        'has_next': page < total_pages
+    }
+
+    # Get collection schedule
+    collection_schedule = mongo.db.garbage_schedules.find_one({"admin_id": admin_id, "property_id": current_property_id})
+
+    # Calculate statistics
+    pending_bills_count = mongo.db.bills.count_documents({
+        "admin_id": admin_id,
+        "property_id": current_property_id,
+        "bill_type": "garbage",
+        "status": {"$in": ["pending", "overdue"]}
+    })
+
+    # Calculate monthly revenue
+    current_month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    next_month = current_month_start.replace(month=current_month_start.month + 1) if current_month_start.month < 12 else current_month_start.replace(year=current_month_start.year + 1, month=1)
+
+    monthly_revenue_pipeline = [
+        {"$match": {
+            "admin_id": admin_id,
+            "property_id": current_property_id,
+            "bill_type": "garbage",
+            "status": "paid",
+            "payment_date": {"$gte": current_month_start, "$lt": next_month}
+        }},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]
+    monthly_revenue_result = list(mongo.db.bills.aggregate(monthly_revenue_pipeline))
+    monthly_revenue = monthly_revenue_result[0]['total'] if monthly_revenue_result else 0
+
+    # Generate months for filter
+    months = []
+    current_date = datetime.now()
+    for i in range(12):
+        month_date = current_date.replace(month=current_date.month - i) if current_date.month > i else current_date.replace(year=current_date.year - 1, month=12 - (i - current_date.month))
+        months.append({
+            'name': month_date.strftime('%B %Y'),
+            'value': month_date.strftime('%Y-%m')
+        })
+
+    return render_template('garbage.html',
+                         tenants=tenants,
+                         garbage_bills=garbage_bills,
+                         pagination=pagination,
+                         search_query=search_query,
+                         collection_schedule=collection_schedule,
+                         pending_bills_count=pending_bills_count,
+                         monthly_revenue=monthly_revenue,
+                         garbage_rate=garbage_rate,
+                         months=months,
+                         current_month=month_filter,
+                         datetime=datetime)
+
+
+@app.route('/generate_garbage_bills', methods=['POST'])
+@login_required
+def generate_garbage_bills():
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+
+    if mongo is None:
+        flash('Database connection error', 'danger')
+        return redirect(url_for('db_error'))
+
+    current_property_id = ObjectId(session.get('current_property_id'))
+
+    # Get form data
+    bill_month_str = request.form.get('bill_month')
+    due_date_str = request.form.get('due_date')
+
+    try:
+        bill_month = datetime.strptime(bill_month_str, '%Y-%m')
+        due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
+    except ValueError:
+        flash('Invalid date format.', 'danger')
+        return redirect(url_for('garbage_utility'))
+
+    # Get property settings
+    property_settings = mongo.db.properties.find_one({"_id": current_property_id})
+    if not property_settings:
+        flash('Property not found.', 'danger')
+        return redirect(url_for('garbage_utility'))
+
+    garbage_rate = property_settings.get('billing', {}).get('garbage_rate', 0)
+    if garbage_rate <= 0:
+        flash('Please set a valid garbage rate in property settings first.', 'warning')
+        return redirect(url_for('garbage_utility'))
+
+    # Get all tenants for this property
+    tenants = list(mongo.db.tenants.find({"admin_id": admin_id, "property_id": current_property_id}))
+
+    if not tenants:
+        flash('No tenants found for this property.', 'warning')
+        return redirect(url_for('garbage_utility'))
+
+    # Check if bills already exist for this month
+    existing_bills = mongo.db.bills.count_documents({
+        "admin_id": admin_id,
+        "property_id": current_property_id,
+        "bill_type": "garbage",
+        "bill_month": bill_month
+    })
+
+    if existing_bills > 0:
+        flash(f'Garbage bills for {bill_month.strftime("%B %Y")} already exist.', 'warning')
+        return redirect(url_for('garbage_utility'))
+
+    # Generate bills for all tenants
+    bills_to_insert = []
+    for tenant in tenants:
+        bill = {
+            "_id": ObjectId(),
+            "admin_id": admin_id,
+            "property_id": current_property_id,
+            "tenant_id": tenant['_id'],
+            "tenant_name": tenant['name'],
+            "house_number": tenant['house_number'],
+            "bill_type": "garbage",
+            "bill_month": bill_month,
+            "amount": garbage_rate,
+            "outstanding_amount": garbage_rate,
+            "due_date": due_date,
+            "status": "pending",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        bills_to_insert.append(bill)
+
+    try:
+        result = mongo.db.bills.insert_many(bills_to_insert)
+        flash(f'Successfully generated {len(result.inserted_ids)} garbage bills for {bill_month.strftime("%B %Y")}.', 'success')
+    except Exception as e:
+        flash('Error generating bills. Please try again.', 'danger')
+
+    return redirect(url_for('garbage_utility'))
+
+
+@app.route('/record_garbage_payment', methods=['POST'])
+@login_required
+def record_garbage_payment():
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+
+    if mongo is None:
+        flash('Database connection error', 'danger')
+        return redirect(url_for('db_error'))
+
+    # Get form data
+    bill_id = request.form.get('bill_id')
+    amount = float(request.form.get('amount', 0))
+    payment_method = request.form.get('payment_method')
+    reference = request.form.get('reference', '')
+    payment_date_str = request.form.get('payment_date')
+
+    try:
+        payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d')
+    except ValueError:
+        flash('Invalid payment date.', 'danger')
+        return redirect(url_for('garbage_utility'))
+
+    if not bill_id or amount <= 0 or not payment_method:
+        flash('Please fill in all required fields.', 'danger')
+        return redirect(url_for('garbage_utility'))
+
+    # Get the bill
+    bill = mongo.db.bills.find_one({"_id": ObjectId(bill_id), "admin_id": admin_id})
+    if not bill:
+        flash('Bill not found.', 'danger')
+        return redirect(url_for('garbage_utility'))
+
+    if bill['status'] == 'paid':
+        flash('This bill has already been paid.', 'warning')
+        return redirect(url_for('garbage_utility'))
+
+    # Record the payment
+    payment_record = {
+        "_id": ObjectId(),
+        "admin_id": admin_id,
+        "property_id": bill['property_id'],
+        "tenant_id": bill['tenant_id'],
+        "bill_id": bill['_id'],
+        "bill_type": "garbage",
+        "amount": amount,
+        "payment_method": payment_method,
+        "reference": reference,
+        "payment_date": payment_date,
+        "recorded_at": datetime.utcnow(),
+        "recorded_by": admin_id
+    }
+
+    try:
+        # Insert payment record
+        mongo.db.payments.insert_one(payment_record)
+
+        # Update bill status
+        update_data = {
+            "status": "paid",
+            "payment_date": payment_date,
+            "updated_at": datetime.utcnow()
+        }
+
+        if amount >= bill['outstanding_amount']:
+            update_data["outstanding_amount"] = 0
+        else:
+            update_data["outstanding_amount"] = bill['outstanding_amount'] - amount
+
+        mongo.db.bills.update_one(
+            {"_id": ObjectId(bill_id)},
+            {"$set": update_data}
+        )
+
+        flash(f'Payment of KES {amount:.2f} recorded successfully for {bill["tenant_name"]}.', 'success')
+
+    except Exception as e:
+        flash('Error recording payment. Please try again.', 'danger')
+
+    return redirect(url_for('garbage_utility'))
+
+
+@app.route('/update_collection_schedule', methods=['POST'])
+@login_required
+def update_collection_schedule():
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        flash('Session expired. Please login again.', 'danger')
+        return redirect(url_for('login'))
+
+    if mongo is None:
+        flash('Database connection error', 'danger')
+        return redirect(url_for('db_error'))
+
+    current_property_id = ObjectId(session.get('current_property_id'))
+
+    # Get form data
+    collection_days = request.form.getlist('collection_days')
+    collection_time = request.form.get('collection_time')
+    notes = request.form.get('notes', '')
+
+    if not collection_days:
+        flash('Please select at least one collection day.', 'warning')
+        return redirect(url_for('garbage_utility'))
+
+    # Calculate next collection date
+    next_collection = None
+    today = datetime.now().date()
+    for i in range(7):  # Look ahead 7 days
+        check_date = today + timedelta(days=i)
+        if check_date.strftime('%A') in collection_days:
+            next_collection = check_date
+            break
+
+    schedule_data = {
+        "admin_id": admin_id,
+        "property_id": current_property_id,
+        "collection_days": collection_days,
+        "collection_time": collection_time,
+        "notes": notes,
+        "next_collection": next_collection,
+        "updated_at": datetime.utcnow()
+    }
+
+    try:
+        # Upsert collection schedule
+        mongo.db.garbage_schedules.update_one(
+            {"admin_id": admin_id, "property_id": current_property_id},
+            {"$set": schedule_data},
+            upsert=True
+        )
+        flash('Collection schedule updated successfully.', 'success')
+    except Exception as e:
+        flash('Error updating collection schedule. Please try again.', 'danger')
+
+    return redirect(url_for('garbage_utility'))
+
+
+@app.route('/update_garbage_bill_statuses', methods=['POST'])
+@login_required
+def update_garbage_bill_statuses():
+    """Update overdue status for garbage bills"""
+    try:
+        admin_id = get_admin_id()
+    except ValueError:
+        return jsonify({'error': 'Session expired'}), 401
+
+    if mongo is None:
+        return jsonify({'error': 'Database connection error'}), 500
+
+    current_property_id = ObjectId(session.get('current_property_id'))
+    today = datetime.now().date()
+
+    # Update bills that are past due date to overdue status
+    result = mongo.db.bills.update_many(
+        {
+            "admin_id": admin_id,
+            "property_id": current_property_id,
+            "bill_type": "garbage",
+            "status": "pending",
+            "due_date": {"$lt": today}
+        },
+        {
+            "$set": {
+                "status": "overdue",
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+
+    return jsonify({
+        'success': True,
+        'updated_count': result.modified_count
+    })
 
 
 @app.route('/houses', methods=['GET'])

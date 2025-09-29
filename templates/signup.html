@@ -1,18 +1,82 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Create a new WaterBill Pro account to manage your water utility billing and payments.">
-    <title>Sign Up | WaterBill Pro</title>
-    <!-- Replace cdn.tailwindcss.com with cdn.jsdelivr.net -->
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Replace cdnjs.cloudflare.com with cdn.jsdelivr.net -->
-    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- Replace placeholder favicon with your local image -->
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images.jpeg') }}">
-</head>
-<body class="bg-gray-50 font-sans text-gray-800 antialiased min-h-screen flex flex-col">
+{% extends "base.html" %}
+
+{% block title %}Sign Up | Water Billing System{% endblock %}
+
+{% block styles %}
+<style>
+    body {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    .signup-main {
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem 1rem;
+    }
+    .signup-container {
+        max-width: 450px;
+        width: 100%;
+    }
+    .signup-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    .signup-header {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        padding: 2rem;
+        text-align: center;
+        color: white;
+    }
+    .signup-body {
+        padding: 2rem;
+    }
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #374151;
+    }
+    .input-group {
+        position: relative;
+    }
+    .input-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+    }
+    .form-control-icon {
+        padding-left: 2.5rem;
+    }
+    .btn-toggle-password {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #9ca3af;
+        cursor: pointer;
+    }
+    .footer-section {
+        background: white;
+        border-top: 1px solid #e5e7eb;
+        padding: 1.5rem 0;
+        margin-top: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
     <!-- Header -->
     <header class="bg-white shadow-sm">
         <div class="container mx-auto px-4 py-3">

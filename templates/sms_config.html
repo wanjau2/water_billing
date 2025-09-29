@@ -212,7 +212,7 @@
                     <h4 class="mb-0">Change Password</h4>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('change_password') }}" id="change_password">
+                    <form method="POST" action="{{ url_for('change_password') }}" id="change_password" data-password-confirm="true">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
                         <div class="mb-3">
@@ -494,7 +494,7 @@ document.addEventListener('DOMContentLoaded', function() {
     passwordForm.addEventListener('submit', function(event) {
         if (newPassword.value !== confirmPassword.value) {
             event.preventDefault();
-            alert('Passwords do not match!');
+            showAlert('Passwords do not match!', 'error');
         }
     });
 });

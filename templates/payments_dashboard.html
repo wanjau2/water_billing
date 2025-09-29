@@ -26,7 +26,8 @@
                         <div class="d-flex flex-column flex-md-row gap-2 justify-content-md-end">
                             <a href="{{ url_for('manual_payment_reminders') }}"
                                class="btn btn-warning d-inline-flex align-items-center"
-                               onclick="return confirm('Send payment reminders to all tenants with overdue bills?')">
+                               data-confirm="Send payment reminders to all tenants with overdue bills?"
+                               data-action="confirm-link">
                                 <svg width="20" height="20" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
                                 </svg>
@@ -249,8 +250,11 @@
                             </td>
                             <td>{{ bill.due_date.strftime('%Y-%m-%d') if bill.due_date else 'N/A' }}</td>
                             <td>
-                                <button onclick="openPaymentModal('{{ bill._id }}', '{{ bill.tenant_name }}', '{{ bill.outstanding_amount }}')" 
-                                        class="btn btn-primary btn-sm d-flex align-items-center">
+                                <button data-bs-toggle="modal" data-bs-target="#paymentModal"
+                                        data-bill-id="{{ bill._id }}"
+                                        data-tenant-name="{{ bill.tenant_name }}"
+                                        data-amount="{{ bill.outstanding_amount }}"
+                                        class="btn btn-primary btn-sm d-flex align-items-center payment-btn">
                                     <svg width="16" height="16" class="me-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                                     </svg>

@@ -1,0 +1,482 @@
+{% extends "base.html" %}
+
+{% block title %}Garbage Management - Water Billing System{% endblock %}
+
+{% block styles %}
+<style>
+    .garbage-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+    }
+
+    .garbage-card:hover {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+        transform: translateY(-2px);
+    }
+
+    .collection-schedule {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .status-badge {
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .status-paid {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .status-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .status-overdue {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .collection-day {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .collection-day:hover {
+        background: #e9ecef;
+        border-color: #007bff;
+    }
+
+    .collection-day.selected {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="fas fa-trash-alt text-success me-2"></i>Garbage Management
+            </h1>
+            <p class="text-muted mb-0">Manage garbage collection schedules and billing</p>
+        </div>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#generateBillsModal">
+                <i class="fas fa-plus"></i> Generate Bills
+            </button>
+            <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#scheduleModal">
+                <i class="fas fa-calendar"></i> Collection Schedule
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="garbage-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Tenants</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ tenants|length }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="garbage-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Pending Bills</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ pending_bills_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-file-invoice fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="garbage-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">This Month Revenue</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">KES {{ "%.2f"|format(monthly_revenue or 0) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="garbage-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Collection Rate</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">KES {{ "%.2f"|format(garbage_rate or 0) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-recycle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Collection Schedule -->
+    {% if collection_schedule %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="collection-schedule">
+                <h5 class="mb-2"><i class="fas fa-calendar-check me-2"></i>Current Collection Schedule</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Collection Days:</strong> {{ ', '.join(collection_schedule.collection_days) }}</p>
+                        <p class="mb-1"><strong>Collection Time:</strong> {{ collection_schedule.collection_time }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Last Collection:</strong> {{ collection_schedule.last_collection.strftime('%Y-%m-%d') if collection_schedule.last_collection else 'Not set' }}</p>
+                        <p class="mb-0"><strong>Next Collection:</strong> {{ collection_schedule.next_collection.strftime('%Y-%m-%d') if collection_schedule.next_collection else 'Not scheduled' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Garbage Bills -->
+    <div class="row">
+        <div class="col-12">
+            <div class="garbage-card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-file-invoice text-primary me-2"></i>Garbage Bills</h5>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary" onclick="filterBills('all')">All</button>
+                            <button class="btn btn-outline-warning" onclick="filterBills('pending')">Pending</button>
+                            <button class="btn btn-outline-success" onclick="filterBills('paid')">Paid</button>
+                            <button class="btn btn-outline-danger" onclick="filterBills('overdue')">Overdue</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Search and Filter -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <form method="GET" class="d-flex">
+                                <input class="form-control me-2" type="search" placeholder="Search tenant..."
+                                       name="search" value="{{ search_query }}">
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </form>
+                        </div>
+                        <div class="col-md-6">
+                            <select class="form-select" onchange="filterByMonth(this.value)">
+                                <option value="">All Months</option>
+                                {% for month in months %}
+                                <option value="{{ month.value }}" {% if month.value == current_month %}selected{% endif %}>
+                                    {{ month.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Bills Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Tenant</th>
+                                    <th>House Number</th>
+                                    <th>Bill Month</th>
+                                    <th>Amount</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for bill in garbage_bills %}
+                                <tr class="bill-row" data-status="{{ bill.status }}">
+                                    <td>{{ bill.tenant_name }}</td>
+                                    <td>{{ bill.house_number }}</td>
+                                    <td>{{ bill.bill_month.strftime('%B %Y') }}</td>
+                                    <td>KES {{ "%.2f"|format(bill.amount) }}</td>
+                                    <td>{{ bill.due_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        <span class="status-badge status-{{ bill.status }}">
+                                            {{ bill.status.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if bill.status == 'pending' or bill.status == 'overdue' %}
+                                        <button class="btn btn-sm btn-success"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#paymentModal"
+                                                data-bill-id="{{ bill._id }}"
+                                                data-tenant-name="{{ bill.tenant_name }}"
+                                                data-amount="{{ bill.amount }}">
+                                            <i class="fas fa-dollar-sign"></i> Record Payment
+                                        </button>
+                                        {% endif %}
+                                        <button class="btn btn-sm btn-info" onclick="viewBillDetails('{{ bill._id }}')">
+                                            <i class="fas fa-eye"></i> View
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        No garbage bills found. Generate bills to get started.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if garbage_bills %}
+                    <nav aria-label="Bills pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('garbage_utility', page=pagination.page-1, search=search_query) }}">
+                                    <span>&laquo;</span>
+                                </a>
+                            </li>
+                            {% endif %}
+
+                            {% for page_num in range(1, pagination.pages + 1) %}
+                            <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('garbage_utility', page=page_num, search=search_query) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% endfor %}
+
+                            {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('garbage_utility', page=pagination.page+1, search=search_query) }}">
+                                    <span>&raquo;</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Bills Modal -->
+<div class="modal fade" id="generateBillsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('generate_garbage_bills') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Generate Garbage Bills</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="bill_month" class="form-label">Bill Month</label>
+                        <input type="month" class="form-control" id="bill_month" name="bill_month"
+                               value="{{ datetime.now().strftime('%Y-%m') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="due_date" class="form-label">Due Date</label>
+                        <input type="date" class="form-control" id="due_date" name="due_date" required>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        This will generate garbage collection bills for all tenants based on the current garbage rate
+                        (KES {{ "%.2f"|format(garbage_rate or 0) }}) set in property settings.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Generate Bills</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Collection Schedule Modal -->
+<div class="modal fade" id="scheduleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('update_collection_schedule') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Collection Schedule</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Collection Days</label>
+                        <div class="row">
+                            {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                            <div class="col-md-6 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="day_{{ day.lower() }}"
+                                           name="collection_days" value="{{ day }}"
+                                           {% if collection_schedule and day in collection_schedule.collection_days %}checked{% endif %}>
+                                    <label class="form-check-label" for="day_{{ day.lower() }}">
+                                        {{ day }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="collection_time" class="form-label">Collection Time</label>
+                        <input type="time" class="form-control" id="collection_time" name="collection_time"
+                               value="{{ collection_schedule.collection_time if collection_schedule else '08:00' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3">{{ collection_schedule.notes if collection_schedule else '' }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('record_garbage_payment') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" id="bill_id" name="bill_id">
+                <div class="modal-header">
+                    <h5 class="modal-title">Record Payment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Tenant</label>
+                        <p id="tenant_name" class="form-control-plaintext"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">Amount (KES)</label>
+                        <input type="number" class="form-control" id="amount" name="amount" step="0.01" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="payment_method" class="form-label">Payment Method</label>
+                        <select class="form-select" id="payment_method" name="payment_method" required>
+                            <option value="">Select payment method</option>
+                            <option value="mpesa">M-Pesa</option>
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="cheque">Cheque</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="reference" class="form-label">Reference Number</label>
+                        <input type="text" class="form-control" id="reference" name="reference"
+                               placeholder="Transaction ID, Receipt No., etc.">
+                    </div>
+                    <div class="mb-3">
+                        <label for="payment_date" class="form-label">Payment Date</label>
+                        <input type="date" class="form-control" id="payment_date" name="payment_date"
+                               value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Record Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Payment modal handling
+document.addEventListener('DOMContentLoaded', function() {
+    const paymentModal = document.getElementById('paymentModal');
+    paymentModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const billId = button.getAttribute('data-bill-id');
+        const tenantName = button.getAttribute('data-tenant-name');
+        const amount = button.getAttribute('data-amount');
+
+        document.getElementById('bill_id').value = billId;
+        document.getElementById('tenant_name').textContent = tenantName;
+        document.getElementById('amount').value = amount;
+    });
+});
+
+// Filter functions
+function filterBills(status) {
+    const rows = document.querySelectorAll('.bill-row');
+    rows.forEach(row => {
+        if (status === 'all' || row.dataset.status === status) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function filterByMonth(month) {
+    // This would normally reload the page with the month filter
+    if (month) {
+        window.location.href = `{{ url_for('garbage_utility') }}?month=${month}`;
+    } else {
+        window.location.href = `{{ url_for('garbage_utility') }}`;
+    }
+}
+
+function viewBillDetails(billId) {
+    // This would show bill details in a modal or redirect to a details page
+    alert('Bill details functionality coming soon');
+}
+</script>
+{% endblock %}

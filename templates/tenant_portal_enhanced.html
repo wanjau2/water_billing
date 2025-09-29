@@ -311,7 +311,7 @@
 
         <!-- Quick Actions -->
         <div class="action-buttons">
-            <a href="#" class="action-btn" onclick="showSection('bills-section')">
+            <a href="#" class="action-btn" data-section="bills-section">
                 <i class="fas fa-file-invoice text-primary"></i>
                 <div>
                     <p class="action-title">View Bills</p>
@@ -319,7 +319,7 @@
                 </div>
             </a>
 
-            <a href="#" class="action-btn" onclick="showSection('payment-section')">
+            <a href="#" class="action-btn" data-section="payment-section">
                 <i class="fas fa-credit-card text-success"></i>
                 <div>
                     <p class="action-title">Make Payment</p>
@@ -327,7 +327,7 @@
                 </div>
             </a>
 
-            <a href="#" class="action-btn" onclick="showSection('usage-section')">
+            <a href="#" class="action-btn" data-section="usage-section">
                 <i class="fas fa-chart-line text-info"></i>
                 <div>
                     <p class="action-title">Usage Analytics</p>
@@ -335,7 +335,7 @@
                 </div>
             </a>
 
-            <a href="#" class="action-btn" onclick="showSection('maintenance-section')">
+            <a href="#" class="action-btn" data-section="maintenance-section">
                 <i class="fas fa-tools text-warning"></i>
                 <div>
                     <p class="action-title">Report Issue</p>
@@ -486,7 +486,8 @@
     <div id="maintenance-section" class="content-section">
         <div class="maintenance-form">
             <h5><i class="fas fa-tools text-warning"></i> Report Maintenance Issue</h5>
-            <form id="maintenance-form">
+            <form id="maintenance-form" method="POST" action="{{ url_for('submit_maintenance_request') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-3">
                     <label for="issue-type" class="form-label">Issue Type</label>
                     <select class="form-select" id="issue-type" required>

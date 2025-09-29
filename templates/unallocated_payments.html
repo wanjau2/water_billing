@@ -166,6 +166,7 @@
                                 {% set total_rent_owed = rent_bills | sum(attribute='outstanding_amount') %}
 
                                 <form method="POST" action="{{ url_for('allocate_payment', unallocated_payment_id=payment._id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                                     <!-- Water Bills Section -->
                                     {% if water_bills %}
