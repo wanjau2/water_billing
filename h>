@@ -1,0 +1,441 @@
+[33mcommit 3c4617fc1ff3ca19c5b778e19b655a1164878dcc[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Gerri254 <geraldlazaro427@gmail.com>
+Date:   Mon Sep 29 16:15:11 2025 +0300
+
+    fixed the csp
+
+[33mcommit 73e3df6c0f85e0ec721efa168e10ad8efa504c81[m
+Author: Gerri254 <geraldlazaro427@gmail.com>
+Date:   Mon Sep 29 15:49:06 2025 +0300
+
+    csp violations
+
+[33mcommit 1554719d4328f96c6748b73eacb507818c0e4649[m
+Author: Gerri254 <geraldlazaro427@gmail.com>
+Date:   Mon Sep 29 14:20:12 2025 +0300
+
+    fixed all csp violations
+
+[33mcommit 38aa3cfe6ead2cf4f7ba4dbc00a0dc8a21152461[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Mon Sep 29 13:56:09 2025 +0300
+
+    fix login
+
+[33mcommit a414cba99adf8a25467a2297ab86903e86b0300c[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Mon Sep 29 11:57:51 2025 +0300
+
+    added smart water meters
+
+[33mcommit d45593965c48eeee0c7c6c11877f835fcdc458a1[m
+Author: Gerri254 <geraldlazaro427@gmail.com>
+Date:   Mon Sep 29 08:38:49 2025 +0300
+
+    fixed styling
+
+[33mcommit 1a66ce908c6d61e9164ac97a6fa581dfd476bb75[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Sun Sep 28 23:19:48 2025 +0300
+
+     removed testimonials
+
+[33mcommit 49820dc33064164c980c4617c77ab4203de80dc5[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Sun Sep 28 22:50:21 2025 +0300
+
+    google ads
+
+[33mcommit 967d97d907701524aaaae4c73086066e59280062[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Sun Sep 28 22:40:12 2025 +0300
+
+    no major changes
+
+[33mcommit e21f9f9a2a26ad59e90dd55ffeaf6f2bed9b338f[m
+Author: Gerri254 <geraldlazaro427@gmail.com>
+Date:   Sun Sep 28 22:10:29 2025 +0300
+
+    fixed charts
+
+[33mcommit 4d734df007ef870aa5aed76b5af49c283be29b5f[m
+Merge: 0d3ae43 d147430
+Author: Gerri254 <geraldlazaro427@gmail.com>
+Date:   Sun Sep 28 22:03:13 2025 +0300
+
+    Merge branch 'master' of https://github.com/wanjau2/water_billing
+    idk what was wrong,magic
+
+[33mcommit 0d3ae43f41397bb7bfd3d80620dfe143774a6b5b[m
+Author: Gerri254 <geraldlazaro427@gmail.com>
+Date:   Sun Sep 28 22:00:18 2025 +0300
+
+     fixed the sidebar
+
+[33mcommit d147430383b7816782a505e413e176ce3c1bbfde[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Sun Sep 28 21:41:24 2025 +0300
+
+    restructuring, final deploy
+
+[33mcommit b0ecfb8910219a024ae02db222301e67e93aea7c[m
+Author: Gerri254 <geraldlazaro427@gmail.com>
+Date:   Sun Sep 28 21:15:29 2025 +0300
+
+    added property management features
+
+[33mcommit 60f4ab20abccec56f533a222a863a0a316f4064f[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Sun Sep 28 19:59:27 2025 +0300
+
+    restracturing the app preparing to grow
+
+[33mcommit 6b729d1e319f003d9d79c04e8ad27cb3cce7793f[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Tue Sep 23 17:06:13 2025 +0300
+
+    tried fixing charts/
+
+[33mcommit c2e265ac17691c77330c79cf66f75c5a271cb43a[m
+Author: Gerri254 <geraldlazaro427@gmail.com>
+Date:   Tue Sep 23 13:59:04 2025 +0300
+
+    bulk recordings
+
+[33mcommit 1c27818fe67cb5d688164a19ee0e31e7064fd3a2[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Mon Sep 22 16:35:06 2025 +0300
+
+    updated the payments model
+
+[33mcommit 1aa8dea297f31016571b64c4e316458fae1abb93[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Mon Sep 22 08:59:20 2025 +0300
+
+    fixed the nav bar
+
+[33mcommit 3ccfa417ad6c9ff9213c39b0388f920bf6c05ded[m
+Merge: 6e04bdb a778d9e
+Author: Gerri254 <geraldlazaro427@gmail.com>
+Date:   Sun Sep 21 17:30:49 2025 +0300
+
+    Merge branch 'master' of https://github.com/wanjau2/water_billing
+
+[33mcommit 6e04bdb8e85622ca76720298841b4498c05475b4[m
+Author: Gerri254 <geraldlazaro427@gmail.com>
+Date:   Sun Sep 21 17:06:06 2025 +0300
+
+    fixed allocations and payments
+
+[33mcommit a778d9e11dac2e25728d8fc14328e867b3c9d2a0[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Sun Sep 21 16:21:35 2025 +0300
+
+    made changes to the subscription
+
+[33mcommit 376b63735109967e45ed20dc5055e112966872ba[m
+Author: Gerri254 <geraldlazaro427@gmail.com>
+Date:   Sat Sep 20 19:26:34 2025 +0300
+
+     changed the frontend a little bit and made improvements
+
+[33mcommit 772d879663da211f090639d507b8a2f154d5c6e0[m
+Author: Gerri254 <geraldlazaro427@gmail.com>
+Date:   Sat Sep 20 18:41:27 2025 +0300
+
+    made improvements on payments and subscriptions
+
+[33mcommit 3dafa2cc9130662e6679aa3cfcf97ad6c6c5297a[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Tue Jul 1 12:37:05 2025 +0300
+
+    messages
+
+[33mcommit 1a662950aa5b9f314c5a05cf059c3008e4ddb426[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Tue Jul 1 11:57:47 2025 +0300
+
+     i dont even know
+
+[33mcommit 7e9db7961028b7f52fd32d55a3cba864e3cbc35b[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Tue Jun 3 21:20:24 2025 +0300
+
+    fixed billing issues
+
+[33mcommit 9bee94416736d0173a485b06cfaf6d028b82a46b[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Tue Jun 3 03:13:09 2025 +0300
+
+    updated pricing model
+
+[33mcommit aac08de0053ad0bf3fcdf7810f1f6bae869563d1[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Mon Jun 2 11:07:34 2025 +0300
+
+    errors in reading
+
+[33mcommit a815bcfd004844f54627ef7f4ecc7e1737adacc2[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Fri May 30 23:28:27 2025 +0300
+
+    updated features
+
+[33mcommit ef2a9600cfdc4db6bcb5f5c01a264b0b1e625f2d[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Fri May 30 23:18:04 2025 +0300
+
+    center div
+
+[33mcommit 214e68c78941d83ff571ab1b994c96d7c8762cec[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Fri May 30 23:13:58 2025 +0300
+
+    updated pricing
+
+[33mcommit dffadb0618a4ffd74883d4c8eea06560cd7319d5[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Fri May 30 22:57:12 2025 +0300
+
+    fixed the arrears problem and added subscriptions
+
+[33mcommit 2c9bb009f014d60391a28496487034e20738eead[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Wed May 28 23:52:01 2025 +0300
+
+    minor changes
+
+[33mcommit 4dc4951fc5e19176ce4a49f125bc0b01c9497bc2[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Wed May 28 23:29:25 2025 +0300
+
+    updated signup
+
+[33mcommit e81a202b8f8324701078c15050f9c5b4c3d36a0f[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Wed May 28 18:46:38 2025 +0300
+
+    pricing
+
+[33mcommit ce6cb89794b27a34baf4b03e5b6fb94d895c5caa[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Wed May 28 17:02:26 2025 +0300
+
+    added house management amoung other features
+
+[33mcommit 0dc7a5c8fe43598b78995eff6973dfc5ec353791[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Sun May 25 19:29:19 2025 +0300
+
+    updated .gitignore
+
+[33mcommit 0c5b9d385f61a904d946b827ee77c1f13b1dc712[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Sun May 25 19:16:08 2025 +0300
+
+    added billing tracking updated .gitignore
+
+[33mcommit 663ad782576b6f49f16caaa78f578f80d156b8e7[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Sun May 25 19:12:19 2025 +0300
+
+    added billing tracking
+
+[33mcommit cb83c47bf1de91e03b6ce75fd83753c985fc68ba[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Sun May 18 20:47:15 2025 +0300
+
+    updated message
+
+[33mcommit 512fe03c8e2e204d1e0a427c3e21c5ed8f2054b1[m
+Author: wanjau <96470827+wanjau2@users.noreply.github.com>
+Date:   Sun May 18 20:29:34 2025 +0300
+
+    Update requirements.txt
+
+[33mcommit e1ff1c68b4e287fa35456ba46fdb6d3b99986919[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Sun May 18 20:14:25 2025 +0300
+
+    fixed some errors in requirements.txt
+
+[33mcommit 13cabe75132b541690557ebb10a8ffc0da3eda80[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Sun May 18 20:07:16 2025 +0300
+
+    added a download for all data, added delete and edit functions for the tenants
+
+[33mcommit 5f55e893fd07ed619a409aaa03ad9891dd8c77ea[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Fri May 16 04:40:51 2025 +0300
+
+    final
+
+[33mcommit 4fce51a06bd0cc728552e0c775cd32e3d9a2aef6[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Fri May 16 04:36:22 2025 +0300
+
+    please work
+
+[33mcommit 5da80fed406d2f5911a3cbc9e5b437a3875252c4[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Fri May 16 04:34:21 2025 +0300
+
+    db
+
+[33mcommit b3ed8c245a5ae3f70c952d7e46c5cfa319a5134d[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Fri May 16 04:32:35 2025 +0300
+
+    downgrades
+
+[33mcommit 0bd8aabe20567b58df66cc5548880852a3abd580[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Fri May 16 04:14:08 2025 +0300
+
+    final , fully tested version (forgot about the missing modules)
+
+[33mcommit c309747acc3177e9352303e453df51091c1d39e9[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Fri May 16 04:09:52 2025 +0300
+
+    final , fully tested version
+
+[33mcommit 176899299f7692a37300e1f92e382c096693d869[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Fri May 16 03:46:51 2025 +0300
+
+    refactored the requirements.txt
+
+[33mcommit d6983dce1612347c8f2701f4d074b8a71e322bb1[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Fri May 16 03:36:50 2025 +0300
+
+    updated requirments.txt(pywin removed)
+
+[33mcommit dcda06a39f19acfbe415a510586ad45cb950bd11[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Fri May 16 03:34:24 2025 +0300
+
+    updated requirments.txt
+
+[33mcommit cef40cdcdbef2ae2f244d9d154af33159cdc4bde[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Fri May 16 03:29:38 2025 +0300
+
+    fixed database issues
+
+[33mcommit 8f4d952b872ffce64d6778497a5698369761b922[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Thu Mar 13 16:28:26 2025 +0300
+
+    Add build script to install ODBC Driver 18 for SQL Server
+
+[33mcommit bccd3e3927893be8f3064b4062ab947c19806c72[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Thu Mar 13 16:20:48 2025 +0300
+
+    changes made in the bash script
+
+[33mcommit e550d3207c77ced31816f19949dd43b1b6984229[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Thu Mar 13 15:58:35 2025 +0300
+
+    Add Render build script
+
+[33mcommit 812bf55f637be32638361d24f5da34c3045e047c[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Thu Mar 13 15:42:16 2025 +0300
+
+    redis error
+
+[33mcommit 7a1cdfc83f12ce525db01630fce6d3b4b2551367[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Thu Mar 13 15:39:00 2025 +0300
+
+    redis error
+
+[33mcommit f98cbda89f4747685864780277599277b2df3e51[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Thu Mar 13 15:16:41 2025 +0300
+
+    updating requirements.txt
+
+[33mcommit 310a9df5946e2ce166ec64c826ec2550743fce11[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Thu Mar 13 14:59:52 2025 +0300
+
+    minor commit , just added a favicon
+
+[33mcommit 9894f3acd6d838a544a80f81c7621a60edc20b94[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Thu Mar 13 14:56:48 2025 +0300
+
+    user dashboard rendering errors wer fixed
+
+[33mcommit 017d21e5a0e5b67372223fd6033a96685cfc689d[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Thu Mar 13 14:46:39 2025 +0300
+
+    csrf token error
+
+[33mcommit 3c9dcfbc252a2406aa704e6f610f249bb15ce013[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Thu Mar 13 14:37:46 2025 +0300
+
+    fixed database
+
+[33mcommit cfc7d210d1ea0f153e36e21d67ffdbc3dfc2e6c9[m
+Merge: ad2f47b bcc5013
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Thu Mar 13 13:39:33 2025 +0300
+
+    Merge branch 'master' of https://github.com/wanjau2/water_billing
+
+[33mcommit ad2f47b3317b5ef131dcc31d1da6bc96402c1889[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Thu Mar 13 13:38:43 2025 +0300
+
+    i added azure sql database as the database
+
+[33mcommit bcc50139ed01ccbbf1cfbe31ff459bbad772e853[m
+Author: wanjau <96470827+wanjau2@users.noreply.github.com>
+Date:   Tue Mar 11 00:18:29 2025 +0300
+
+    Create 500.html
+
+[33mcommit b05a57a249005acbb46d9104e3fa463d7fedf14d[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Tue Mar 11 00:10:45 2025 +0300
+
+    gunicorn
+
+[33mcommit 361c5960b6a9fd8c6f3eb43f989a96e077390270[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Mon Mar 10 20:42:57 2025 +0300
+
+    new changes
+
+[33mcommit 6076de0c2b40f093ff331050f6c6fd96b95219f6[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Mon Mar 10 20:27:03 2025 +0300
+
+    Prepare app for Heroku deployment
+
+[33mcommit 96265c8b039b7717ee64bf675d7c2e2e27306441[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Mon Mar 10 18:48:52 2025 +0300
+
+    i made a spelling error
+
+[33mcommit d2b945cdc5c3e77e18b14902bd60f9248fedd1a6[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Mon Mar 10 18:42:53 2025 +0300
+
+    Integrated AfricasTalking SMS functionality into main file and updated tenant management
+
+[33mcommit 3cf5a11b783facc9549b8e5ff69c61581abf7d37[m
+Author: wanjau2 <eugenewanjau@gmail.com>
+Date:   Mon Mar 10 17:51:38 2025 +0300
+
+    Initial commit for water billing system
