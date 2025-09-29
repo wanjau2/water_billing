@@ -13,6 +13,7 @@
   <meta name="keywords" content="water billing system, smart water meter, utility billing software, bulk SMS water billing, landlord water management">
   <meta name="author" content="https://wanjau.netlify.app">
   <meta name="robots" content="index, follow">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <link rel="canonical" href="https://water-billing-1.onrender.com/login">
   <title>{% block title %}Water Billing System{% endblock %}</title>
   <!-- Bootstrap CSS -->
@@ -25,6 +26,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.css" rel="stylesheet" />
   <!-- Custom Styles -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/csp-fixes.css') }}">
   <!-- Favicon (update path if available) -->
   <link rel="icon" href="{{ url_for('static', filename='images.jpeg') }}" type="image/jpeg">
   <!-- Custom CSS to replace Tailwind classes -->
@@ -363,8 +365,6 @@
           <div class="flex items-center space-x-4">
             <div class="relative">
               <button id="property-dropdown-toggle" class="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
                 </svg>
@@ -619,6 +619,8 @@
   <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
   <!-- Common utilities -->
   <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+  <!-- CSP-compliant event handlers -->
+  <script src="{{ url_for('static', filename='js/csp-fixes.js') }}"></script>
 
   <!-- Custom CSS for Sidebar -->
   <style>

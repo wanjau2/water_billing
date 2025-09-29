@@ -16,7 +16,7 @@
     <div class="col-md-6">
       <form action="{{ url_for('houses') }}" method="GET" class="d-flex">
         <input class="form-control me-2" type="search" placeholder="Search by house number" name="search" value="{{ search_query }}">
-        <select class="form-select me-2" name="status" style="max-width: 150px;">
+        <select class="form-select me-2 status-filter-select" name="status">
           <option value="" {% if status == '' %}selected{% endif %}>All Status</option>
           <option value="occupied" {% if status == 'occupied' %}selected{% endif %}>Occupied</option>
           <option value="vacant" {% if status == 'vacant' %}selected{% endif %}>Vacant</option>

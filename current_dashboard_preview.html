@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Current Dashboard Implementation</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/csp-fixes.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         /* Sticky Analytics Section */
@@ -457,7 +458,7 @@
                     Perfect for quick tenant searches while working through your list!
                 </p>
                 <div class="mt-4">
-                    <button class="btn btn-primary" onclick="window.scrollTo(0,0)">
+                    <button class="btn btn-primary" data-action="scroll-to-top">
                         <i class="fas fa-arrow-up"></i> Back to Top
                     </button>
                 </div>
@@ -466,6 +467,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/csp-fixes.js') }}"></script>
     <script>
         // Demo sticky behavior
         window.addEventListener('scroll', function() {

@@ -237,8 +237,11 @@
                             </td>
                             <td>
                                 <div class="d-flex">
-                                    <button class="btn btn-sm btn-primary me-2" 
-                                            onclick="openPaymentModal('{{ bill._id }}', '{{ bill.tenant_name }}', {{ bill.outstanding_amount }})">
+                                    <button class="btn btn-sm btn-primary me-2"
+                                            data-action="open-payment-modal"
+                                            data-bill-id="{{ bill._id }}"
+                                            data-tenant-name="{{ bill.tenant_name }}"
+                                            data-amount="{{ bill.outstanding_amount }}">
                                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                                         </svg>
@@ -294,7 +297,7 @@
                 </div>
                 <h3 class="fs-5 fw-semibold">No Rent Bills Found</h3>
                 <p class="text-muted">There are no rent bills matching your criteria.</p>
-                <button class="btn btn-primary" onclick="generateRentBills()">
+                <button class="btn btn-primary" data-action="generate-rent-bills">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="me-2">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                     </svg>

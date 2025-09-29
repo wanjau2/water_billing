@@ -67,30 +67,7 @@ app.logger.addHandler(handler)
 csrf = CSRFProtect(app)
 mongo = None
 
-# Define a proper Content Security Policy
-csp = {
-    'default-src': [
-        "'self'",
-        # Add any other domains you trust for default resources
-    ],
-    # Permit loading CSS from your own domain and the CDN
-    'style-src': [
-        "'self'",
-        "'unsafe-inline'",  # needed for inline Bootstrap if any
-        'https://cdn.jsdelivr.net',
-        'https://cdnjs.cloudflare.com'  # Add Font Awesome CDN
-    ],
-    # If you also load scripts from a CDN, configure script-src similarly
-    'script-src': [
-        "'self'",
-        'https://cdn.jsdelivr.net',
-        'https://cdnjs.cloudflare.com'  # Add for any scripts from cloudflare
-    ],
-    'connect-src': [
-        "'self'",
-        'https://cdn.jsdelivr.net'  # Allow map file connections
-    ]
-}
+# CSP configuration moved to add_security_headers function for direct header management
 cache_config = {
     "CACHE_TYPE": "SimpleCache",  # Use SimpleCache for in-memory caching
     "CACHE_DEFAULT_TIMEOUT": 3600  # Cache timeout in seconds (1 hour)
@@ -2989,8 +2966,8 @@ def build_tenant_search_query(admin_id, search_query="", search_type="all"):
 
 @app.after_request
 def add_security_headers(response):
-    # Allow self, cdn.jsdelivr.net for scripts, and add nonce for inline scripts if needed
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https://via.placeholder.com; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net data:;"
+    # CSP-compliant headers with external resources only, no unsafe-inline
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://pagead2.googlesyndication.com; img-src 'self' data: https://via.placeholder.com; style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com data:;"
     return response
     
 # Routes

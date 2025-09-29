@@ -1,0 +1,80 @@
+/* CSP-compliant external styles to replace inline styles */
+
+/* Flash messages positioning */
+.flash-messages-container {
+    position: fixed;
+    top: 0;
+    right: 0;
+    padding: 1rem;
+    z-index: 1050;
+}
+
+/* Loading spinners */
+.loading-spinner-hidden {
+    display: none;
+}
+
+/* Progress bar width classes */
+.progress-bar-0 { width: 0%; }
+.progress-bar-25 { width: 25%; }
+.progress-bar-50 { width: 50%; }
+.progress-bar-75 { width: 75%; }
+.progress-bar-100 { width: 100%; }
+
+/* Password strength progress bar */
+.password-strength-progress {
+    height: 6px;
+}
+
+/* Status filter controls */
+.status-filter-select {
+    max-width: 150px;
+}
+
+/* Payment dashboard icon container */
+.payment-dashboard-icon {
+    width: 96px;
+    height: 96px;
+}
+
+/* Large droplet icon */
+.large-droplet-icon {
+    font-size: 200px;
+    opacity: 0.9;
+}
+
+/* Loading overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1060;
+    display: none;
+}
+
+/* Subscription progress bar dynamic width */
+.subscription-progress-bar {
+    transition: width 0.3s ease;
+}
+
+/* Text center utilities */
+.text-center-mt-3 {
+    text-align: center;
+    margin-top: 1rem;
+}
+
+/* Hide elements utility */
+.d-none {
+    display: none !important;
+}
+
+/* Show elements utility */
+.d-block {
+    display: block !important;
+}

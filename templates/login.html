@@ -25,6 +25,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.css" rel="stylesheet" />
   <!-- Custom Styles -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/csp-fixes.css') }}">
   <!-- Favicon (update path if available) -->
   <link rel="icon" href="{{ url_for('static', filename='images.jpeg') }}" type="image/jpeg">
   <!-- Custom CSS to replace Tailwind classes -->
@@ -48,50 +49,107 @@
     }
     .login-card {
         background: white;
-        border-radius: 12px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        border-radius: 16px;
+        box-shadow: 0 20px 40px rgba(0, 123, 255, 0.15);
         overflow: hidden;
+        border: 1px solid rgba(0, 123, 255, 0.1);
     }
     .login-header {
         background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-        padding: 2rem;
+        padding: 2.5rem;
         text-align: center;
         color: white;
+        position: relative;
+    }
+    .login-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 50%);
     }
     .login-body {
-        padding: 2rem;
+        padding: 2.5rem;
+        background: white;
     }
     .form-group {
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.8rem;
     }
     .form-group label {
         display: block;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
         font-weight: 600;
-        color: #374151;
+        color: #1f2937;
+        font-size: 0.95rem;
     }
     .input-group {
         position: relative;
     }
     .input-icon {
         position: absolute;
-        left: 12px;
+        left: 14px;
         top: 50%;
         transform: translateY(-50%);
-        color: #9ca3af;
+        color: #007bff;
+        font-size: 1rem;
     }
     .form-control-icon {
-        padding-left: 2.5rem;
+        padding-left: 2.75rem;
+        border: 2px solid #e1e5e9;
+        border-radius: 10px;
+        padding-top: 0.85rem;
+        padding-bottom: 0.85rem;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+    }
+    .form-control-icon:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+        background: white;
     }
     .btn-toggle-password {
         position: absolute;
-        right: 12px;
+        right: 14px;
         top: 50%;
         transform: translateY(-50%);
         background: none;
         border: none;
-        color: #9ca3af;
+        color: #6c757d;
         cursor: pointer;
+        padding: 4px;
+        transition: color 0.2s ease;
+    }
+    .btn-toggle-password:hover {
+        color: #007bff;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 0.9rem 1.5rem;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 8px 25px rgba(0, 123, 255, 0.3);
+    }
+    .btn-primary:active {
+        transform: translateY(0);
+    }
+    .form-check-input:checked {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+    .form-check-input:focus {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
     }
     .footer-section {
         background: white;
@@ -106,7 +164,7 @@
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-            <div class="position-fixed top-0 end-0 p-3" style="z-index: 1050;">
+            <div class="flash-messages-container">
                 {% for category, message in messages %}
                     <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' }} alert-dismissible fade show" role="alert">
                         {{ message }}
@@ -254,5 +312,6 @@
 
     <!-- Bootstrap JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/csp-fixes.js') }}"></script>
 </body>
 </html>

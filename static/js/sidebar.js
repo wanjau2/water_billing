@@ -133,8 +133,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             `;
                         } else {
+                            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                             item.innerHTML = `
                                 <form method="POST" action="/switch_property/${property.id}" class="m-0">
+                                    <input type="hidden" name="csrf_token" value="${csrfToken}"/>
                                     <button type="submit" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                         ${property.name}
                                     </button>

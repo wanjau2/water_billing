@@ -427,7 +427,7 @@
             </form>
 
             <!-- Spinner (hidden by default) -->
-            <div id="loadingSpinner" class="text-center mt-3" style="display: none;">
+            <div id="loadingSpinner" class="text-center mt-3 loading-spinner-hidden">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Uploading...</span>
               </div>
@@ -583,7 +583,7 @@ D14 38</pre>
             </div>
 
             <!-- Spinner (hidden by default) -->
-            <div id="bulkReadingsSpinner" class="text-center mt-3" style="display: none;">
+            <div id="bulkReadingsSpinner" class="text-center mt-3 loading-spinner-hidden">
               <div class="spinner-border text-success" role="status">
                 <span class="visually-hidden">Processing...</span>
               </div>
@@ -747,12 +747,12 @@ D14 38</pre>
                 </a>
               </div>
               <div class="col-md-4">
-                <button class="btn btn-outline-success w-100 mb-2" onclick="exportChart('consumptionChart', 'consumption-trends')">
+                <button class="btn btn-outline-success w-100 mb-2" data-action="export-chart" data-chart-id="consumptionChart" data-filename="consumption-trends">
                   <i class="fas fa-chart-bar"></i> Export Charts
                 </button>
               </div>
               <div class="col-md-4">
-                <button class="btn btn-outline-info w-100 mb-2" onclick="generateReport()">
+                <button class="btn btn-outline-info w-100 mb-2" data-action="generate-report">
                   <i class="fas fa-file-pdf"></i> Generate Report
                 </button>
               </div>

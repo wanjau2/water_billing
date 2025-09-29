@@ -6,6 +6,7 @@
     <title>{{ tenant.name }} - Water Portal</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/csp-fixes.css') }}">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Chart.js -->
@@ -349,7 +350,7 @@
     <div id="bills-section" class="content-section">
         <div class="d-flex justify-content-between align-items-center p-3">
             <h5><i class="fas fa-file-invoice"></i> My Bills</h5>
-            <button class="btn btn-sm btn-outline-primary" onclick="refreshBills()">
+            <button class="btn btn-sm btn-outline-primary" data-action="refresh-bills">
                 <i class="fas fa-sync-alt"></i>
             </button>
         </div>
@@ -422,7 +423,7 @@
                             <label class="form-label">Phone Number</label>
                             <input type="tel" class="form-control" id="mpesa-phone" placeholder="0700000000" value="{{ tenant.phone or '' }}">
                         </div>
-                        <button class="btn btn-success w-100" onclick="initiateM-PesaPayment()">
+                        <button class="btn btn-success w-100" data-action="initiate-mpesa">
                             <i class="fas fa-mobile-alt"></i> Pay with M-Pesa
                         </button>
                     </div>
@@ -543,23 +544,23 @@
 
     <!-- Bottom Navigation -->
     <div class="bottom-nav">
-        <a href="#" class="nav-item active" onclick="showSection('overview-section')">
+        <a href="#" class="nav-item active" data-nav-section="overview-section">
             <i class="fas fa-home"></i>
             <span>Home</span>
         </a>
-        <a href="#" class="nav-item" onclick="showSection('bills-section')">
+        <a href="#" class="nav-item" data-nav-section="bills-section">
             <i class="fas fa-file-invoice"></i>
             <span>Bills</span>
         </a>
-        <a href="#" class="nav-item" onclick="showSection('payment-section')">
+        <a href="#" class="nav-item" data-nav-section="payment-section">
             <i class="fas fa-credit-card"></i>
             <span>Pay</span>
         </a>
-        <a href="#" class="nav-item" onclick="showSection('usage-section')">
+        <a href="#" class="nav-item" data-nav-section="usage-section">
             <i class="fas fa-chart-line"></i>
             <span>Usage</span>
         </a>
-        <a href="#" class="nav-item" onclick="showSection('maintenance-section')">
+        <a href="#" class="nav-item" data-nav-section="maintenance-section">
             <i class="fas fa-tools"></i>
             <span>Support</span>
         </a>
@@ -868,5 +869,6 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/csp-fixes.js') }}"></script>
 </body>
 </html>
