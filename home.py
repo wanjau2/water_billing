@@ -7,11 +7,11 @@ import dns.resolver
 from mpesa_integration import MpesaAPI
 from subscription_config import SUBSCRIPTION_TIERS, MPESA_CONFIG
 from crypto_utils import encrypt_mpesa_credentials, decrypt_mpesa_credentials
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dateutil.relativedelta import relativedelta
 from dotenv import load_dotenv
 from functools import wraps
@@ -68,6 +68,14 @@ csrf = CSRFProtect(app)
 mongo = None
 
 # CSP configuration moved to add_security_headers function for direct header management
+csp = {
+    'default-src': "'self'",
+    'script-src': "'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://pagead2.googlesyndication.com",
+    'img-src': "'self' data: https://via.placeholder.com",
+    'style-src': "'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+    'font-src': "'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com data:"
+}
+
 cache_config = {
     "CACHE_TYPE": "SimpleCache",  # Use SimpleCache for in-memory caching
     "CACHE_DEFAULT_TIMEOUT": 3600  # Cache timeout in seconds (1 hour)
@@ -3510,7 +3518,7 @@ def maintenance_request():
                 admin = mongo.db.admins.find_one({'_id': tenant['admin_id']})
                 if admin and admin.get('phone'):
                     message = f"New maintenance request from {tenant['name']} at {property_doc['name']} - {data['type']}: {data['description'][:50]}{'...' if len(data['description']) > 50 else ''}"
-                    send_sms(admin['phone'], message, tenant['admin_id'])
+                    send_message(admin['phone'], message)
             except Exception as e:
                 app.logger.error(f"Failed to send maintenance request SMS: {str(e)}")
 
@@ -3962,8 +3970,8 @@ def generate_garbage_bills():
             "outstanding_amount": garbage_rate,
             "due_date": due_date,
             "status": "pending",
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
         }
         bills_to_insert.append(bill)
 
@@ -4028,7 +4036,7 @@ def record_garbage_payment():
         "payment_method": payment_method,
         "reference": reference,
         "payment_date": payment_date,
-        "recorded_at": datetime.utcnow(),
+        "recorded_at": datetime.now(timezone.utc),
         "recorded_by": admin_id
     }
 
@@ -4040,7 +4048,7 @@ def record_garbage_payment():
         update_data = {
             "status": "paid",
             "payment_date": payment_date,
-            "updated_at": datetime.utcnow()
+            "updated_at": datetime.now(timezone.utc)
         }
 
         if amount >= bill['outstanding_amount']:
@@ -4101,7 +4109,7 @@ def update_collection_schedule():
         "collection_time": collection_time,
         "notes": notes,
         "next_collection": next_collection,
-        "updated_at": datetime.utcnow()
+        "updated_at": datetime.now(timezone.utc)
     }
 
     try:
@@ -4145,7 +4153,7 @@ def update_garbage_bill_statuses():
         {
             "$set": {
                 "status": "overdue",
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             }
         }
     )
@@ -5815,7 +5823,7 @@ def update_maintenance_request(request_id):
                         if note:
                             message += f" Note: {note}"
 
-                        send_sms(tenant['phone'], message, admin_id)
+                        send_message(tenant['phone'], message)
                 except Exception as e:
                     app.logger.error(f"Failed to send maintenance update SMS: {str(e)}")
 
