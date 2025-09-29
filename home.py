@@ -2124,7 +2124,7 @@ def property_settings(property_id):
         flash('Error loading property settings.', 'danger')
         return redirect(url_for('properties'))
 
-@app.route('/update_property_settings/<property_id>', methods=['POST'])
+@app.route('/update_property_settings/<property_id>', methods=['POST','GET'])
 @login_required
 def update_property_settings(property_id):
     """Update property-specific billing settings"""
@@ -2256,6 +2256,10 @@ def redirect_short_url(short_code):
         app.logger.error(f"Error handling short URL redirect: {e}")
         flash('Invalid link.', 'danger')
         return redirect(url_for('login'))
+
+@app.route('/smartwater')
+def smartwater():
+    return render_template('smartwater.html')
 
 @app.route('/api/properties')
 @login_required

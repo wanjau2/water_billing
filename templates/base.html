@@ -315,6 +315,29 @@
       background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
       color: #721c24;
     }
+    /* Gradient utilities */
+  .bg-gradient-to-r { background-image: linear-gradient(to right, var(--tw-gradient-stops)); }
+  .from-cyan-50 { --tw-gradient-from: #ecfeff; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(236, 254, 255, 0)); }
+  .to-blue-50 { --tw-gradient-to: #eff6ff; }
+  .from-cyan-900 { --tw-gradient-from: #164e63; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(22, 78, 99, 0)); }
+  .to-blue-900 { --tw-gradient-to: #1e3a8a; }
+
+  /* Cyan color utilities */
+  .bg-cyan-50 { background-color: #ecfeff; }
+  .text-cyan-900 { color: #164e63; }
+  .text-cyan-100 { color: #cffafe; }
+  .text-cyan-300 { color: #67e8f9; }
+  .text-cyan-700 { color: #0e7490; }
+  .text-cyan-200 { color: #a5f3fc; }
+  .border-cyan-200 { border-color: #a5f3fc; }
+  .border-cyan-700 { border-color: #0e7490; }
+  .bg-cyan-900 { background-color: #164e63; }
+  .text-cyan-400 { color: #22d3ee; }
+  .hover\:bg-cyan-200:hover { background-color: #a5f3fc; }
+  .hover\:bg-cyan-800:hover { background-color: #155e75; }
+  .hover\:text-cyan-700:hover { color: #0e7490; }
+  .hover\:text-cyan-200:hover { color: #a5f3fc; }
+  .focus\:ring-cyan-400:focus { --tw-ring-color: #22d3ee; }
   </style>
   {% block styles %}{% endblock %}
 </head>
@@ -340,6 +363,8 @@
           <div class="flex items-center space-x-4">
             <div class="relative">
               <button id="property-dropdown-toggle" class="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
                 </svg>
@@ -540,6 +565,22 @@
           </a>
         </li>
       </ul>
+      <div id="dropdown-cta" class="p-4 mt-6 rounded-lg bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900 dark:to-blue-900 border border-cyan-200 dark:border-cyan-700" role="alert">
+      <div id="dropdown-cta" class="p-4 mt-6 rounded-lg bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900 dark:to-blue-900 border border-cyan-200 dark:border-cyan-700" role="alert">
+      <div class="flex items-center mb-3">
+        <span class="bg-orange-100 text-orange-800 text-sm font-semibold me-2 px-2.5 py-0.5 rounded-sm dark:bg-orange-200 dark:text-orange-900">Coming Soon</span>
+        <button type="button" class="ms-auto -mx-1.5 -my-1.5 bg-cyan-50 inline-flex justify-center items-center w-6 h-6 text-cyan-900 rounded-lg focus:ring-2 focus:ring-cyan-400 p-1 hover:bg-cyan-200 dark:bg-cyan-900 dark:text-cyan-400 dark:hover:bg-cyan-800" data-dismiss-target="#dropdown-cta" aria-label="Close">
+          <span class="sr-only">Close</span>
+          <svg class="w-2.5 h-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
+          </svg>
+        </button>
+      </div>
+      <p class="mb-3 text-sm text-cyan-900 dark:text-cyan-100">
+        We are about to introduce smart water meters. Forget the traditional manual work of reading meter readings.
+      </p>
+      <a class="text-sm text-cyan-900 underline font-medium hover:text-cyan-700 dark:text-cyan-300 dark:hover:text-cyan-200" href="{{ url_for('smartwater') }}">Learn more about smart water meters</a>
+    </div>
     </div>
   </aside>
 
@@ -628,6 +669,29 @@
     #default-sidebar.w-16 .utilities-dropdown {
         display: none !important;
     }
+        /* Gradient utilities */
+    .bg-gradient-to-r { background-image: linear-gradient(to right, var(--tw-gradient-stops)); }
+    .from-cyan-50 { --tw-gradient-from: #ecfeff; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(236, 254, 255, 0)); }
+    .to-blue-50 { --tw-gradient-to: #eff6ff; }
+    .from-cyan-900 { --tw-gradient-from: #164e63; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(22, 78, 99, 0)); }
+    .to-blue-900 { --tw-gradient-to: #1e3a8a; }
+
+    /* Cyan color utilities */
+    .bg-cyan-50 { background-color: #ecfeff; }
+    .text-cyan-900 { color: #164e63; }
+    .text-cyan-100 { color: #cffafe; }
+    .text-cyan-300 { color: #67e8f9; }
+    .text-cyan-700 { color: #0e7490; }
+    .text-cyan-200 { color: #a5f3fc; }
+    .border-cyan-200 { border-color: #a5f3fc; }
+    .border-cyan-700 { border-color: #0e7490; }
+    .bg-cyan-900 { background-color: #164e63; }
+    .text-cyan-400 { color: #22d3ee; }
+    .hover\:bg-cyan-200:hover { background-color: #a5f3fc; }
+    .hover\:bg-cyan-800:hover { background-color: #155e75; }
+    .hover\:text-cyan-700:hover { color: #0e7490; }
+    .hover\:text-cyan-200:hover { color: #a5f3fc; }
+    .focus\:ring-cyan-400:focus { --tw-ring-color: #22d3ee; }
   </style>
 
   {% block scripts %}{% endblock %}

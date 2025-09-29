@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Water Meters - Water Billing System</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <style>
+    :root {
+      --primary-color: #0891b2;
+      --secondary-color: #06b6d4;
+      --accent-color: #22d3ee;
+      --dark-cyan: #164e63;
+      --light-cyan: #ecfeff;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #ecfeff 0%, #e0f2fe 100%);
+      min-height: 100vh;
+    }
+
+    .hero-section {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      color: white;
+      padding: 80px 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.1)"/></svg>');
+      opacity: 0.3;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .feature-card {
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 30px rgba(8, 145, 178, 0.15);
+      border-color: var(--accent-color);
+    }
+
+    .feature-icon {
+      width: 70px;
+      height: 70px;
+      background: linear-gradient(135deg, var(--accent-color) 0%, var(--secondary-color) 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      color: white;
+      margin-bottom: 20px;
+    }
+
+    .step-card {
+      background: white;
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 20px;
+      border-left: 5px solid var(--secondary-color);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .step-number {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .benefit-badge {
+      background: linear-gradient(135deg, var(--light-cyan) 0%, #cffafe 100%);
+      color: var(--dark-cyan);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 500;
+      display: inline-block;
+      margin: 5px;
+    }
+
+    .cta-section {
+      background: linear-gradient(135deg, #164e63 0%, #0891b2 100%);
+      color: white;
+      padding: 60px 0;
+      border-radius: 20px;
+      margin: 40px 0;
+    }
+
+    .btn-custom {
+      background: linear-gradient(135deg, var(--accent-color) 0%, var(--secondary-color) 100%);
+      color: white;
+      padding: 15px 40px;
+      border-radius: 30px;
+      font-weight: 600;
+      border: none;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(34, 211, 238, 0.3);
+    }
+
+    .btn-custom:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(34, 211, 238, 0.4);
+      color: white;
+    }
+
+    .comparison-table {
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .comparison-table th {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      color: white;
+      padding: 20px;
+      font-weight: 600;
+    }
+
+    .comparison-table td {
+      padding: 15px 20px;
+      vertical-align: middle;
+    }
+
+    .check-icon {
+      color: #10b981;
+      font-size: 24px;
+    }
+
+    .cross-icon {
+      color: #ef4444;
+      font-size: 24px;
+    }
+
+    .section-title {
+      color: var(--dark-cyan);
+      font-weight: 700;
+      margin-bottom: 40px;
+      position: relative;
+      padding-bottom: 15px;
+    }
+
+    .section-title::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary-color) 0%, var(--accent-color) 100%);
+      border-radius: 2px;
+    }
+
+    .tech-spec {
+      background: #f0fdfa;
+      border-left: 4px solid var(--secondary-color);
+      padding: 15px 20px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+    }
+
+    .faq-item {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .faq-question {
+      font-weight: 600;
+      color: var(--dark-cyan);
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Hero Section -->
+  <div class="hero-section">
+    <div class="container hero-content">
+      <div class="row align-items-center">
+        <div class="col-lg-6">
+          <h1 class="display-4 fw-bold mb-4">Smart Water Meters</h1>
+          <p class="lead mb-4">Revolutionize your water management with automated, real-time meter readings. Say goodbye to manual readings and hello to efficiency.</p>
+          <button class="btn btn-custom">Get Started Today</button>
+        </div>
+        <div class="col-lg-6 text-center">
+          <i class="bi bi-droplet-fill" style="font-size: 200px; opacity: 0.9;"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- What Are Smart Water Meters Section -->
+  <div class="container my-5 py-5">
+    <h2 class="section-title text-center">What Are Smart Water Meters?</h2>
+    <div class="row">
+      <div class="col-lg-8 mx-auto">
+        <p class="lead text-center mb-5">Smart water meters are IoT-enabled devices that automatically measure and transmit water consumption data in real-time. They eliminate the need for manual meter readings and provide accurate, instant insights into water usage patterns.</p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-4">
+        <div class="feature-card text-center">
+          <div class="feature-icon mx-auto">
+            <i class="bi bi-wifi"></i>
+          </div>
+          <h4>Wireless Connectivity</h4>
+          <p>Meters connect via LoRaWAN, NB-IoT, or WiFi to transmit data automatically to our cloud platform.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card text-center">
+          <div class="feature-icon mx-auto">
+            <i class="bi bi-clock-history"></i>
+          </div>
+          <h4>Real-Time Monitoring</h4>
+          <p>View current water consumption and historical data anytime, anywhere through your dashboard.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card text-center">
+          <div class="feature-icon mx-auto">
+            <i class="bi bi-graph-up"></i>
+          </div>
+          <h4>Data Analytics</h4>
+          <p>Advanced algorithms detect leaks, anomalies, and provide actionable insights for water conservation.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- How It Works Section -->
+  <div class="container my-5 py-5">
+    <h2 class="section-title text-center">How Smart Water Meters Work</h2>
+    <div class="row">
+      <div class="col-lg-10 mx-auto">
+        <div class="step-card">
+          <div class="d-flex align-items-start">
+            <div class="step-number me-3">1</div>
+            <div>
+              <h5>Water Flow Detection</h5>
+              <p class="mb-0">The meter uses ultrasonic or electromagnetic sensors to precisely measure water flow through pipes without any moving parts, ensuring accuracy and longevity.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="d-flex align-items-start">
+            <div class="step-number me-3">2</div>
+            <div>
+              <h5>Data Collection & Processing</h5>
+              <p class="mb-0">The built-in microprocessor collects consumption data, timestamps it, and stores readings at regular intervals (typically every 15 minutes to 1 hour).</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="d-flex align-items-start">
+            <div class="step-number me-3">3</div>
+            <div>
+              <h5>Wireless Transmission</h5>
+              <p class="mb-0">Data is encrypted and transmitted securely via wireless networks (LoRaWAN, NB-IoT, or WiFi) to our cloud servers.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="d-flex align-items-start">
+            <div class="step-number me-3">4</div>
+            <div>
+              <h5>Integration with Billing System</h5>
+              <p class="mb-0">Our system automatically receives the meter readings, processes them, and updates tenant accounts in real-time. Bills are generated automatically based on actual consumption.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="d-flex align-items-start">
+            <div class="step-number me-3">5</div>
+            <div>
+              <h5>Alerts & Notifications</h5>
+              <p class="mb-0">The system monitors for unusual patterns, leaks, or excessive consumption and sends instant SMS/email alerts to property managers and tenants.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Benefits Section -->
+  <div class="container my-5 py-5">
+    <h2 class="section-title text-center">Key Benefits</h2>
+    <div class="row">
+      <div class="col-md-6 mb-4">
+        <div class="feature-card">
+          <h5><i class="bi bi-check-circle-fill text-success me-2"></i>For Property Managers</h5>
+          <div class="mt-3">
+            <span class="benefit-badge"><i class="bi bi-lightning-fill"></i> 90% Time Savings</span>
+            <span class="benefit-badge"><i class="bi bi-graph-down"></i> Reduced Disputes</span>
+            <span class="benefit-badge"><i class="bi bi-currency-dollar"></i> Lower Operational Costs</span>
+            <span class="benefit-badge"><i class="bi bi-shield-check"></i> Accurate Billing</span>
+            <span class="benefit-badge"><i class="bi bi-droplet"></i> Leak Detection</span>
+            <span class="benefit-badge"><i class="bi bi-file-earmark-text"></i> Automated Reports</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 mb-4">
+        <div class="feature-card">
+          <h5><i class="bi bi-people-fill text-primary me-2"></i>For Tenants</h5>
+          <div class="mt-3">
+            <span class="benefit-badge"><i class="bi bi-eye"></i> Real-Time Usage Tracking</span>
+            <span class="benefit-badge"><i class="bi bi-bell"></i> Instant Leak Alerts</span>
+            <span class="benefit-badge"><i class="bi bi-coin"></i> Fair Billing</span>
+            <span class="benefit-badge"><i class="bi bi-graph-up-arrow"></i> Usage Insights</span>
+            <span class="benefit-badge"><i class="bi bi-phone"></i> Mobile Access</span>
+            <span class="benefit-badge"><i class="bi bi-water"></i> Water Conservation</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Comparison Table -->
+  <div class="container my-5 py-5">
+    <h2 class="section-title text-center">Traditional vs Smart Meters</h2>
+    <div class="table-responsive">
+      <table class="table comparison-table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th class="text-center">Traditional Meters</th>
+            <th class="text-center">Smart Meters</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Reading Method</strong></td>
+            <td class="text-center">Manual (monthly visits)</td>
+            <td class="text-center">Automatic (real-time)</td>
+          </tr>
+          <tr>
+            <td><strong>Reading Accuracy</strong></td>
+            <td class="text-center"><i class="bi bi-dash-circle cross-icon"></i></td>
+            <td class="text-center"><i class="bi bi-check-circle-fill check-icon"></i></td>
+          </tr>
+          <tr>
+            <td><strong>Leak Detection</strong></td>
+            <td class="text-center"><i class="bi bi-dash-circle cross-icon"></i></td>
+            <td class="text-center"><i class="bi bi-check-circle-fill check-icon"></i></td>
+          </tr>
+          <tr>
+            <td><strong>Real-Time Data</strong></td>
+            <td class="text-center"><i class="bi bi-dash-circle cross-icon"></i></td>
+            <td class="text-center"><i class="bi bi-check-circle-fill check-icon"></i></td>
+          </tr>
+          <tr>
+            <td><strong>Labor Cost</strong></td>
+            <td class="text-center">High</td>
+            <td class="text-center">Minimal</td>
+          </tr>
+          <tr>
+            <td><strong>Billing Disputes</strong></td>
+            <td class="text-center">Frequent</td>
+            <td class="text-center">Rare</td>
+          </tr>
+          <tr>
+            <td><strong>Data Analytics</strong></td>
+            <td class="text-center"><i class="bi bi-dash-circle cross-icon"></i></td>
+            <td class="text-center"><i class="bi bi-check-circle-fill check-icon"></i></td>
+          </tr>
+          <tr>
+            <td><strong>Remote Access</strong></td>
+            <td class="text-center"><i class="bi bi-dash-circle cross-icon"></i></td>
+            <td class="text-center"><i class="bi bi-check-circle-fill check-icon"></i></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Integration Process -->
+  <div class="container my-5 py-5">
+    <h2 class="section-title text-center">Integration with Your Billing System</h2>
+    <div class="row">
+      <div class="col-lg-10 mx-auto">
+        <p class="lead text-center mb-5">Our smart water meters seamlessly integrate with your existing water billing system through our secure API. Here's how:</p>
+
+        <div class="row">
+          <div class="col-md-6 mb-4">
+            <div class="feature-card">
+              <h5><i class="bi bi-plug text-primary me-2"></i>API Integration</h5>
+              <p>Our RESTful API automatically pushes meter readings to your database every hour. Your system receives structured JSON data containing:</p>
+              <ul class="mb-0">
+                <li>Meter ID & House Number</li>
+                <li>Current Reading</li>
+                <li>Timestamp</li>
+                <li>Flow Rate</li>
+                <li>Battery Status</li>
+                <li>Alert Flags (leaks, tampering)</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="col-md-6 mb-4">
+            <div class="feature-card">
+              <h5><i class="bi bi-shield-lock text-success me-2"></i>Security & Reliability</h5>
+              <p>Enterprise-grade security ensures your data is protected:</p>
+              <ul class="mb-0">
+                <li>256-bit AES encryption</li>
+                <li>OAuth 2.0 authentication</li>
+                <li>99.9% uptime guarantee</li>
+                <li>Redundant data backups</li>
+                <li>GDPR compliant</li>
+                <li>ISO 27001 certified</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="tech-spec">
+          <h6 class="mb-2"><i class="bi bi-code-square me-2"></i>Technical Specifications</h6>
+          <p class="mb-1"><strong>Communication Protocol:</strong> LoRaWAN 1.0.3, NB-IoT Cat-M1, WiFi 802.11 b/g/n</p>
+          <p class="mb-1"><strong>Transmission Frequency:</strong> Configurable (15 min - 24 hours)</p>
+          <p class="mb-1"><strong>Battery Life:</strong> 10+ years (replaceable)</p>
+          <p class="mb-1"><strong>Accuracy:</strong> ±1.5% across full flow range</p>
+          <p class="mb-0"><strong>Operating Temperature:</strong> 0°C to 50°C</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Installation Process -->
+  <div class="container my-5 py-5">
+    <h2 class="section-title text-center">Installation Process</h2>
+    <div class="row">
+      <div class="col-lg-10 mx-auto">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <div class="step-card">
+              <h6><i class="bi bi-1-circle-fill text-primary me-2"></i>Site Assessment</h6>
+              <p class="mb-0">Our team conducts a free site survey to assess your property, existing infrastructure, and network coverage.</p>
+            </div>
+          </div>
+          <div class="col-md-6 mb-3">
+            <div class="step-card">
+              <h6><i class="bi bi-2-circle-fill text-primary me-2"></i>Meter Installation</h6>
+              <p class="mb-0">Certified technicians install smart meters at each unit. Installation takes 30-45 minutes per unit with minimal disruption.</p>
+            </div>
+          </div>
+          <div class="col-md-6 mb-3">
+            <div class="step-card">
+              <h6><i class="bi bi-3-circle-fill text-primary me-2"></i>Network Configuration</h6>
+              <p class="mb-0">We set up the gateway, configure network connectivity, and test all meters to ensure proper data transmission.</p>
+            </div>
+          </div>
+          <div class="col-md-6 mb-3">
+            <div class="step-card">
+              <h6><i class="bi bi-4-circle-fill text-primary me-2"></i>System Integration</h6>
+              <p class="mb-0">Our technical team integrates the smart meter system with your billing platform and provides comprehensive training.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ Section -->
+  <div class="container my-5 py-5">
+    <h2 class="section-title text-center">Frequently Asked Questions</h2>
+    <div class="row">
+      <div class="col-lg-10 mx-auto">
+        <div class="faq-item">
+          <div class="faq-question"><i class="bi bi-question-circle me-2"></i>How much does it cost?</div>
+          <p class="mb-0">Pricing varies based on property size. Typical cost is $80-120 per meter including installation. We offer flexible payment plans and subscription models. Contact us for a custom quote.</p>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question"><i class="bi bi-question-circle me-2"></i>How long does installation take?</div>
+          <p class="mb-0">For a typical 50-unit property, full installation takes 3-5 days. Each individual meter installation takes 30-45 minutes. We schedule installations to minimize tenant disruption.</p>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question"><i class="bi bi-question-circle me-2"></i>What if there's no network coverage?</div>
+          <p class="mb-0">We offer multiple connectivity options (LoRaWAN, NB-IoT, WiFi). If cellular coverage is poor, we can install a dedicated gateway with internet connectivity to ensure reliable data transmission.</p>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question"><i class="bi bi-question-circle me-2"></i>What happens during power outages?</div>
+          <p class="mb-0">Smart meters have built-in batteries lasting 10+ years and continue recording data during outages. Data is stored locally and transmitted once connectivity is restored.</p>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question"><i class="bi bi-question-circle me-2"></i>Can tenants see their usage?</div>
+          <p class="mb-0">Yes! Tenants can access a mobile app or web portal to view real-time consumption, historical trends, and receive alerts. This transparency promotes water conservation and reduces disputes.</p>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question"><i class="bi bi-question-circle me-2"></i>What's the return on investment (ROI)?</div>
+          <p class="mb-0">Most property managers see ROI within 18-24 months through labor savings, reduced water waste, fewer disputes, and accurate billing. Water loss detection alone can save 15-25% on water costs.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA Section -->
+  <div class="container">
+    <div class="cta-section text-center">
+      <h2 class="display-5 fw-bold mb-4">Ready to Go Smart?</h2>
+      <p class="lead mb-4">Join hundreds of property managers who've revolutionized their water management. Get started with a free consultation and site assessment today.</p>
+      <div class="d-flex justify-content-center gap-3 flex-wrap">
+        <button class="btn btn-custom btn-lg">Schedule Free Assessment</button>
+        <button class="btn btn-outline-light btn-lg">Contact Sales</button>
+      </div>
+      <p class="mt-4 mb-0"><i class="bi bi-telephone-fill me-2"></i>Call us: +254 748507336 | <i class="bi bi-envelope-fill ms-3 me-2"></i>Email: info@waterbilling.pro</p>
+    </div>
+  </div>
+
+  <div class="container text-center py-5">
+    <p class="text-muted">&copy; 2025 Water Billing System. All rights reserved.</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
