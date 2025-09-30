@@ -29,145 +29,404 @@
   <link rel="icon" href="{{ url_for('static', filename='images.jpeg') }}" type="image/jpeg">
 
   <style>
+    :root {
+        --primary-blue: #2563eb;
+        --primary-blue-hover: #1d4ed8;
+        --primary-blue-light: #3b82f6;
+        --gray-50: #f9fafb;
+        --gray-100: #f3f4f6;
+        --gray-200: #e5e7eb;
+        --gray-300: #d1d5db;
+        --gray-400: #9ca3af;
+        --gray-500: #6b7280;
+        --gray-700: #374151;
+        --gray-900: #111827;
+        --green-500: #10b981;
+        --yellow-500: #f59e0b;
+        --red-500: #ef4444;
+    }
+
     body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(135deg, var(--gray-50) 0%, #e0f2fe 100%);
         min-height: 100vh;
+        margin: 0;
         display: flex;
         flex-direction: column;
     }
+
+    /* Flash Messages */
+    .flash-messages-container {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 1050;
+        max-width: 400px;
+    }
+
+    /* Main Signup Container */
     .signup-main {
-        flex-grow: 1;
+        flex: 1;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 3rem 1rem;
+        padding: 2rem 1rem;
+        min-height: 100vh;
     }
+
     .signup-container {
-        max-width: 450px;
         width: 100%;
+        max-width: 480px;
     }
+
+    /* Signup Card */
     .signup-card {
         background: white;
-        border-radius: 16px;
-        box-shadow: 0 20px 40px rgba(0, 123, 255, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--gray-200);
         overflow: hidden;
-        border: 1px solid rgba(0, 123, 255, 0.1);
+        backdrop-filter: blur(10px);
     }
+
+    /* Header Section */
     .signup-header {
-        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-        padding: 2.5rem;
+        background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-hover) 100%);
+        padding: 2.5rem 2rem;
         text-align: center;
         color: white;
         position: relative;
+        overflow: hidden;
     }
+
     .signup-header::before {
         content: '';
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: subtle-float 6s ease-in-out infinite;
     }
+
+    .signup-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .signup-header p {
+        font-size: 0.95rem;
+        opacity: 0.9;
+        margin: 0;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Body Section */
     .signup-body {
         padding: 2.5rem;
-        background: white;
     }
+
+    /* Form Groups */
     .form-group {
-        margin-bottom: 1.8rem;
+        margin-bottom: 1.5rem;
     }
+
     .form-group label {
         display: block;
         margin-bottom: 0.75rem;
         font-weight: 600;
-        color: #1f2937;
-        font-size: 0.95rem;
+        color: var(--gray-700);
+        font-size: 0.875rem;
+        letter-spacing: 0.025em;
     }
+
+    /* Input Groups */
     .input-group {
         position: relative;
     }
+
     .input-icon {
         position: absolute;
-        left: 14px;
+        left: 1rem;
         top: 50%;
         transform: translateY(-50%);
-        color: #007bff;
-        font-size: 1rem;
+        color: var(--primary-blue);
+        font-size: 1.1rem;
+        z-index: 2;
     }
+
     .form-control-icon {
-        padding-left: 2.75rem;
-        border: 2px solid #e1e5e9;
-        border-radius: 10px;
-        padding-top: 0.85rem;
-        padding-bottom: 0.85rem;
+        width: 100%;
+        padding: 0.875rem 3rem 0.875rem 3rem;
+        border: 2px solid var(--gray-200);
+        border-radius: 12px;
+        background: var(--gray-50);
+        font-size: 0.9rem;
         transition: all 0.3s ease;
-        background: #f8f9fa;
+        outline: none;
     }
+
     .form-control-icon:focus {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+        border-color: var(--primary-blue);
         background: white;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        transform: translateY(-1px);
     }
+
+    .form-control:focus {
+        border-color: var(--primary-blue);
+        background: white;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .form-control-icon::placeholder {
+        color: var(--gray-400);
+    }
+
+    /* Password Toggle */
     .btn-toggle-password {
         position: absolute;
-        right: 14px;
+        right: 1rem;
         top: 50%;
         transform: translateY(-50%);
         background: none;
         border: none;
-        color: #6c757d;
+        color: var(--gray-500);
         cursor: pointer;
-        padding: 4px;
-        transition: color 0.2s ease;
+        padding: 0.25rem;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        z-index: 2;
     }
+
     .btn-toggle-password:hover {
-        color: #007bff;
+        color: var(--primary-blue);
+        background: var(--gray-100);
     }
-    .btn-success, .btn-primary {
-        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-        border: none;
-        border-radius: 10px;
-        padding: 0.9rem 1.5rem;
-        font-weight: 600;
-        font-size: 1rem;
+
+    /* Radio Buttons */
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .form-check-input {
+        width: 1.125rem;
+        height: 1.125rem;
+        border: 2px solid var(--gray-300);
+        background: white;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .form-check-input[type="radio"] {
+        border-radius: 50%;
+    }
+
+    .form-check-input[type="checkbox"] {
+        border-radius: 4px;
+    }
+
+    .form-check-input:checked {
+        background-color: var(--primary-blue);
+        border-color: var(--primary-blue);
+        box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+    }
+
+    .form-check-input:focus {
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .form-check-label {
+        font-size: 0.875rem;
+        color: var(--gray-700);
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    /* Payment Method Section */
+    .payment-method-options {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Password Strength Indicator */
+    .progress {
+        height: 6px;
+        border-radius: 3px;
+        background-color: var(--gray-200);
+        overflow: hidden;
+    }
+
+    .progress-bar {
         transition: all 0.3s ease;
+        border-radius: 3px;
+    }
+
+    .bg-danger {
+        background-color: var(--red-500) !important;
+    }
+
+    .bg-warning {
+        background-color: var(--yellow-500) !important;
+    }
+
+    .bg-success {
+        background-color: var(--green-500) !important;
+    }
+
+    .text-danger {
+        color: var(--red-500) !important;
+    }
+
+    .text-warning {
+        color: var(--yellow-500) !important;
+    }
+
+    .text-success {
+        color: var(--green-500) !important;
+    }
+
+    /* Buttons */
+    .btn-success {
+        width: 100%;
+        background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-hover) 100%);
+        border: none;
+        border-radius: 12px;
+        padding: 0.875rem 1.5rem;
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: white;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
         position: relative;
         overflow: hidden;
+    }
+
+    .btn-success:hover {
+        background: linear-gradient(135deg, var(--primary-blue-hover) 0%, #1e40af 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(37, 99, 235, 0.5);
         color: white;
     }
-    .btn-success:hover, .btn-primary:hover {
-        background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+
+    .btn-success:active {
         transform: translateY(-1px);
-        box-shadow: 0 8px 25px rgba(0, 123, 255, 0.3);
-        color: white;
     }
-    .btn-success:active, .btn-primary:active {
-        transform: translateY(0);
-    }
-    .form-check-input:checked {
-        background-color: #007bff;
-        border-color: #007bff;
-    }
-    .form-check-input:focus {
-        border-color: #80bdff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-    }
-    .form-check-input[type="radio"]:checked {
-        background-color: #007bff;
-        border-color: #007bff;
-    }
-    .form-control:focus {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
-        background: white;
-    }
+
+    /* Links */
     .text-primary {
-        color: #007bff !important;
+        color: var(--primary-blue) !important;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s ease;
     }
+
+    .text-primary:hover {
+        color: var(--primary-blue-hover) !important;
+        text-decoration: underline;
+    }
+
+    /* Security Notice */
+    .security-notice {
+        text-align: center;
+        margin-top: 1.5rem;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 12px;
+        border: 1px solid var(--gray-200);
+    }
+
+    .security-notice p {
+        margin: 0;
+        font-size: 0.875rem;
+        color: var(--gray-500);
+    }
+
+    /* Footer */
     .footer-section {
         background: white;
-        border-top: 1px solid #e5e7eb;
+        border-top: 1px solid var(--gray-200);
         padding: 1.5rem 0;
         margin-top: auto;
+    }
+
+    .footer-section p {
+        margin: 0.5rem 0;
+        font-size: 0.875rem;
+        color: var(--gray-500);
+    }
+
+    .footer-section a {
+        color: var(--gray-500);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .footer-section a:hover {
+        color: var(--primary-blue);
+    }
+
+    /* Utility Classes */
+    .d-none {
+        display: none !important;
+    }
+
+    .d-flex {
+        display: flex !important;
+    }
+
+    .gap-4 {
+        gap: 2rem;
+    }
+
+    .small {
+        font-size: 0.875rem;
+    }
+
+    .text-muted {
+        color: var(--gray-500);
+    }
+
+    /* Animations */
+    @keyframes subtle-float {
+        0%, 100% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-10px) rotate(1deg); }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 576px) {
+        .signup-main {
+            padding: 1rem;
+        }
+
+        .signup-header {
+            padding: 2rem 1.5rem;
+        }
+
+        .signup-body {
+            padding: 2rem 1.5rem;
+        }
+
+        .payment-method-options {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .flash-messages-container {
+            left: 1rem;
+            right: 1rem;
+            max-width: none;
+        }
     }
     </style>
 
@@ -215,7 +474,7 @@
                         <!-- Payment Method Selection -->
                         <div class="form-group">
                             <label>Payment Method</label>
-                            <div class="d-flex gap-4 mb-3">
+                            <div class="payment-method-options">
                                 <div class="form-check">
                                     <input id="till_option" name="payment_method" type="radio" value="till"
                                         class="form-check-input">
@@ -346,8 +605,8 @@
             </div>
 
             <!-- Security Notice -->
-            <div class="text-center mt-4">
-                <p class="text-muted small">
+            <div class="security-notice">
+                <p>
                     <i class="fas fa-shield-alt me-1"></i>
                     Secure registration | Your data is protected
                 </p>
