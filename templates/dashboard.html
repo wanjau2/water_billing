@@ -3,51 +3,7 @@
 {% block title %}Water Billing - Dashboard {% endblock %}
 
 {% block styles %}
-<style>
-    .tenant-link {
-      color: #0d6efd;
-      text-decoration: none;
-      cursor: pointer;
-    }
-    .tenant-link:hover {
-      text-decoration: underline;
-    }
-    .sticky-analytics {
-      position: sticky;
-      top: 0;
-      z-index: 1020;
-      background: #f8f9fa;
-      border-bottom: 2px solid #e9ecef;
-      padding: 1rem 0;
-      margin-bottom: 2rem;
-    }
-    .stats-card {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border-radius: 10px;
-      padding: 1rem;
-      margin-bottom: 0.5rem;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      height: 80px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-    }
-    .stats-number {
-      font-size: 1.8rem;
-      font-weight: bold;
-      margin-bottom: 0.2rem;
-    }
-    .stats-label {
-      font-size: 0.75rem;
-      opacity: 0.9;
-    }
-    .chart-container {
-      position: relative;
-      height: 250px;
-      margin: 1rem 0;
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 {% endblock %}
 
 {% block content %}

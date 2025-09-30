@@ -1,5 +1,17 @@
 /* CSP-compliant external styles to replace inline styles */
 
+/*
+ * CSP Compliance Status:
+ * ✅ Login page - Moved to external files (login.css, login.js)
+ * ✅ Signup page - Moved to external files (signup.css, signup.js)
+ * ⚠️  Other pages - Still contain inline styles (requires cleanup)
+ *
+ * To achieve full CSP compliance without 'unsafe-inline':
+ * 1. Move all remaining inline styles to external CSS files
+ * 2. Move all inline JavaScript to external JS files
+ * 3. Remove 'unsafe-inline' from CSP policy in home.py
+ */
+
 /* Flash messages positioning */
 .flash-messages-container {
     position: fixed;

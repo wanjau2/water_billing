@@ -43,15 +43,42 @@ import base64
 # Load environment variables from the .env file
 load_dotenv()
 
-# Environment variables with fallbacks
+# Environment variables with fallbacks and validation
 TALKSASA_API_KEY = os.environ.get("TALKSASA_API_KEY")
 TALKSASA_SENDER_ID = os.environ.get("TALKSASA_SENDER_ID", "TALKSASA")
+
+# Critical configuration - SECRET_KEY is required
 SECRET_KEY = os.environ.get("SECRET_KEY")
-RATE_PER_UNIT = float(os.environ.get("RATE_PER_UNIT", 100))
-DEFAULT_PER_PAGE = int(os.environ.get("DEFAULT_PER_PAGE", 10))
-# MongoDB connection parameters
+if not SECRET_KEY:
+    import secrets as secret_gen
+    SECRET_KEY = secret_gen.token_hex(32)
+    print("WARNING: SECRET_KEY not set in environment. Using generated key for this session.")
+    print("Please set SECRET_KEY in your .env file for production!")
+
+# Parse numeric configuration with error handling
+try:
+    RATE_PER_UNIT = float(os.environ.get("RATE_PER_UNIT", 100))
+except (ValueError, TypeError):
+    RATE_PER_UNIT = 100.0
+    print("WARNING: Invalid RATE_PER_UNIT, using default: 100")
+
+try:
+    DEFAULT_PER_PAGE = int(os.environ.get("DEFAULT_PER_PAGE", 10))
+except (ValueError, TypeError):
+    DEFAULT_PER_PAGE = 10
+    print("WARNING: Invalid DEFAULT_PER_PAGE, using default: 10")
+
+# MongoDB connection parameters - critical for app functionality
 MONGO_URI = os.getenv("MONGO_URI")
 DATABASE_NAME = os.getenv("DATABASE_NAME")
+
+if not MONGO_URI:
+    print("ERROR: MONGO_URI not set in environment variables!")
+    print("Please set MONGO_URI in your .env file")
+
+if not DATABASE_NAME:
+    print("ERROR: DATABASE_NAME not set in environment variables!")
+    print("Please set DATABASE_NAME in your .env file")
 
 # URL Shortening configuration
 BITLY_ACCESS_TOKEN = os.getenv("BITLY_ACCESS_TOKEN")
@@ -60,20 +87,37 @@ ENABLE_URL_SHORTENING = os.getenv("ENABLE_URL_SHORTENING", "true").lower() == "t
 # Create Flask app
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
+
+# Enhanced CSRF Protection Configuration
+app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_TIME_LIMIT'] = 3600  # 1 hour token validity
+app.config['WTF_CSRF_SSL_STRICT'] = False  # Allow HTTP for development
+app.config['WTF_CSRF_CHECK_DEFAULT'] = True
+app.config['WTF_CSRF_METHODS'] = ['POST', 'PUT', 'PATCH', 'DELETE']
+
 # Initialize logging to file
 handler = logging.FileHandler('app.log')
 handler.setLevel(logging.INFO)
 app.logger.addHandler(handler)
+
+# Initialize CSRF Protection with enhanced configuration
 csrf = CSRFProtect(app)
 mongo = None
 
-# CSP configuration moved to add_security_headers function for direct header management
+# CSP configuration - strict security policy
+# Major templates now use external CSS/JS files for better security
 csp = {
     'default-src': "'self'",
-    'script-src': "'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://pagead2.googlesyndication.com",
-    'img-src': "'self' data: https://via.placeholder.com",
+    'script-src': "'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://pagead2.googlesyndication.com",
     'style-src': "'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
-    'font-src': "'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com data:"
+    'img-src': "'self' data: https://via.placeholder.com",
+    'font-src': "'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com data:",
+    'connect-src': "'self' https://pagead2.googlesyndication.com",
+    'frame-src': "'none'",
+    'object-src': "'none'",
+    'base-uri': "'self'",
+    'form-action': "'self'",
+    'upgrade-insecure-requests': True
 }
 
 cache_config = {
@@ -88,32 +132,46 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["200 per day", "5
 
 dns.resolver.default_resolver=dns.resolver.Resolver(configure=True)
 dns.resolver.default_resolver.nameservers = ['8.8.8.8']
-# Initialize MongoDB connection using the same approach as testmongo.py
-try:
-    # Create a new client and connect to the server
-    client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
-    
-    # Test the connection by accessing the database
-    client.admin.command('ping')
-    app.logger.info("MongoDB connection successful")
-    
-    # Create a wrapper object similar to what PyMongo provides
-    # Specify the database name explicitly
-    db = client.get_database(DATABASE_NAME)  # Use explicit database name
-    mongo = type('obj', (object,), {'db': db})
-    
-except pymongo.errors.ConnectionFailure as e:
-    app.logger.error(f"MongoDB connection failed: {e}")
-    print(f"MongoDB connection failed: {e}")
-except pymongo.errors.ConfigurationError as e:
-    app.logger.error(f"MongoDB configuration error: {e}")
-    print(f"MongoDB configuration error: {e}")
-except Exception as e:
-    app.logger.error(f"Database initialization error: {e}")
-    print(f"Database initialization error: {e}")
+# Initialize MongoDB connection with better error handling
+mongo = None
+if MONGO_URI and DATABASE_NAME:
+    try:
+        # Create a new client and connect to the server
+        client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
+
+        # Test the connection by accessing the database
+        client.admin.command('ping')
+        app.logger.info("MongoDB connection successful")
+
+        # Create a wrapper object similar to what PyMongo provides
+        # Specify the database name explicitly
+        db = client.get_database(DATABASE_NAME)  # Use explicit database name
+        mongo = type('obj', (object,), {'db': db})
+
+    except pymongo.errors.ConnectionFailure as e:
+        app.logger.error(f"MongoDB connection failed: {e}")
+        print(f"MongoDB connection failed: {e}")
+        print("Please check your MongoDB connection string and ensure MongoDB is running")
+    except pymongo.errors.ConfigurationError as e:
+        app.logger.error(f"MongoDB configuration error: {e}")
+        print(f"MongoDB configuration error: {e}")
+        print("Please check your MONGO_URI format")
+    except Exception as e:
+        app.logger.error(f"Database initialization error: {e}")
+        print(f"Database initialization error: {e}")
+        print("Please check your MongoDB configuration")
+else:
+    print("ERROR: Missing MongoDB configuration!")
+    print("MONGO_URI and DATABASE_NAME must be set in environment variables")
 
 if mongo is None:
-    app.logger.critical("MongoDB did not initialize—check MONGO_URI!")
+    app.logger.critical("MongoDB did not initialize—check MONGO_URI and DATABASE_NAME!")
+    print("CRITICAL: Failed to connect to MongoDB")
+    print("The application cannot function without a database connection")
+    print("Please:")
+    print("1. Copy .env.example to .env")
+    print("2. Set MONGO_URI and DATABASE_NAME in .env")
+    print("3. Ensure MongoDB is running")
     raise RuntimeError("Failed to connect to MongoDB")
 
 # Function to check database connection
@@ -127,14 +185,21 @@ def is_db_connected():
     except Exception:
         return False
 
-# Initialize M-Pesa API
-mpesa = MpesaAPI(
-    consumer_key=os.getenv('MPESA_CONSUMER_KEY', MPESA_CONFIG['CONSUMER_KEY']),
-    consumer_secret=os.getenv('MPESA_CONSUMER_SECRET', MPESA_CONFIG['CONSUMER_SECRET']),
-    shortcode=os.getenv('MPESA_SHORTCODE', MPESA_CONFIG['SHORTCODE']),
-    passkey=os.getenv('MPESA_PASSKEY', MPESA_CONFIG['PASSKEY']),
-    env=os.getenv('MPESA_ENV', 'sandbox')
-)
+# Initialize M-Pesa API with error handling
+mpesa = None
+try:
+    mpesa = MpesaAPI(
+        consumer_key=os.getenv('MPESA_CONSUMER_KEY', MPESA_CONFIG.get('CONSUMER_KEY', '')),
+        consumer_secret=os.getenv('MPESA_CONSUMER_SECRET', MPESA_CONFIG.get('CONSUMER_SECRET', '')),
+        shortcode=os.getenv('MPESA_SHORTCODE', MPESA_CONFIG.get('SHORTCODE', '')),
+        passkey=os.getenv('MPESA_PASSKEY', MPESA_CONFIG.get('PASSKEY', '')),
+        env=os.getenv('MPESA_ENV', 'sandbox')
+    )
+    app.logger.info("M-Pesa API initialized successfully")
+except Exception as e:
+    app.logger.error(f"M-Pesa API initialization failed: {e}")
+    print(f"WARNING: M-Pesa API initialization failed: {e}")
+    print("Payment features may not work properly")
 
 # Login required decorator
 def login_required(f):
@@ -1723,6 +1788,69 @@ def get_total_tenant_count():
         app.logger.error(f"Error getting total tenant count: {e}")
         return 0
 
+def validate_property_access(property_id, admin_id=None):
+    """
+    Validate that the admin has access to the specified property.
+    CRITICAL for preventing cross-property data access.
+    """
+    try:
+        if not admin_id:
+            admin_id = get_admin_id()
+
+        if not property_id:
+            return False
+
+        # Ensure property belongs to the admin
+        property_exists = mongo.db.properties.find_one({
+            "_id": ObjectId(property_id),
+            "admin_id": admin_id
+        })
+
+        return property_exists is not None
+
+    except Exception as e:
+        app.logger.error(f"Error validating property access: {e}")
+        return False
+
+def validate_resource_property_access(resource_type, resource_id, admin_id=None, property_id=None):
+    """
+    Validate that a resource (tenant, house, reading) belongs to the current property.
+    CRITICAL for data separation security.
+    """
+    try:
+        if not admin_id:
+            admin_id = get_admin_id()
+
+        if not property_id:
+            property_id = get_current_property_id()
+
+        if not property_id:
+            return False
+
+        collection_map = {
+            'tenant': 'tenants',
+            'house': 'houses',
+            'reading': 'meter_readings'
+        }
+
+        if resource_type not in collection_map:
+            return False
+
+        collection = getattr(mongo.db, collection_map[resource_type])
+
+        # Check if resource exists and belongs to admin and property
+        resource = collection.find_one({
+            "_id": ObjectId(resource_id),
+            "admin_id": admin_id,
+            "property_id": property_id
+        })
+
+        return resource is not None
+
+    except Exception as e:
+        app.logger.error(f"Error validating resource property access: {e}")
+        return False
+
 def get_property_settings(property_id=None):
     """Get billing settings for a specific property."""
     try:
@@ -2245,6 +2373,24 @@ def redirect_short_url(short_code):
 @app.route('/smartwater')
 def smartwater():
     return render_template('smartwater.html')
+
+@app.route('/api/csrf-token')
+@login_required
+def api_csrf_token():
+    """API endpoint to get fresh CSRF token"""
+    try:
+        from flask_wtf.csrf import generate_csrf
+        token = generate_csrf()
+        return jsonify({
+            'csrf_token': token,
+            'status': 'success'
+        })
+    except Exception as e:
+        app.logger.error(f"Error generating CSRF token: {e}")
+        return jsonify({
+            'error': 'Failed to generate CSRF token',
+            'status': 'error'
+        }), 500
 
 @app.route('/api/properties')
 @login_required
@@ -2942,9 +3088,18 @@ def get_all_bills(admin_id, tenant_id=None):
         app.logger.error(f"Error fetching all bills: {str(e)}")
         return []
 
-def build_tenant_search_query(admin_id, search_query="", search_type="all"):
-    """Build MongoDB query for tenant search."""
+def build_tenant_search_query(admin_id, search_query="", search_type="all", property_id=None):
+    """Build MongoDB query for tenant search with proper property isolation."""
     base_query = {"admin_id": admin_id}
+
+    # CRITICAL: Add property_id filtering for data separation
+    if property_id:
+        base_query["property_id"] = property_id
+    else:
+        # Get current property context to ensure data isolation
+        current_property_id = get_current_property_id()
+        if current_property_id:
+            base_query["property_id"] = current_property_id
     
     if not search_query:
         return base_query
@@ -3156,15 +3311,21 @@ def manage_tenants():
     if mongo is None:
         flash('Database connection error. Please try again later.', 'danger')
         return render_template('error.html', error_message="Database unavailable")
-    
+
+    # Get current property context for data isolation
+    current_property_id = get_current_property_id()
+    if not current_property_id:
+        flash('No property selected. Please select a property first.', 'warning')
+        return redirect(url_for('properties'))
+
     # Get pagination parameters
     page = request.args.get('page', 1, type=int)
     per_page = min(request.args.get('per_page', DEFAULT_PER_PAGE, type=int), 100)  # Limit max per_page
     search_query = request.args.get('search', '').strip()
     search_type = request.args.get('search_type', 'all')
-    
-    # Build query and get tenants with single database call
-    query = build_tenant_search_query(admin_id, search_query, search_type)
+
+    # Build query and get tenants with proper property isolation
+    query = build_tenant_search_query(admin_id, search_query, search_type, current_property_id)
     skip = (page - 1) * per_page
     
     # Use aggregation pipeline for better performance
@@ -3413,25 +3574,40 @@ def tenant_readings_data(tenant_id):
     """Get tenant readings data from meter_readings collection."""
     try:
         admin_id = get_admin_id()
+        current_property_id = get_current_property_id()
+
+        if not current_property_id:
+            return jsonify({"error": "No property selected"}), 400
+
         tenant_id_obj = ObjectId(tenant_id)
-        tenant = mongo.db.tenants.find_one({"_id": tenant_id_obj, "admin_id": admin_id})    
+
+        # Validate tenant belongs to current property (CRITICAL for data separation)
+        tenant = mongo.db.tenants.find_one({
+            "_id": tenant_id_obj,
+            "admin_id": admin_id,
+            "property_id": current_property_id
+        })
 
         if not tenant:
-            return jsonify({"error": "Tenant not found"}), 404
-        
+            return jsonify({"error": "Tenant not found or not in current property"}), 404
+
         house_number = tenant.get('house_number')
-        
-        # Get all readings for this tenant from meter_readings
+
+        # Get all readings for this tenant with property isolation
         # Sort by date_recorded descending (newest first)
-        tenant_readings = list(mongo.db.meter_readings.find(
-            {"tenant_id": tenant_id_obj, "admin_id": admin_id}
-        ).sort("date_recorded", -1))
+        tenant_readings = list(mongo.db.meter_readings.find({
+            "tenant_id": tenant_id_obj,
+            "admin_id": admin_id,
+            "property_id": current_property_id
+        }).sort("date_recorded", -1))
         
-        # If no tenant readings, check for house readings by house_number
+        # If no tenant readings, check for house readings by house_number with property isolation
         if not tenant_readings and house_number:
-            house_readings = list(mongo.db.meter_readings.find(
-                {"house_number": house_number, "admin_id": admin_id}
-            ).sort("date_recorded", -1).limit(1))
+            house_readings = list(mongo.db.meter_readings.find({
+                "house_number": house_number,
+                "admin_id": admin_id,
+                "property_id": current_property_id
+            }).sort("date_recorded", -1).limit(1))
             
             if house_readings:
                 house_reading = house_readings[0]
@@ -4174,14 +4350,20 @@ def houses():
         flash('Session expired. Please login again.', 'danger')
         return redirect(url_for('login'))
     
+    # Get current property context for data isolation
+    current_property_id = get_current_property_id()
+    if not current_property_id:
+        flash('No property selected. Please select a property first.', 'warning')
+        return redirect(url_for('properties'))
+
     # Get pagination parameters
     page = request.args.get('page', 1, type=int)
     per_page = min(request.args.get('per_page', DEFAULT_PER_PAGE, type=int), 100)  # Limit max per_page
     search_query = request.args.get('search', '').strip()
     status = request.args.get('status', '').strip()
-    
-    # Build query for houses
-    query = {"admin_id": admin_id}
+
+    # Build query for houses with proper property isolation
+    query = {"admin_id": admin_id, "property_id": current_property_id}
     if search_query:
         escaped_query = re.escape(search_query)
         query["house_number"] = {"$regex": escaped_query, "$options": "i"}
@@ -4656,13 +4838,24 @@ def transfer_tenant(tenant_id):
         flash(f'Error: {str(e)}', 'danger')
         return redirect(url_for('dashboard'))
 
-def get_last_house_reading(house_number, admin_id):
-    """Get the last reading for a specific house number from meter_readings."""
+def get_last_house_reading(house_number, admin_id, property_id=None):
+    """Get the last reading for a specific house number from meter_readings with property isolation."""
     if not house_number:
         return None
-        
+
+    query = {"house_number": house_number, "admin_id": admin_id}
+
+    # Add property filtering for data separation
+    if property_id:
+        query["property_id"] = property_id
+    else:
+        # Get current property context to ensure data isolation
+        current_property_id = get_current_property_id()
+        if current_property_id:
+            query["property_id"] = current_property_id
+
     last_reading = mongo.db.meter_readings.find_one(
-        {"house_number": house_number, "admin_id": admin_id},
+        query,
         sort=[("date_recorded", -1)]
     )
     
@@ -4700,13 +4893,25 @@ def record_reading():
     if current_reading < 0:
         flash('Readings cannot be negative', 'danger')
         return redirect(url_for('dashboard'))
-    
+
     try:
+        # Get current property context for data isolation
+        current_property_id = get_current_property_id()
+        if not current_property_id:
+            flash('No property selected. Please select a property first.', 'warning')
+            return redirect(url_for('properties'))
+
         tenant_id_obj = ObjectId(tenant_id)
-        tenant = mongo.db.tenants.find_one({"_id": tenant_id_obj, "admin_id": admin_id})
-        
+
+        # Validate tenant belongs to current property (CRITICAL for data separation)
+        tenant = mongo.db.tenants.find_one({
+            "_id": tenant_id_obj,
+            "admin_id": admin_id,
+            "property_id": current_property_id
+        })
+
         if not tenant:
-            flash('Tenant not found', 'danger')
+            flash('Tenant not found or not in current property', 'danger')
             return redirect(url_for('dashboard'))
         
         house_number = tenant.get('house_number')
@@ -6123,7 +6328,7 @@ def tenant_portal(token):
         tenant_id = token_data['tenant_id']
         admin_id = token_data['admin_id']
 
-        # Get tenant information
+        # Get tenant information with property validation
         tenant = mongo.db.tenants.find_one({
             "_id": tenant_id,
             "admin_id": admin_id
@@ -6134,10 +6339,19 @@ def tenant_portal(token):
                                  error_title="Tenant Not Found",
                                  error_message="Tenant record not found."), 404
 
-        # Get tenant's reading history
+        # CRITICAL: Get tenant's property_id for data separation
+        property_id = tenant.get('property_id')
+        if not property_id:
+            app.logger.error(f"Tenant {tenant_id} has no property_id - data integrity issue")
+            return render_template('error.html',
+                                 error_title="Data Error",
+                                 error_message="Tenant data configuration error. Please contact your landlord."), 500
+
+        # Get tenant's reading history with proper property isolation
         readings = list(mongo.db.meter_readings.find({
             "tenant_id": tenant_id,
-            "admin_id": admin_id
+            "admin_id": admin_id,
+            "property_id": property_id  # CRITICAL: Property-isolated access
         }).sort("date_recorded", -1).limit(12))  # Last 12 readings
 
         # Get payment information for each reading
@@ -6147,6 +6361,7 @@ def tenant_portal(token):
             payment = mongo.db.payments.find_one({
                 'tenant_id': tenant_id,
                 'admin_id': admin_id,
+                'property_id': property_id,  # CRITICAL: Property-isolated payment access
                 'month_year': reading_month
             })
 
@@ -6197,7 +6412,7 @@ def tenant_download_history(token):
         tenant_id = token_data['tenant_id']
         admin_id = token_data['admin_id']
 
-        # Get tenant information
+        # Get tenant information with property validation
         tenant = mongo.db.tenants.find_one({
             "_id": tenant_id,
             "admin_id": admin_id
@@ -6208,10 +6423,19 @@ def tenant_download_history(token):
                                  error_title="Tenant Not Found",
                                  error_message="Tenant record not found."), 404
 
-        # Get tenant's reading history
+        # CRITICAL: Get tenant's property_id for data separation
+        property_id = tenant.get('property_id')
+        if not property_id:
+            app.logger.error(f"Tenant {tenant_id} has no property_id - data integrity issue")
+            return render_template('error.html',
+                                 error_title="Data Error",
+                                 error_message="Tenant data configuration error. Please contact your landlord."), 500
+
+        # Get tenant's reading history with proper property isolation
         readings = list(mongo.db.meter_readings.find({
             "tenant_id": tenant_id,
-            "admin_id": admin_id
+            "admin_id": admin_id,
+            "property_id": property_id  # CRITICAL: Property-isolated access
         }).sort("date_recorded", 1))
 
         # Create Excel file in memory
@@ -7801,6 +8025,90 @@ def generate_analytics_report():
 
 #download data of all of your tenants
 # Route to download Excel template
+
+# Error handlers for better user experience
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handle 404 errors"""
+    app.logger.warning(f"404 error: {request.url}")
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors"""
+    app.logger.error(f"500 error: {error}")
+    return render_template('500.html'), 500
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handle unexpected exceptions"""
+    app.logger.error(f"Unhandled exception: {e}")
+    # Don't reveal error details in production
+    if app.debug:
+        return f"<h1>Error</h1><p>{str(e)}</p>", 500
+    else:
+        return render_template('error.html'), 500
+
+# CSRF Error Handlers for Enhanced Security
+@csrf.error_handler
+def csrf_error(reason):
+    """Handle CSRF token validation errors"""
+    app.logger.warning(f"CSRF validation failed: {reason}")
+
+    # Check if this is an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'error': 'CSRF token validation failed',
+            'message': 'Security token expired or invalid. Please refresh the page.',
+            'csrf_error': True
+        }), 400
+
+    # For regular form submissions
+    flash('Security token expired or invalid. Please try again.', 'warning')
+
+    # Redirect back to the referring page or dashboard
+    referrer = request.referrer
+    if referrer and referrer.startswith(request.host_url):
+        return redirect(referrer)
+    else:
+        return redirect(url_for('dashboard'))
+
+@app.errorhandler(400)
+def bad_request_error(error):
+    """Handle 400 bad request errors (including CSRF failures)"""
+    app.logger.warning(f"400 error: {error}")
+
+    # Check if this might be a CSRF error
+    if 'csrf' in str(error).lower() or 'token' in str(error).lower():
+        flash('Security validation failed. Please try again.', 'warning')
+        return redirect(url_for('dashboard'))
+
+    return render_template('error.html',
+                         error_message="Bad request. Please check your input."), 400
+
+# Database health check route
+@app.route('/health')
+def health_check():
+    """Simple health check endpoint"""
+    try:
+        # Check database connection
+        if not is_db_connected():
+            return jsonify({
+                'status': 'unhealthy',
+                'database': 'disconnected'
+            }), 503
+
+        return jsonify({
+            'status': 'healthy',
+            'database': 'connected'
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Health check failed: {e}")
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e)
+        }), 503
+
 if __name__ == '__main__':
     try:
         create_admin_user()

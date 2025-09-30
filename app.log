@@ -993,3 +993,6 @@ Error in payments dashboard: Could not build url for endpoint 'send_payment_remi
 Error in payments dashboard: Could not build url for endpoint 'send_payment_reminders'. Did you mean 'manual_payment_reminders' instead?
 Error in payments dashboard: Could not build url for endpoint 'send_payment_reminders'. Did you mean 'manual_payment_reminders' instead?
 Error loading subscription page: Could not build url for endpoint 'smartwater'. Did you mean 'static' instead?
+MongoDB did not initialize—check MONGO_URI and DATABASE_NAME!
+No admins found for migration
+No admins found for migration

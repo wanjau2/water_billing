@@ -133,15 +133,56 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             `;
                         } else {
+                            // Enhanced CSRF token handling with validation
                             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-                            item.innerHTML = `
-                                <form method="POST" action="/switch_property/${property.id}" class="m-0">
-                                    <input type="hidden" name="csrf_token" value="${csrfToken}"/>
-                                    <button type="submit" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                        ${property.name}
-                                    </button>
-                                </form>
-                            `;
+
+                            // Validate CSRF token exists
+                            if (!csrfToken) {
+                                console.warn('CSRF token not found. Property switching may fail.');
+                                item.innerHTML = `
+                                    <div class="px-4 py-2 text-sm text-red-600">
+                                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                                        Security token missing - refresh page
+                                    </div>
+                                `;
+                                return;
+                            }
+
+                            // Create form with enhanced CSRF protection
+                            const form = document.createElement('form');
+                            form.method = 'POST';
+                            form.action = `/switch_property/${property.id}`;
+                            form.className = 'm-0';
+
+                            // Add CSRF token with validation
+                            const csrfInput = document.createElement('input');
+                            csrfInput.type = 'hidden';
+                            csrfInput.name = 'csrf_token';
+                            csrfInput.value = csrfToken;
+                            form.appendChild(csrfInput);
+
+                            // Create submit button
+                            const button = document.createElement('button');
+                            button.type = 'submit';
+                            button.className = 'w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100';
+                            button.textContent = property.name;
+
+                            // Add form submission handler for error handling
+                            form.addEventListener('submit', function(e) {
+                                // Double-check CSRF token before submission
+                                if (!csrfInput.value) {
+                                    e.preventDefault();
+                                    alert('Security token missing. Please refresh the page and try again.');
+                                    return false;
+                                }
+
+                                // Show loading state
+                                button.disabled = true;
+                                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Switching...';
+                            });
+
+                            form.appendChild(button);
+                            item.appendChild(form);
                         }
                         propertiesList.appendChild(item);
                     });
