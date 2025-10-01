@@ -2,18 +2,286 @@
 
 {% block title %}Account Settings{% endblock %}
 
+{% block styles %}
+<style>
+    .settings-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .settings-card {
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        margin-bottom: 1.5rem;
+        border: none;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .settings-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    }
+
+    .settings-card .card-header {
+        padding: 1.25rem 1.5rem;
+        font-weight: 600;
+        border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .settings-card .card-body {
+        padding: 1.5rem;
+    }
+
+    .header-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .header-success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+    }
+
+    .header-info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+
+    .header-warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+
+    .header-secondary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 0.65rem 1rem;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+    }
+
+    .form-text {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+
+    .btn-styled {
+        padding: 0.65rem 1.5rem;
+        font-weight: 600;
+        border-radius: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+        border: none;
+    }
+
+    .btn-styled:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-primary-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-primary-gradient:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        color: white;
+    }
+
+    .btn-success-gradient {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+    }
+
+    .btn-success-gradient:hover {
+        background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%);
+        color: white;
+    }
+
+    .btn-info-gradient {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+
+    .btn-info-gradient:hover {
+        background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+        color: white;
+    }
+
+    .btn-warning-gradient {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+
+    .btn-warning-gradient:hover {
+        background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+        color: white;
+    }
+
+    .btn-secondary-gradient {
+        background: linear-gradient(135deg, #a8a8a8 0%, #636363 100%);
+        color: white;
+    }
+
+    .btn-secondary-gradient:hover {
+        background: linear-gradient(135deg, #636363 0%, #a8a8a8 100%);
+        color: white;
+    }
+
+    .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    .alert-styled {
+        border-radius: 10px;
+        border: none;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .alert-info {
+        background: linear-gradient(135deg, rgba(79, 172, 254, 0.1) 0%, rgba(0, 242, 254, 0.1) 100%);
+        border-left: 4px solid #4facfe;
+    }
+
+    .accordion-button {
+        font-weight: 600;
+        background-color: #f8f9fa;
+        color: #2d3748;
+    }
+
+    .accordion-button:not(.collapsed) {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+    }
+
+    .accordion-button:focus {
+        box-shadow: none;
+        border-color: rgba(102, 126, 234, 0.3);
+    }
+
+    .accordion-body {
+        background-color: #ffffff !important;
+        color: #2d3748 !important;
+        padding: 1.5rem !important;
+    }
+
+    .accordion-body * {
+        color: #2d3748 !important;
+    }
+
+    .accordion-body ol, .accordion-body ul {
+        color: #2d3748 !important;
+    }
+
+    .accordion-body li {
+        margin-bottom: 0.75rem !important;
+        color: #4a5568 !important;
+        line-height: 1.6 !important;
+    }
+
+    .accordion-body p {
+        color: #4a5568 !important;
+    }
+
+    .accordion-body strong {
+        color: #2d3748 !important;
+        font-weight: 600 !important;
+    }
+
+    .accordion-body a {
+        color: #667eea !important;
+        text-decoration: underline !important;
+    }
+
+    .accordion-body .alert {
+        color: #2d3748 !important;
+    }
+
+    .accordion-body .alert strong {
+        color: #1a202c !important;
+    }
+
+    .accordion-item {
+        border: 1px solid #e2e8f0;
+        margin-bottom: 0.5rem;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .accordion-collapse {
+        background-color: #ffffff !important;
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom: none;
+    }
+
+    .modal-header .btn-close {
+        filter: brightness(0) invert(1);
+    }
+
+    code {
+        background-color: #f8f9fa;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        color: #e83e8c;
+        font-size: 0.9rem;
+    }
+
+    .form-check-input:checked {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+
+    .page-title {
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 2rem;
+        font-size: 2rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-4 settings-container">
         <!-- Flash Messages -->
 
     <div class="row">
 
-        <div class="col-md-8 offset-md-2">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
+        <div class="col-md-12">
+            <h1 class="page-title">Account Settings</h1>
+            <div class="card settings-card">
+                <div class="card-header header-primary">
                     <h4 class="mb-0">SMS Configuration</h4>
                 </div>
-                <div class="alert alert-info">
+                <div class="card-body">
+                <div class="alert alert-info alert-styled">
                     <h5>Configuration Status</h5>
                     {% if config %}
                         <p><strong>Last Updated:</strong> {{config.updated_at}}</p>
@@ -58,18 +326,19 @@
                         </div>
                         {% endif %}
 
-                        <button type="submit" class="btn btn-primary">Save Configuration</button>
+                        <button type="submit" class="btn btn-styled btn-primary-gradient">Save Configuration</button>
                     </form>
+                </div>
                 </div>
             </div>
 
             <!-- M-Pesa API Configuration -->
-            <div class="card mt-4">
-                <div class="card-header bg-success text-white">
+            <div class="card settings-card">
+                <div class="card-header header-success">
                     <h4 class="mb-0">M-Pesa API Configuration</h4>
                 </div>
                 <div class="card-body">
-                    <div class="alert alert-info">
+                    <div class="alert alert-info alert-styled">
                         <h6><i class="fas fa-info-circle"></i> M-Pesa API Setup</h6>
                         <p class="mb-2">To enable automatic payment tracking, you need to configure your M-Pesa API credentials.</p>
                         <p class="mb-0"><strong>Status:</strong>
@@ -151,8 +420,8 @@
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-success">Save M-Pesa Configuration</button>
-                        <button type="button" class="btn btn-info ms-2" data-bs-toggle="modal" data-bs-target="#mpesaGuideModal">
+                        <button type="submit" class="btn btn-styled btn-success-gradient">Save M-Pesa Configuration</button>
+                        <button type="button" class="btn btn-styled btn-info-gradient ms-2" data-bs-toggle="modal" data-bs-target="#mpesaGuideModal">
                             <i class="fas fa-question-circle"></i> Setup Guide
                         </button>
                     </form>
@@ -160,8 +429,8 @@
             </div>
 
             <!-- User Profile Settings -->
-            <div class="card mt-4">
-                <div class="card-header bg-info text-white">
+            <div class="card settings-card">
+                <div class="card-header header-info">
                     <h4 class="mb-0">Account Information</h4>
                 </div>
                 <div class="card-body">
@@ -201,14 +470,14 @@
                         </div>
                         {% endif %}
                         
-                        <button type="submit" class="btn btn-info text-white">Update Profile</button>
+                        <button type="submit" class="btn btn-styled btn-info-gradient">Update Profile</button>
                     </form>
                 </div>
             </div>
 
             <!-- Password Change Section -->
-            <div class="card mt-4">
-                <div class="card-header bg-warning text-dark">
+            <div class="card settings-card">
+                <div class="card-header header-warning">
                     <h4 class="mb-0">Change Password</h4>
                 </div>
                 <div class="card-body">
@@ -236,13 +505,13 @@
                             <div class="form-text">Password must contain at least 8 characters, including uppercase, lowercase letters and numbers.</div>
                         </div>
                         
-                        <button type="submit" class="btn btn-warning">Change Password</button>
+                        <button type="submit" class="btn btn-styled btn-warning-gradient">Change Password</button>
                     </form>
                 </div>
             </div>
 
-            <div class="card mt-4">
-                <div class="card-header bg-secondary text-white">
+            <div class="card settings-card">
+                <div class="card-header header-secondary">
                     <h4 class="mb-0">Test SMS</h4>
                 </div>
                 <div class="card-body">
@@ -260,7 +529,7 @@
                             <textarea class="form-control" id="test_message" name="test_message" rows="3" 
                                       required>This is a test message from your Water Billing System.</textarea>
                         </div>
-                        <button type="submit" class="btn btn-secondary">Send Test SMS</button>
+                        <button type="submit" class="btn btn-styled btn-secondary-gradient">Send Test SMS</button>
                     </form>
                 </div>
             </div>

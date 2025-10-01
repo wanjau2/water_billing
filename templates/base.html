@@ -1,11 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!--ads-->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8848769163686423"
-     crossorigin="anonymous"></script>
-
-
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -274,7 +269,36 @@
   </aside>
 
   <!-- Main Content Area -->
-  <div id="main-content" class="p-4 pt-20 transition-all duration-300 ml-0 md:ml-64">    
+  <style>
+    body {
+      padding-top: 64px !important;
+    }
+
+    #default-sidebar {
+      top: 64px !important;
+      height: calc(100vh - 64px) !important;
+    }
+
+    @media (min-width: 768px) {
+      #main-content {
+        margin-left: 256px !important;
+        padding-top: 1rem !important;
+      }
+      #default-sidebar {
+        transform: translateX(0) !important;
+      }
+    }
+    @media (max-width: 767px) {
+      #main-content {
+        margin-left: 0 !important;
+        padding-top: 1rem !important;
+      }
+      #default-sidebar.translate-x-0 {
+        transform: translateX(0) !important;
+      }
+    }
+  </style>
+  <div id="main-content" class="p-4 transition-all duration-300">
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}

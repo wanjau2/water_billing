@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from dateutil.relativedelta import relativedelta
 from dotenv import load_dotenv
 from functools import wraps
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
@@ -108,16 +108,16 @@ mongo = None
 # Major templates now use external CSS/JS files for better security
 csp = {
     'default-src': "'self'",
-    'script-src': "'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://pagead2.googlesyndication.com",
-    'style-src': "'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+    'script-src': "'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+    'style-src': "'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
     'img-src': "'self' data: https://via.placeholder.com",
     'font-src': "'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com data:",
-    'connect-src': "'self' https://pagead2.googlesyndication.com",
+    'connect-src': "'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
     'frame-src': "'none'",
     'object-src': "'none'",
     'base-uri': "'self'",
     'form-action': "'self'",
-    'upgrade-insecure-requests': True
+    'upgrade-insecure-requests': ''
 }
 
 cache_config = {
@@ -275,24 +275,23 @@ def check_subscription_limit(resource_type='tenant'):
                 subscription_type = admin.get('subscription_type', 'monthly')
                 
                 # Check if subscription is active
-                if subscription_status != 'active' and tier != 'starter':
+                if subscription_status != 'active':
                     flash('Your subscription is inactive. Please renew to continue.', 'danger')
                     return redirect(url_for('subscription'))
-                
+
                 # Check expiry for monthly and annual subscriptions
                 if subscription_type in ['monthly', 'annual']:
                     end_date = admin.get('subscription_end_date')
-                    if end_date and end_date < datetime.now() and tier != 'starter':
-                        # Downgrade to starter tier
+                    if end_date and end_date < datetime.now():
+                        # Mark subscription as expired
                         mongo.db.admins.update_one(
                             {"_id": admin_id},
                             {"$set": {
-                                "subscription_tier": "starter",
                                 "subscription_status": "expired"
                             }}
                         )
-                        tier = 'starter'
-                        flash('Your subscription has expired. You have been downgraded to the Starter plan.', 'warning')
+                        flash('Your subscription has expired. Please renew to continue.', 'warning')
+                        return redirect(url_for('subscription'))
                 
                 # Get limits for the tier
                 tier_config = SUBSCRIPTION_TIERS.get(tier, SUBSCRIPTION_TIERS['starter'])
@@ -327,7 +326,189 @@ def check_subscription_limit(resource_type='tenant'):
                 return f(*args, **kwargs)
                 
         return decorated_function
-    return decorator 
+    return decorator
+
+def enforce_subscription_payment(exclude_routes=None):
+    """
+    STRICT SUBSCRIPTION ENFORCEMENT DECORATOR
+    Completely halts ALL operations if subscription payments are overdue.
+    This is more restrictive than check_subscription_limit.
+    """
+    if exclude_routes is None:
+        exclude_routes = ['subscription', 'login', 'logout', 'initiate_subscription_payment', 'mpesa_callback']
+
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            try:
+                # Skip enforcement for excluded routes
+                if request.endpoint in exclude_routes:
+                    return f(*args, **kwargs)
+
+                admin_id = get_admin_id()
+                admin = mongo.db.admins.find_one({"_id": admin_id})
+
+                if not admin:
+                    flash('Admin account not found', 'danger')
+                    return redirect(url_for('login'))
+
+                # Get subscription details
+                tier = admin.get('subscription_tier', 'starter')
+                subscription_status = admin.get('subscription_status', 'active')
+                subscription_type = admin.get('subscription_type', 'monthly')
+                subscription_end_date = admin.get('subscription_end_date')
+                last_payment_date = admin.get('last_payment_date')
+                auto_renew = admin.get('auto_renew', False)
+
+                # CRITICAL: Check if subscription has expired
+                subscription_expired = False
+                grace_period_expired = False
+
+                if subscription_end_date and subscription_end_date < datetime.now():
+                    subscription_expired = True
+
+                    # Check grace period (7 days after expiry)
+                    grace_period_end = subscription_end_date + timedelta(days=7)
+                    if datetime.now() > grace_period_end:
+                        grace_period_expired = True
+
+                # CRITICAL: Check payment overdue (more than 30 days since last payment)
+                payment_overdue = False
+                if last_payment_date:
+                    days_since_payment = (datetime.now() - last_payment_date).days
+                    if days_since_payment > 30:  # 30 days payment overdue
+                        payment_overdue = True
+                else:  # No payment record for any tier
+                    payment_overdue = True
+
+                # ENFORCEMENT RULES - COMPLETE HALT CONDITIONS
+                halt_reasons = []
+
+                # 1. Subscription status is not active
+                if subscription_status != 'active':
+                    halt_reasons.append(f"Your {tier} subscription is {subscription_status}")
+
+                # 2. Grace period has expired
+                if grace_period_expired:
+                    halt_reasons.append("Your subscription grace period has expired")
+
+                # 3. Payment is severely overdue
+                if payment_overdue:
+                    halt_reasons.append("Your subscription payment is overdue")
+
+                # 4. No payment record for subscription
+                if not last_payment_date:
+                    halt_reasons.append("No payment record found for your subscription")
+
+                # COMPLETE HALT - Block ALL operations
+                if halt_reasons:
+                    # Suspend account (no free tier to downgrade to)
+                    mongo.db.admins.update_one(
+                        {"_id": admin_id},
+                        {"$set": {
+                            "subscription_status": "suspended",
+                            "suspended_at": datetime.now(),
+                            "suspension_reason": "; ".join(halt_reasons)
+                        }}
+                    )
+
+                    # Log the suspension
+                    app.logger.critical(f"SUBSCRIPTION SUSPENDED - Admin {admin_id}: {'; '.join(halt_reasons)}")
+
+                    # Create suspension record
+                    mongo.db.subscription_suspensions.insert_one({
+                        "admin_id": admin_id,
+                        "suspended_at": datetime.now(),
+                        "reasons": halt_reasons,
+                        "tier_at_suspension": tier,
+                        "last_payment_date": last_payment_date,
+                        "subscription_end_date": subscription_end_date
+                    })
+
+                    # Block access with detailed message
+                    halt_message = "🚫 ALL OPERATIONS SUSPENDED - " + "; ".join(halt_reasons)
+                    flash(halt_message, 'danger')
+                    flash('Please make payment to reactivate your account immediately.', 'danger')
+
+                    return render_template('subscription_suspended.html',
+                                        reasons=halt_reasons,
+                                        admin=admin,
+                                        suspension_date=datetime.now())
+
+                # WARNING CHECKS - Allow operations but show warnings
+                warning_messages = []
+
+                # 1. Subscription expires within 3 days
+                if subscription_end_date and not subscription_expired:
+                    days_until_expiry = (subscription_end_date - datetime.now()).days
+                    if days_until_expiry <= 3:
+                        warning_messages.append(f"⚠️ Your subscription expires in {days_until_expiry} days")
+
+                # 2. Currently in grace period
+                if subscription_expired and not grace_period_expired:
+                    days_in_grace = (datetime.now() - subscription_end_date).days
+                    warning_messages.append(f"⚠️ Subscription expired {days_in_grace} days ago - Grace period ends soon")
+
+                # 3. Auto-renewal failed (if applicable)
+                if auto_renew and subscription_expired:
+                    warning_messages.append("⚠️ Auto-renewal failed - Please update payment method")
+
+                # Show warnings but allow operations
+                for warning in warning_messages:
+                    flash(warning, 'warning')
+
+                return f(*args, **kwargs)
+
+            except Exception as e:
+                app.logger.error(f"Subscription enforcement error: {e}")
+                flash('Subscription validation error. Please contact support.', 'danger')
+                return redirect(url_for('subscription'))
+
+        return decorated_function
+    return decorator
+
+def check_subscription_status_only():
+    """Helper function to check subscription status without enforcement"""
+    try:
+        admin_id = get_admin_id()
+        admin = mongo.db.admins.find_one({"_id": admin_id})
+
+        if not admin:
+            return {'valid': False, 'reason': 'Admin not found'}
+
+        tier = admin.get('subscription_tier', 'starter')
+        subscription_status = admin.get('subscription_status', 'active')
+        subscription_end_date = admin.get('subscription_end_date')
+        last_payment_date = admin.get('last_payment_date')
+
+        # Check expiry
+        expired = False
+        grace_period = False
+        if subscription_end_date and subscription_end_date < datetime.now():
+            expired = True
+            grace_period_end = subscription_end_date + timedelta(days=7)
+            grace_period = datetime.now() <= grace_period_end
+
+        # Check payment overdue
+        payment_overdue = False
+        if last_payment_date and tier != 'starter':
+            days_since_payment = (datetime.now() - last_payment_date).days
+            payment_overdue = days_since_payment > 30
+
+        return {
+            'valid': subscription_status == 'active' and (not expired or grace_period) and not payment_overdue,
+            'tier': tier,
+            'status': subscription_status,
+            'expired': expired,
+            'grace_period': grace_period,
+            'payment_overdue': payment_overdue,
+            'last_payment_date': last_payment_date,
+            'subscription_end_date': subscription_end_date
+        }
+
+    except Exception as e:
+        app.logger.error(f"Subscription status check error: {e}")
+        return {'valid': False, 'reason': str(e)}
 
 def initialize_subscriptions():
     """Initialize subscription data for existing admins"""
@@ -363,8 +544,7 @@ def initialize_subscriptions():
                     "subscription_tier": tier,
                     "subscription_start_date": datetime.now(),
                     "subscription_end_date": datetime.now() + relativedelta(months=1),
-                    "subscription_status": "active",
-                    "trial_ends_at": datetime.now() + timedelta(days=14)  # 14-day trial
+                    "subscription_status": "active"
                 }}
             )
             
@@ -516,9 +696,10 @@ def migrate_existing_readings_to_payments():
         existing_readings = list(mongo.db.water_readings.find({}))
         
         for reading in existing_readings:
-            # Check if payment record already exists
+            # Check if payment record already exists (with proper admin validation)
             existing_payment = mongo.db.payments.find_one({
-                'reading_id': reading['_id']
+                'reading_id': reading['_id'],
+                'admin_id': reading.get('admin_id')  # Ensure admin consistency
             })
             
             if not existing_payment:
@@ -530,6 +711,7 @@ def migrate_existing_readings_to_payments():
                     'admin_id': reading['admin_id'],
                     'tenant_id': reading['tenant_id'],
                     'house_id': reading.get('house_id'),
+                    'property_id': reading.get('property_id'),  # Include property_id for data separation
                     'bill_amount': reading.get('bill_amount', 0),
                     'amount_paid': 0.0,
                     'payment_status': 'unpaid',
@@ -770,10 +952,10 @@ def subscription():
         current_tier_key = admin.get('subscription_tier', 'starter')
         current_tier = SUBSCRIPTION_TIERS.get(current_tier_key, SUBSCRIPTION_TIERS['starter'])
         subscription_type = admin.get('subscription_type', 'monthly')
-        
-        # Calculate days remaining for monthly subscriptions
+
+        # Calculate days remaining for all subscriptions with end dates
         days_remaining = None
-        if subscription_type == 'monthly' and admin.get('subscription_end_date'):
+        if admin.get('subscription_end_date'):
             days_remaining = (admin['subscription_end_date'] - datetime.now()).days
             
         # Get payment history
@@ -830,8 +1012,56 @@ def upgrade_subscription():
     except Exception as e:
         app.logger.error(f"Error upgrading subscription: {e}")
         flash('Error processing subscription change', 'danger')
-        
+
     return redirect(url_for('subscription'))
+
+@app.route('/fix_subscription_dates', methods=['GET'])
+@login_required
+def fix_subscription_dates():
+    """Fix missing subscription dates for existing admins"""
+    try:
+        admin_id = get_admin_id()
+        admin = mongo.db.admins.find_one({"_id": admin_id})
+
+        if not admin:
+            flash('Admin not found', 'danger')
+            return redirect(url_for('subscription'))
+
+        # Check if subscription_end_date is missing
+        if not admin.get('subscription_end_date'):
+            subscription_type = admin.get('subscription_type', 'monthly')
+            tier = admin.get('subscription_tier', 'starter')
+
+            # Set start date to now if missing
+            start_date = admin.get('subscription_start_date', datetime.now())
+
+            # Calculate end date based on subscription type
+            if subscription_type == 'annual':
+                end_date = start_date + relativedelta(years=1)
+            else:  # monthly or default
+                end_date = start_date + relativedelta(months=1)
+
+            # Update admin record
+            mongo.db.admins.update_one(
+                {"_id": admin_id},
+                {"$set": {
+                    "subscription_start_date": start_date,
+                    "subscription_end_date": end_date,
+                    "subscription_status": admin.get('subscription_status', 'active'),
+                    "auto_renew": admin.get('auto_renew', True)
+                }}
+            )
+
+            flash(f'Subscription dates have been set! Your {subscription_type} subscription expires on {end_date.strftime("%B %d, %Y")}', 'success')
+        else:
+            flash('Subscription dates are already set.', 'info')
+
+        return redirect(url_for('subscription'))
+
+    except Exception as e:
+        app.logger.error(f"Error fixing subscription dates: {e}")
+        flash('Error updating subscription dates', 'danger')
+        return redirect(url_for('subscription'))
 
 @app.route('/initiate_subscription_payment', methods=['POST'])
 @login_required
@@ -918,6 +1148,96 @@ def initiate_subscription_payment():
         app.logger.error(f"Payment initiation error: {e}")
         return jsonify({'error': 'Failed to initiate payment'}), 500
 
+@app.route('/mpesa/signup-callback', methods=['POST'])
+@csrf.exempt  # M-Pesa callbacks can't send CSRF tokens
+def mpesa_signup_callback():
+    """Handle M-Pesa payment callbacks for new signups"""
+    try:
+        # Get callback data
+        data = request.get_json()
+
+        # Extract relevant information
+        result_code = data['Body']['stkCallback']['ResultCode']
+        checkout_request_id = data['Body']['stkCallback']['CheckoutRequestID']
+
+        # Find signup payment record
+        payment = mongo.db.signup_payments.find_one({
+            'checkout_request_id': checkout_request_id
+        })
+
+        if not payment:
+            app.logger.error(f"Signup payment record not found for {checkout_request_id}")
+            return jsonify({'ResultCode': 1, 'ResultDesc': 'Payment not found'})
+
+        admin_id = payment['admin_id']
+
+        if result_code == 0:  # Success
+            # Extract payment details
+            callback_metadata = data['Body']['stkCallback']['CallbackMetadata']['Item']
+
+            amount = next(item['Value'] for item in callback_metadata if item['Name'] == 'Amount')
+            receipt_number = next(item['Value'] for item in callback_metadata if item['Name'] == 'MpesaReceiptNumber')
+
+            # Update payment record
+            mongo.db.signup_payments.update_one(
+                {'_id': payment['_id']},
+                {'$set': {
+                    'status': 'completed',
+                    'receipt_number': receipt_number,
+                    'completed_at': datetime.now()
+                }}
+            )
+
+            # ACTIVATE THE ACCOUNT
+            tier = payment['tier']
+            payment_type = payment['payment_type']
+
+            # Calculate subscription dates
+            start_date = datetime.now()
+            if payment_type == 'annual':
+                end_date = start_date + relativedelta(years=1)
+            else:  # monthly
+                end_date = start_date + relativedelta(months=1)
+
+            # Activate admin account
+            mongo.db.admins.update_one(
+                {"_id": admin_id},
+                {"$set": {
+                    "subscription_status": "active",
+                    "subscription_start_date": start_date,
+                    "subscription_end_date": end_date,
+                    "last_payment_date": start_date
+                }}
+            )
+
+            app.logger.info(f"Signup payment successful for admin {admin_id}, subscription activated")
+
+        else:  # Payment failed
+            # Update payment status
+            mongo.db.signup_payments.update_one(
+                {'_id': payment['_id']},
+                {'$set': {
+                    'status': 'failed',
+                    'failed_at': datetime.now()
+                }}
+            )
+
+            # Mark admin account as payment failed (can retry)
+            mongo.db.admins.update_one(
+                {"_id": admin_id},
+                {"$set": {
+                    "subscription_status": "payment_failed"
+                }}
+            )
+
+            app.logger.error(f"Signup payment failed for admin {admin_id}")
+
+        return jsonify({'ResultCode': 0, 'ResultDesc': 'Success'})
+
+    except Exception as e:
+        app.logger.error(f"Signup callback error: {e}")
+        return jsonify({'ResultCode': 1, 'ResultDesc': 'Internal error'})
+
 @app.route('/mpesa/callback', methods=['POST'])
 @csrf.exempt  # M-Pesa callbacks can't send CSRF tokens
 def mpesa_callback():
@@ -956,31 +1276,27 @@ def mpesa_callback():
                 }}
             )
             
-            # Activate subscription
+            # AUTOMATIC REACTIVATION: Use new reactivation system
             admin_id = payment['admin_id']
             tier = payment['tier']
             payment_type = payment['payment_type']
-            
-            subscription_update = {
-                "subscription_tier": tier,
-                "subscription_type": payment_type,
-                "subscription_status": "active",
-                "subscription_start_date": datetime.now(),
-                "last_payment_date": datetime.now(),
-                "auto_renew": True  # Both monthly and annual can have auto-renewal
-            }
-            
-            if payment_type == 'monthly':
-                subscription_update["subscription_end_date"] = datetime.now() + relativedelta(months=1)
-                subscription_update["next_billing_date"] = datetime.now() + relativedelta(months=1)
-            else:  # annual
-                subscription_update["subscription_end_date"] = datetime.now() + relativedelta(years=1)
-                subscription_update["next_billing_date"] = datetime.now() + relativedelta(years=1)
-                
-            mongo.db.admins.update_one(
-                {"_id": admin_id},
-                {"$set": subscription_update}
-            )
+
+            # Use enhanced reactivation function (handles suspended accounts)
+            reactivation_success = reactivate_subscription_on_payment(admin_id, tier, payment_type)
+
+            if not reactivation_success:
+                app.logger.error(f"Failed to reactivate subscription for admin {admin_id}")
+                # Fallback to manual activation
+                mongo.db.admins.update_one(
+                    {"_id": admin_id},
+                    {"$set": {
+                        "subscription_tier": tier,
+                        "subscription_type": payment_type,
+                        "subscription_status": "active",
+                        "subscription_start_date": datetime.now(),
+                        "last_payment_date": datetime.now()
+                    }}
+                )
             
             # Send confirmation SMS
             admin = mongo.db.admins.find_one({"_id": admin_id})
@@ -1430,6 +1746,97 @@ def check_payment_status(checkout_request_id):
         app.logger.error(f"Payment status check error: {e}")
         return jsonify({'error': 'Failed to check status'}), 500
 
+@app.route('/admin/check_subscriptions', methods=['POST'])
+@login_required
+def manual_subscription_check():
+    """Manually trigger aggressive subscription enforcement (Admin only)"""
+    try:
+        admin_id = get_admin_id()
+        admin = mongo.db.admins.find_one({"_id": admin_id})
+
+        # Only allow super admins to trigger this
+        if not admin or admin.get('role') != 'super_admin':
+            flash('Unauthorized access', 'danger')
+            return redirect(url_for('dashboard'))
+
+        check_subscription_expiry()
+
+        flash('Subscription enforcement check completed successfully', 'success')
+        return redirect(url_for('subscription'))
+
+    except Exception as e:
+        app.logger.error(f"Manual subscription check error: {e}")
+        flash('Error during subscription check', 'danger')
+        return redirect(url_for('subscription'))
+
+def reactivate_subscription_on_payment(admin_id, tier, payment_type):
+    """AUTOMATIC REACTIVATION: Restore suspended accounts upon payment"""
+    try:
+        app.logger.info(f"Reactivating subscription for admin {admin_id}")
+
+        # Check if account was suspended
+        admin = mongo.db.admins.find_one({"_id": admin_id})
+        if not admin:
+            return False
+
+        was_suspended = admin.get('subscription_status') == 'suspended'
+
+        # Calculate new subscription end date
+        if payment_type == 'monthly':
+            new_end_date = datetime.now() + relativedelta(months=1)
+        else:  # annual
+            new_end_date = datetime.now() + relativedelta(years=1)
+
+        # IMMEDIATE REACTIVATION
+        reactivation_data = {
+            "subscription_tier": tier,
+            "subscription_type": payment_type,
+            "subscription_status": "active",
+            "subscription_start_date": datetime.now(),
+            "subscription_end_date": new_end_date,
+            "last_payment_date": datetime.now(),
+            "auto_renew": True,
+            "reactivated_at": datetime.now() if was_suspended else None
+        }
+
+        # Clear suspension fields
+        if was_suspended:
+            reactivation_data.update({
+                "suspended_at": None,
+                "suspension_reason": None,
+                "grace_period_start": None
+            })
+
+        mongo.db.admins.update_one(
+            {"_id": admin_id},
+            {"$set": reactivation_data}
+        )
+
+        # Log reactivation
+        if was_suspended:
+            app.logger.info(f"REACTIVATED: Admin {admin_id} subscription restored from suspension")
+
+            # Create reactivation record
+            mongo.db.subscription_reactivations.insert_one({
+                "admin_id": admin_id,
+                "reactivated_at": datetime.now(),
+                "previous_status": "suspended",
+                "new_tier": tier,
+                "payment_type": payment_type
+            })
+
+            # Send reactivation SMS
+            if admin.get('phone'):
+                tier_name = SUBSCRIPTION_TIERS[tier]['name']
+                message = f"🎉 ACCOUNT REACTIVATED! Your {tier_name} subscription is now active. All operations restored. Welcome back!"
+                send_message(admin['phone'], message)
+
+        return True
+
+    except Exception as e:
+        app.logger.error(f"Reactivation error for admin {admin_id}: {e}")
+        return False
+
 @app.route('/toggle_auto_renew', methods=['POST'])
 @login_required
 def toggle_auto_renew():
@@ -1459,42 +1866,218 @@ def toggle_auto_renew():
         app.logger.error(f"Toggle auto-renew error: {e}")
         return jsonify({'error': 'Failed to update auto-renewal'}), 500
 
-def check_subscription_expiry():
-    """Check for expiring subscriptions and send reminders"""
+@app.route('/admin/test_subscription_enforcement', methods=['GET', 'POST'])
+@login_required
+def test_subscription_enforcement():
+    """Test subscription enforcement by simulating different scenarios"""
     try:
+        admin_id = get_admin_id()
+        admin = mongo.db.admins.find_one({"_id": admin_id})
+
+        if request.method == 'POST':
+            test_scenario = request.form.get('scenario')
+
+            if test_scenario == 'suspend':
+                # Simulate suspension
+                mongo.db.admins.update_one(
+                    {"_id": admin_id},
+                    {"$set": {
+                        "subscription_status": "suspended",
+                        "suspended_at": datetime.now(),
+                        "suspension_reason": "Test suspension"
+                    }}
+                )
+                flash('Account suspended for testing - try accessing dashboard', 'warning')
+
+            elif test_scenario == 'expire':
+                # Simulate expiry
+                mongo.db.admins.update_one(
+                    {"_id": admin_id},
+                    {"$set": {
+                        "subscription_end_date": datetime.now() - timedelta(days=1),
+                        "subscription_status": "expired"
+                    }}
+                )
+                flash('Subscription expired for testing - try accessing dashboard', 'warning')
+
+            elif test_scenario == 'overdue':
+                # Simulate payment overdue
+                mongo.db.admins.update_one(
+                    {"_id": admin_id},
+                    {"$set": {
+                        "last_payment_date": datetime.now() - timedelta(days=35),
+                        "subscription_tier": "business"
+                    }}
+                )
+                flash('Payment overdue for testing - try accessing dashboard', 'warning')
+
+            elif test_scenario == 'restore':
+                # Restore to active
+                mongo.db.admins.update_one(
+                    {"_id": admin_id},
+                    {"$set": {
+                        "subscription_status": "active",
+                        "subscription_tier": "pro",
+                        "subscription_end_date": datetime.now() + relativedelta(months=1),
+                        "last_payment_date": datetime.now(),
+                        "suspended_at": None,
+                        "suspension_reason": None
+                    }}
+                )
+                flash('Account restored to active status', 'success')
+
+            return redirect(url_for('test_subscription_enforcement'))
+
+        # Get subscription status
+        status_info = check_subscription_status_only()
+
+        return render_template('test_subscription.html',
+                             admin=admin,
+                             status_info=status_info)
+
+    except Exception as e:
+        app.logger.error(f"Test subscription error: {e}")
+        flash('Error in subscription testing', 'danger')
+        return redirect(url_for('subscription'))
+
+def check_subscription_expiry():
+    """ENHANCED: Aggressive subscription monitoring and automatic suspension"""
+    try:
+        app.logger.info("Starting aggressive subscription enforcement check...")
+
+        # PHASE 1: IMMEDIATE SUSPENSION for severely overdue accounts
+        # Find accounts with no payment for 30+ days
+        thirty_days_ago = datetime.now() - timedelta(days=30)
+
+        severe_overdue = mongo.db.admins.find({
+            "$or": [
+                {
+                    "last_payment_date": {"$lt": thirty_days_ago},
+                    "subscription_tier": {"$nin": ["starter", "free"]}
+                },
+                {
+                    "last_payment_date": {"$exists": False},
+                    "subscription_tier": {"$nin": ["starter", "free"]}
+                }
+            ],
+            "subscription_status": {"$ne": "suspended"}
+        })
+
+        for admin in severe_overdue:
+            # IMMEDIATE SUSPENSION - NO GRACE PERIOD
+            suspension_reason = "Payment overdue for 30+ days"
+
+            mongo.db.admins.update_one(
+                {"_id": admin['_id']},
+                {"$set": {
+                    "subscription_tier": "starter",
+                    "subscription_status": "suspended",
+                    "suspended_at": datetime.now(),
+                    "suspension_reason": suspension_reason
+                }}
+            )
+
+            # Create suspension record
+            mongo.db.subscription_suspensions.insert_one({
+                "admin_id": admin['_id'],
+                "suspended_at": datetime.now(),
+                "reasons": [suspension_reason],
+                "tier_at_suspension": admin.get('subscription_tier', 'unknown'),
+                "last_payment_date": admin.get('last_payment_date'),
+                "auto_suspended": True
+            })
+
+            app.logger.critical(f"AUTO-SUSPENDED: Admin {admin['_id']} - Payment overdue 30+ days")
+
+            # Send critical suspension SMS
+            if admin.get('phone'):
+                message = f"🚫 ACCOUNT SUSPENDED: Payment overdue 30+ days. ALL operations halted. Pay immediately to restore access."
+                send_message(admin['phone'], message)
+
+        # PHASE 2: GRACE PERIOD EXPIRY - Suspend accounts past 7-day grace
+        seven_days_ago = datetime.now() - timedelta(days=7)
+
+        grace_expired = mongo.db.admins.find({
+            "subscription_end_date": {"$lt": seven_days_ago},
+            "subscription_status": "expired",
+            "subscription_tier": {"$nin": ["starter", "free"]}
+        })
+
+        for admin in grace_expired:
+            suspension_reason = "Grace period expired (7 days past subscription end)"
+
+            mongo.db.admins.update_one(
+                {"_id": admin['_id']},
+                {"$set": {
+                    "subscription_tier": "starter",
+                    "subscription_status": "suspended",
+                    "suspended_at": datetime.now(),
+                    "suspension_reason": suspension_reason
+                }}
+            )
+
+            app.logger.warning(f"GRACE EXPIRED: Admin {admin['_id']} suspended after grace period")
+
+            if admin.get('phone'):
+                message = f"🚫 ACCOUNT SUSPENDED: Grace period expired. ALL operations halted until payment."
+                send_message(admin['phone'], message)
+
+        # PHASE 3: EXPIRY WARNINGS (Standard behavior)
         # Find subscriptions expiring in 3 days
         expiry_date = datetime.now() + timedelta(days=3)
         expiring_admins = mongo.db.admins.find({
             "subscription_end_date": {"$lte": expiry_date},
+            "subscription_end_date": {"$gt": datetime.now()},
             "subscription_status": "active",
-            "subscription_tier": {"$ne": "free"}
+            "subscription_tier": {"$nin": ["starter", "free"]}
         })
-        
+
         for admin in expiring_admins:
-            # Send SMS reminder
             if admin.get('phone'):
-                # Create shortened URL for subscription renewal
                 long_subscription_url = f"{request.url_root.rstrip('/')}/subscription"
                 short_subscription_url = shorten_url(long_subscription_url, f"sub_{admin['_id']}_{datetime.now().strftime('%Y%m')}")
 
                 days_remaining = (admin['subscription_end_date'] - datetime.now()).days
-                message = f"Your {SUBSCRIPTION_TIERS[admin['subscription_tier']]['name']} subscription expires in {days_remaining} days. Renew now: {short_subscription_url}"
+                message = f"⚠️ URGENT: {SUBSCRIPTION_TIERS[admin['subscription_tier']]['name']} subscription expires in {days_remaining} days. Renew: {short_subscription_url}"
                 send_message(admin['phone'], message)
-                
-        # Downgrade expired subscriptions
-        mongo.db.admins.update_many(
-            {
-                "subscription_end_date": {"$lt": datetime.now()},
-                "subscription_status": "active"
-            },
-            {"$set": {
-                "subscription_status": "expired",
-                "subscription_tier": "free"
-            }}
-        )
-        
+
+        # PHASE 4: DOWNGRADE EXPIRED (but still within grace period)
+        recently_expired = mongo.db.admins.find({
+            "subscription_end_date": {"$lt": datetime.now()},
+            "subscription_end_date": {"$gt": seven_days_ago},
+            "subscription_status": "active"
+        })
+
+        for admin in recently_expired:
+            mongo.db.admins.update_one(
+                {"_id": admin['_id']},
+                {"$set": {
+                    "subscription_status": "expired",
+                    "grace_period_start": datetime.now()
+                }}
+            )
+
+            app.logger.info(f"EXPIRED: Admin {admin['_id']} moved to grace period")
+
+            if admin.get('phone'):
+                message = f"⚠️ Subscription expired! 7-day grace period started. Renew immediately to avoid suspension."
+                send_message(admin['phone'], message)
+
+        # PHASE 5: DAILY PAYMENT REMINDERS for overdue accounts
+        overdue_admins = mongo.db.admins.find({
+            "subscription_status": {"$in": ["expired", "suspended"]},
+            "subscription_tier": {"$nin": ["starter", "free"]}
+        })
+
+        for admin in overdue_admins:
+            if admin.get('phone'):
+                message = f"🚨 PAYMENT REQUIRED: Your account access is restricted. Pay now to restore full service."
+                send_message(admin['phone'], message)
+
+        app.logger.info("Aggressive subscription enforcement check completed")
+
     except Exception as e:
-        app.logger.error(f"Error checking subscriptions: {e}")
+        app.logger.error(f"Error in aggressive subscription check: {e}")
 
 def send_payment_reminders():
     """Send automated payment reminders to tenants with overdue bills"""
@@ -1559,9 +2142,12 @@ def send_payment_reminders():
                 response = send_message(tenant['phone'], message)
 
                 if "error" not in response:
-                    # Mark reminder as sent
+                    # Mark reminder as sent (with admin validation)
                     mongo.db.payments.update_one(
-                        {'_id': bill['_id']},
+                        {
+                            '_id': bill['_id'],
+                            'admin_id': bill['admin_id']  # Validate admin ownership
+                        },
                         {
                             '$set': {
                                 'reminder_sent': True,
@@ -1636,7 +2222,10 @@ def manual_payment_reminders():
 
         for bill in overdue_bills:
             try:
-                tenant = mongo.db.tenants.find_one({'_id': bill['tenant_id']})
+                tenant = mongo.db.tenants.find_one({
+                    '_id': bill['tenant_id'],
+                    'admin_id': bill['admin_id']  # Validate admin ownership
+                })
 
                 if not tenant or not tenant.get('phone'):
                     continue
@@ -1679,7 +2268,10 @@ def manual_payment_reminders():
 
                 if "error" not in response:
                     mongo.db.payments.update_one(
-                        {'_id': bill['_id']},
+                        {
+                            '_id': bill['_id'],
+                            'admin_id': admin_id  # Validate admin ownership
+                        },
                         {
                             '$set': {
                                 'manual_reminder_sent': True,
@@ -2117,7 +2709,7 @@ def add_property():
             flash('Property name already exists.', 'danger')
             return redirect(url_for('properties'))
 
-        # Create new property
+        # Create new property with default settings (no inheritance)
         new_property = {
             "_id": ObjectId(),
             "admin_id": admin_id,
@@ -2128,7 +2720,26 @@ def add_property():
             "is_default": False,
             "settings": {
                 "currency": "KES",
-                "billing_cycle": "monthly"
+                "billing_cycle": "monthly",
+                "water_rate_per_unit": RATE_PER_UNIT,
+                "billing": {
+                    "enable_water_billing": True,
+                    "enable_garbage_billing": False,
+                    "garbage_rate": 0,
+                    "late_payment_fee": 0,
+                    "billing_day": 1,
+                    "enable_late_payment_fines": False,
+                    "grace_period_days": 7,
+                    "fine_type": "percentage",
+                    "fine_rate": 5,
+                    "fine_frequency": "one_time",
+                    "max_fine_amount": 0
+                },
+                "payment_methods": {
+                    "mpesa": {"enabled": False},
+                    "cash": {"enabled": True},
+                    "bank_transfer": {"enabled": False}
+                }
             }
         }
 
@@ -2256,11 +2867,11 @@ def update_property_settings(property_id):
             return redirect(url_for('properties'))
 
         # Extract form data
-        water_rate = float(request.form.get('water_rate_per_unit', RATE_PER_UNIT))
+        water_rate = float(request.form.get('water_rate_per_unit', RATE_PER_UNIT) or RATE_PER_UNIT)
         enable_water_billing = 'enable_water_billing' in request.form
         enable_garbage_billing = 'enable_garbage_billing' in request.form
-        garbage_rate = float(request.form.get('garbage_rate', 0))
-        late_payment_fee = float(request.form.get('late_payment_fee', 0))
+        garbage_rate = float(request.form.get('garbage_rate') or 0)
+        late_payment_fee = float(request.form.get('late_payment_fee') or 0)
         billing_day = int(request.form.get('billing_day', 1))
 
         # Late payment fine settings
@@ -2535,19 +3146,27 @@ def get_rate_per_unit(admin_id, property_id=None):
     return admin.get('rate_per_unit', RATE_PER_UNIT) if admin else RATE_PER_UNIT
 
 
-def calculate_dashboard_analytics(admin_id):
+def calculate_dashboard_analytics(admin_id, property_id=None):
     """Calculate analytics data for dashboard."""
     try:
         current_month = datetime.now().replace(day=1)
 
+        # Get property_id for data isolation
+        if not property_id:
+            property_id = get_current_property_id()
+
         # Monthly consumption for current month
+        monthly_match = {
+            "admin_id": admin_id,
+            "date_recorded": {"$gte": current_month}
+        }
+
+        # Add property filtering for data isolation
+        if property_id:
+            monthly_match["property_id"] = property_id
+
         monthly_pipeline = [
-            {
-                "$match": {
-                    "admin_id": admin_id,
-                    "date_recorded": {"$gte": current_month}
-                }
-            },
+            {"$match": monthly_match},
             {
                 "$group": {
                     "_id": None,
@@ -2565,10 +3184,14 @@ def calculate_dashboard_analytics(admin_id):
 
         # Total revenue (all time) - Combined water + rent
         # Water revenue
+        water_revenue_match = {"admin_id": admin_id}
+
+        # Add property filtering for data isolation
+        if property_id:
+            water_revenue_match["property_id"] = property_id
+
         water_revenue_pipeline = [
-            {
-                "$match": {"admin_id": admin_id}
-            },
+            {"$match": water_revenue_match},
             {
                 "$group": {
                     "_id": None,
@@ -2600,20 +3223,28 @@ def calculate_dashboard_analytics(admin_id):
         total_revenue = water_revenue + rent_revenue
 
         # Average usage per tenant
-        tenant_count = mongo.db.tenants.count_documents({"admin_id": admin_id})
+        tenant_query = {"admin_id": admin_id}
+        if property_id:
+            tenant_query["property_id"] = property_id
+
+        tenant_count = mongo.db.tenants.count_documents(tenant_query)
         avg_usage = monthly_consumption / tenant_count if tenant_count > 0 else 0
 
         # Monthly breakdown for charts (last 12 months)
         twelve_months_ago = datetime.now() - timedelta(days=365)
 
         # Monthly water revenue
+        monthly_water_match = {
+            "admin_id": admin_id,
+            "date_recorded": {"$gte": twelve_months_ago}
+        }
+
+        # Add property filtering for data isolation
+        if property_id:
+            monthly_water_match["property_id"] = property_id
+
         monthly_water_pipeline = [
-            {
-                "$match": {
-                    "admin_id": admin_id,
-                    "date_recorded": {"$gte": twelve_months_ago}
-                }
-            },
+            {"$match": monthly_water_match},
             {
                 "$group": {
                     "_id": {
@@ -2705,30 +3336,48 @@ def create_payment_record(admin_id, tenant_id, house_id, bill_amount, reading_id
         app.logger.error(f"Error creating payment record: {str(e)}")
         return None
 
-def get_unpaid_bills(admin_id, tenant_id=None, bill_type=None):
+def get_unpaid_bills(admin_id, tenant_id=None, bill_type=None, property_id=None):
     """Get all unpaid bills for admin or specific tenant with optional bill_type filter"""
     try:
         query = {
             'admin_id': ObjectId(admin_id),
             'payment_status': {'$in': ['unpaid', 'partial']}
         }
-        
+
+        # Add property_id filtering for data isolation
+        if property_id:
+            query['property_id'] = ObjectId(property_id)
+        else:
+            # Use current property context if no specific property_id provided
+            current_property_id = get_current_property_id()
+            if current_property_id:
+                query['property_id'] = ObjectId(current_property_id)
+
         if tenant_id:
             query['tenant_id'] = ObjectId(tenant_id)
-            
+
         if bill_type:
             query['bill_type'] = bill_type
-            
+
         unpaid_bills = list(mongo.db.payments.find(query).sort('due_date', 1))
         return unpaid_bills
     except Exception as e:
         app.logger.error(f"Error fetching unpaid bills: {str(e)}")
         return []
-def get_unpaid_bills_paginated(admin_id, page=1, per_page=10, filter_status=None, search_term=None, bill_type=None):
+def get_unpaid_bills_paginated(admin_id, page=1, per_page=10, filter_status=None, search_term=None, bill_type=None, property_id=None):
     """Get paginated unpaid bills with optional filtering and bill_type"""
     try:
         # Start with basic query
         query = {'admin_id': ObjectId(admin_id)}
+
+        # Add property_id filtering for data isolation
+        if property_id:
+            query['property_id'] = ObjectId(property_id)
+        else:
+            # Use current property context if no specific property_id provided
+            current_property_id = get_current_property_id()
+            if current_property_id:
+                query['property_id'] = ObjectId(current_property_id)
         
         # Add bill_type filter if specified
         if bill_type:
@@ -2879,11 +3528,28 @@ def get_unpaid_bills_with_aggregation(admin_id, tenant_id=None):
         app.logger.error(f"Error in unpaid bills aggregation: {str(e)}")
         return []
 
-def update_payment_status(payment_id, amount_paid, payment_method, notes=""):
+def update_payment_status(payment_id, amount_paid, payment_method, notes="", admin_id=None, property_id=None):
     """Update payment status when payment is made"""
     try:
-        payment = mongo.db.payments.find_one({'_id': ObjectId(payment_id)})
+        # Build query with admin and property validation
+        query = {'_id': ObjectId(payment_id)}
+
+        # Add admin_id validation if provided
+        if admin_id:
+            query['admin_id'] = ObjectId(admin_id)
+
+        # Add property_id validation if provided
+        if property_id:
+            query['property_id'] = ObjectId(property_id)
+        elif admin_id:
+            # Use current property context for data isolation
+            current_property_id = get_current_property_id()
+            if current_property_id:
+                query['property_id'] = ObjectId(current_property_id)
+
+        payment = mongo.db.payments.find_one(query)
         if not payment:
+            app.logger.warning(f"Payment {payment_id} not found or access denied for admin {admin_id}, property {property_id}")
             return False
             
         new_total_paid = payment.get('amount_paid', 0) + float(amount_paid)
@@ -2906,7 +3572,7 @@ def update_payment_status(payment_id, amount_paid, payment_method, notes=""):
         }
         
         result = mongo.db.payments.update_one(
-            {'_id': ObjectId(payment_id)},
+            query,  # Use the admin-validated query instead of just payment_id
             {'$set': update_data}
         )
         
@@ -3072,16 +3738,25 @@ def get_property_billing_settings(property_id, admin_id):
         return {}
 
 
-def get_all_bills(admin_id, tenant_id=None):
+def get_all_bills(admin_id, tenant_id=None, property_id=None):
     """Get all bills for admin or specific tenant regardless of payment status"""
     try:
         query = {
             'admin_id': ObjectId(admin_id)
         }
-        
+
+        # Add property_id filtering for data isolation
+        if property_id:
+            query['property_id'] = ObjectId(property_id)
+        else:
+            # Use current property context if no specific property_id provided
+            current_property_id = get_current_property_id()
+            if current_property_id:
+                query['property_id'] = ObjectId(current_property_id)
+
         if tenant_id:
             query['tenant_id'] = ObjectId(tenant_id)
-            
+
         all_bills = list(mongo.db.payments.find(query))
         return all_bills
     except Exception as e:
@@ -3129,8 +3804,8 @@ def build_tenant_search_query(admin_id, search_query="", search_type="all", prop
 
 @app.after_request
 def add_security_headers(response):
-    # CSP-compliant headers with external resources only, no unsafe-inline
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://pagead2.googlesyndication.com; img-src 'self' data: https://via.placeholder.com; style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com data:;"
+    # CSP-compliant headers with external resources and unsafe-inline for styles
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://pagead2.googlesyndication.com; img-src 'self' data: https://via.placeholder.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com data:;"
     return response
     
 # Routes
@@ -3165,6 +3840,22 @@ def login():
 
         admin = mongo.db.admins.find_one({"username": username})
         if admin and check_password_hash(admin['password'], password):
+            # Check subscription status
+            subscription_status = admin.get('subscription_status', 'pending_payment')
+
+            if subscription_status == 'pending_payment':
+                flash('Please complete your subscription payment to access your account', 'warning')
+                return render_template('subscription_suspended.html',
+                                     admin=admin,
+                                     reason='pending_payment',
+                                     message='Your account is pending subscription payment')
+            elif subscription_status == 'payment_failed':
+                flash('Your subscription payment failed. Please try again', 'danger')
+                return render_template('subscription_suspended.html',
+                                     admin=admin,
+                                     reason='payment_failed',
+                                     message='Your subscription payment failed')
+
             session['admin_id'] = str(admin['_id'])
             return redirect(url_for('dashboard'))
         else:
@@ -3176,122 +3867,145 @@ def login():
 def signup():
     if 'admin_id' in session:
         return redirect(url_for('dashboard'))
-        
+
+    if request.method == 'GET':
+        # Pass subscription tiers to template
+        return render_template('signup.html', subscription_tiers=SUBSCRIPTION_TIERS)
+
     if request.method == 'POST':
         try:
             # Get form data with proper error handling
             name = request.form.get('name', '').strip()
+            email = request.form.get('email', '').strip()
+            phone = request.form.get('phone', '').strip()
             password = request.form.get('password', '')
-            confirm_password = request.form.get('confirm-password', '')
-            payment_method = request.form.get('payment_method', '').strip()
-            
-            # Handle cost conversion with error handling
-            cost_str = request.form.get('cost', '').strip()
-            try:
-                cost = float(cost_str) if cost_str else None
-            except (ValueError, TypeError):
-                flash('Please enter a valid cost per unit', 'danger')
-                return render_template('signup.html')
-            
+            confirm_password = request.form.get('confirm_password', '')
+
+            # Get subscription selection
+            subscription_tier = request.form.get('subscription_tier', '').strip()
+            subscription_type = request.form.get('subscription_type', 'monthly')  # monthly or annual
+
             # Basic validation
-            if not all([name, password, confirm_password, cost, payment_method]):
+            if not all([name, email, phone, password, confirm_password, subscription_tier]):
                 flash('All fields are required', 'danger')
-                return render_template('signup.html')
-                
+                return render_template('signup.html', subscription_tiers=SUBSCRIPTION_TIERS)
+
             if password != confirm_password:
                 flash('Passwords do not match', 'danger')
-                return render_template('signup.html')
+                return render_template('signup.html', subscription_tiers=SUBSCRIPTION_TIERS)
+
+            # Validate subscription tier
+            if subscription_tier not in SUBSCRIPTION_TIERS:
+                flash('Invalid subscription plan selected', 'danger')
+                return render_template('signup.html', subscription_tiers=SUBSCRIPTION_TIERS)
+
+            # Validate email format
+            if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+                flash('Invalid email address', 'danger')
+                return render_template('signup.html', subscription_tiers=SUBSCRIPTION_TIERS)
             
-            if cost <= 0:
-                flash('Cost per unit must be greater than 0', 'danger')
-                return render_template('signup.html')
-            
-            # Initialize payment details
-            payment_details = {}
-            
-            # Validate payment method and related fields
-            if payment_method == 'till':
-                till = request.form.get('till', '').strip()
-                if not till or not re.match(r'^\d{6,10}$', till):
-                    flash('Till number must be between 6-10 digits', 'danger')
-                    return render_template('signup.html')
-                
-                # Check if till already exists
-                existing_admin = mongo.db.admins.find_one({"till": till})
-                if existing_admin:
-                    flash('An account with this till number already exists', 'danger')
-                    return render_template('signup.html')
-                    
-                payment_details = {
-                    'payment_method': 'till',
-                    'till': till
-                }
-                
-            elif payment_method == 'paybill':
-                business_number = request.form.get('business_number', '').strip()
-                account_name = request.form.get('account_name', '').strip()
-                
-                if not business_number or not business_number.isdigit():
-                    flash('Business number must be a valid number', 'danger')
-                    return render_template('signup.html')
-                    
-                if not account_name:
-                    flash('Account name is required', 'danger')
-                    return render_template('signup.html')
-                
-                # Check if business number already exists
-                existing_admin = mongo.db.admins.find_one({"business_number": business_number})
-                if existing_admin:
-                    flash('An account with this business number already exists', 'danger')
-                    return render_template('signup.html')
-                    
-                payment_details = {
-                    'payment_method': 'paybill',
-                    'business_number': business_number,
-                    'account_name': account_name
-                }
-            else:
-                flash('Please select a valid payment method', 'danger')
-                return render_template('signup.html')
-            
-            # Create new admin with isolated data structure
+            # Check if email or phone already exists
+            existing_admin = mongo.db.admins.find_one({"$or": [{"email": email}, {"phone": phone}]})
+            if existing_admin:
+                flash('An account with this email or phone number already exists', 'danger')
+                return render_template('signup.html', subscription_tiers=SUBSCRIPTION_TIERS)
+
+            # Format phone number
+            try:
+                formatted_phone = format_phone_number(phone)
+            except ValueError as e:
+                flash(str(e), 'danger')
+                return render_template('signup.html', subscription_tiers=SUBSCRIPTION_TIERS)
+
+            # Create new admin account (initially pending payment)
             hashed_password = generate_password_hash(password)
             new_admin = {
                 "name": name,
-                "username": name,  
+                "username": email,
+                "email": email,
+                "phone": formatted_phone,
                 "password": hashed_password,
-                "rate_per_unit": cost,
+                "rate_per_unit": RATE_PER_UNIT,  # Default rate
                 "created_at": datetime.now(),
-                "tenants": [],  # Empty array to store this admin's tenants
-                "houses": [],   # Empty array to store this admin's houses
-                "readings": [],  # Empty array to store this admin's readings
-                **payment_details  # Add payment details to admin document
+
+                # Subscription info - pending payment
+                "subscription_tier": subscription_tier,
+                "subscription_type": subscription_type,
+                "subscription_status": "pending_payment",  # Not active until payment
+                "subscription_start_date": None,
+                "subscription_end_date": None,
+                "auto_renew": True
             }
-            
+
             # Insert the new admin
             result = mongo.db.admins.insert_one(new_admin)
-            
-            if result.inserted_id:
-                # Create SMS config for this admin
-                sms_config = {
-                    "admin_id": result.inserted_id,
-                    "rate_per_unit": cost,
-                    "created_at": datetime.now()
-                }
-                mongo.db.sms_config.insert_one(sms_config)
-                
-                flash('Account created successfully! You can now log in.', 'success')
-                return redirect(url_for('login'))
-            else:
+            admin_id = result.inserted_id
+
+            if not admin_id:
                 flash('Failed to create account. Please try again.', 'danger')
-                return render_template('signup.html')
-                
+                return render_template('signup.html', subscription_tiers=SUBSCRIPTION_TIERS)
+
+            # Get subscription amount
+            tier_config = SUBSCRIPTION_TIERS[subscription_tier]
+            amount = tier_config['annual_price'] if subscription_type == 'annual' else tier_config['monthly_price']
+
+            # Generate unique reference for payment
+            reference = f"SIGNUP-{admin_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+            # Initiate M-Pesa STK push
+            try:
+                callback_url = url_for('mpesa_signup_callback', _external=True)
+                response = mpesa.stk_push(
+                    phone_number=formatted_phone,
+                    amount=amount,
+                    account_reference=reference,
+                    callback_url=callback_url
+                )
+
+                if 'error' in response:
+                    # Delete the admin if payment initiation fails
+                    mongo.db.admins.delete_one({"_id": admin_id})
+                    flash(f'Payment initiation failed: {response["error"]}', 'danger')
+                    return render_template('signup.html', subscription_tiers=SUBSCRIPTION_TIERS)
+
+                # Save signup payment record
+                payment_record = {
+                    'admin_id': admin_id,
+                    'reference': reference,
+                    'tier': subscription_tier,
+                    'payment_type': subscription_type,
+                    'amount': amount,
+                    'phone': formatted_phone,
+                    'status': 'pending',
+                    'checkout_request_id': response.get('CheckoutRequestID'),
+                    'created_at': datetime.now()
+                }
+                mongo.db.signup_payments.insert_one(payment_record)
+
+                # Store admin_id temporarily in session for payment confirmation
+                session['pending_signup_admin_id'] = str(admin_id)
+
+                flash('Account created! Please check your phone for the M-Pesa payment prompt.', 'info')
+                return render_template('signup_payment_pending.html',
+                    name=name,
+                    tier=tier_config['name'],
+                    amount=amount,
+                    payment_type=subscription_type
+                )
+
+            except Exception as e:
+                # Delete the admin if payment initiation fails
+                mongo.db.admins.delete_one({"_id": admin_id})
+                app.logger.error(f"Error initiating signup payment: {e}")
+                flash('Failed to initiate payment. Please try again.', 'danger')
+                return render_template('signup.html', subscription_tiers=SUBSCRIPTION_TIERS)
+
         except Exception as e:
-            app.logger.error(f"Error creating account: {str(e)}")
+            app.logger.error(f"Error during signup: {str(e)}")
             flash('An error occurred while creating your account. Please try again.', 'danger')
-            return render_template('signup.html')
-            
-    return render_template('signup.html')
+            return render_template('signup.html', subscription_tiers=SUBSCRIPTION_TIERS)
+
+    return render_template('signup.html', subscription_tiers=SUBSCRIPTION_TIERS)
     
 @app.route('/logout')
 def logout():
@@ -3301,6 +4015,7 @@ def logout():
 
 @app.route("/manage_tenants",methods=["GET","POST"])
 @login_required
+@enforce_subscription_payment()
 def manage_tenants():
     try:
         admin_id = get_admin_id()
@@ -3382,6 +4097,7 @@ def manage_tenants():
 # Optimized route handlers
 @app.route('/dashboard')
 @login_required
+@enforce_subscription_payment()
 def dashboard():
     """Main dashboard with optimized queries and error handling."""
     try:
@@ -3393,16 +4109,22 @@ def dashboard():
     if mongo is None:
         flash('Database connection error. Please try again later.', 'danger')
         return render_template('error.html', error_message="Database unavailable")
-    
-    
+
+    # Get current property for data separation
+    try:
+        current_property_id = get_current_property_id()
+    except Exception as e:
+        app.logger.error(f"Error getting current property: {e}")
+        current_property_id = None
+
     # Get pagination parameters
     page = request.args.get('page', 1, type=int)
     per_page = min(request.args.get('per_page', DEFAULT_PER_PAGE, type=int), 100)  # Limit max per_page
     search_query = request.args.get('search', '').strip()
     search_type = request.args.get('search_type', 'all')
-    
-    # Build query and get tenants with single database call
-    query = build_tenant_search_query(admin_id, search_query, search_type)
+
+    # Build query and get tenants with single database call (with property filtering)
+    query = build_tenant_search_query(admin_id, search_query, search_type, current_property_id)
     skip = (page - 1) * per_page
     
     # Use aggregation pipeline for better performance
@@ -3438,9 +4160,13 @@ def dashboard():
         'items': tenants
     }
     
-    # Get recent readings with optimized aggregation
+    # Get recent readings with optimized aggregation (filtered by current property)
+    readings_match = {"admin_id": admin_id}
+    if current_property_id:
+        readings_match["property_id"] = current_property_id
+
     readings_pipeline = [
-        {"$match": {"admin_id": admin_id}},
+        {"$match": readings_match},
         {"$lookup": {
             "from": "tenants",
             "localField": "tenant_id",
@@ -3484,8 +4210,16 @@ def dashboard():
     tier = admin.get('subscription_tier', 'starter')
     tier_config = SUBSCRIPTION_TIERS.get(tier, SUBSCRIPTION_TIERS['starter'])
 
-    # Calculate analytics data
-    analytics_data = calculate_dashboard_analytics(admin_id)
+    # Calculate analytics data (filtered by current property)
+    analytics_data = calculate_dashboard_analytics(admin_id, current_property_id)
+
+    # Debug logging
+    app.logger.info(f"Dashboard analytics for admin {admin_id}:")
+    app.logger.info(f"Monthly consumption: {analytics_data.get('monthly_consumption', 0)}")
+    app.logger.info(f"Total revenue: {analytics_data.get('total_revenue', 0)}")
+    app.logger.info(f"Avg usage: {analytics_data.get('avg_usage', 0)}")
+    app.logger.info(f"Monthly water data points: {len(analytics_data.get('monthly_water_data', []))}")
+    app.logger.info(f"Monthly rent data points: {len(analytics_data.get('monthly_rent_data', []))}")
 
     return render_template(
         'dashboard.html',
@@ -3660,8 +4394,17 @@ def maintenance_request():
         tenant_id = ObjectId(data['tenant_id'])
         property_id = ObjectId(data['property_id'])
 
-        tenant = mongo.db.tenants.find_one({'_id': tenant_id})
-        property_doc = mongo.db.properties.find_one({'_id': property_id})
+        # Validate tenant with admin ownership
+        admin_id = get_admin_id()
+        tenant = mongo.db.tenants.find_one({
+            '_id': tenant_id,
+            'admin_id': admin_id,
+            'property_id': property_id  # Ensure property match
+        })
+        property_doc = mongo.db.properties.find_one({
+            '_id': property_id,
+            'admin_id': admin_id  # Validate admin owns property
+        })
 
         if not tenant or not property_doc:
             return jsonify({'success': False, 'message': 'Invalid tenant or property'}), 400
@@ -3712,6 +4455,7 @@ def maintenance_request():
 
 @app.route('/add_tenant', methods=['POST'])
 @login_required
+@enforce_subscription_payment()
 @check_subscription_limit('tenant')  # Add this decorator
 def add_tenant():
     """Add a new tenant with improved validation."""
@@ -3839,9 +4583,14 @@ def water_utility():
     if mongo is None:
         flash('Database connection error. Please try again later.', 'danger')
         return render_template('error.html', error_message="Database unavailable")
-    
-    
- 
+
+    # Get current property for data separation
+    try:
+        current_property_id = get_current_property_id()
+    except Exception as e:
+        app.logger.error(f"Error getting current property: {e}")
+        current_property_id = None
+
     # Get pagination parameters
     page = request.args.get('page', 1, type=int)
     per_page = min(request.args.get('per_page', DEFAULT_PER_PAGE, type=int), 100)  # Limit max per_page
@@ -3885,9 +4634,13 @@ def water_utility():
         'items': tenants
     }
     
-    # Get recent readings with optimized aggregation
+    # Get recent readings with optimized aggregation (filtered by current property)
+    readings_match = {"admin_id": admin_id}
+    if current_property_id:
+        readings_match["property_id"] = current_property_id
+
     readings_pipeline = [
-        {"$match": {"admin_id": admin_id}},
+        {"$match": readings_match},
         {"$lookup": {
             "from": "tenants",
             "localField": "tenant_id",
@@ -3953,10 +4706,13 @@ def garbage_utility():
         return redirect(url_for('properties'))
 
     # Get property settings
-    property_settings = mongo.db.properties.find_one({"_id": current_property_id})
-    if not property_settings:
+    property_doc = mongo.db.properties.find_one({"_id": current_property_id})
+    if not property_doc:
         flash('Property not found.', 'danger')
         return redirect(url_for('properties'))
+
+    # Get settings from the correct path
+    property_settings = property_doc.get('settings', {})
 
     # Check if garbage billing is enabled
     garbage_billing_enabled = property_settings.get('billing', {}).get('enable_garbage_billing', False)
@@ -4035,7 +4791,10 @@ def garbage_utility():
 
     # Calculate monthly revenue
     current_month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    next_month = current_month_start.replace(month=current_month_start.month + 1) if current_month_start.month < 12 else current_month_start.replace(year=current_month_start.year + 1, month=1)
+    if current_month_start.month == 12:
+        next_month = current_month_start.replace(year=current_month_start.year + 1, month=1, day=1)
+    else:
+        next_month = current_month_start.replace(month=current_month_start.month + 1, day=1)
 
     monthly_revenue_pipeline = [
         {"$match": {
@@ -4054,7 +4813,8 @@ def garbage_utility():
     months = []
     current_date = datetime.now()
     for i in range(12):
-        month_date = current_date.replace(month=current_date.month - i) if current_date.month > i else current_date.replace(year=current_date.year - 1, month=12 - (i - current_date.month))
+        # Use relativedelta to safely go back months
+        month_date = current_date - relativedelta(months=i)
         months.append({
             'name': month_date.strftime('%B %Y'),
             'value': month_date.strftime('%Y-%m')
@@ -4101,11 +4861,12 @@ def generate_garbage_bills():
         return redirect(url_for('garbage_utility'))
 
     # Get property settings
-    property_settings = mongo.db.properties.find_one({"_id": current_property_id})
-    if not property_settings:
+    property_doc = mongo.db.properties.find_one({"_id": current_property_id})
+    if not property_doc:
         flash('Property not found.', 'danger')
         return redirect(url_for('garbage_utility'))
 
+    property_settings = property_doc.get('settings', {})
     garbage_rate = property_settings.get('billing', {}).get('garbage_rate', 0)
     if garbage_rate <= 0:
         flash('Please set a valid garbage rate in property settings first.', 'warning')
@@ -4342,6 +5103,7 @@ def update_garbage_bill_statuses():
 
 @app.route('/houses', methods=['GET'])
 @login_required
+@enforce_subscription_payment()
 def houses():
     """Display houses management page with all houses"""
     try:
@@ -4427,6 +5189,7 @@ def houses():
 
 @app.route('/add_house', methods=['POST'])
 @login_required
+@enforce_subscription_payment()
 @check_subscription_limit('house')  # Add this decorator
 def add_house():
     """Add a new house with validation."""
@@ -4864,6 +5627,7 @@ def get_last_house_reading(house_number, admin_id, property_id=None):
 #replace with a function to handle bulk reading uploads
 @app.route('/record_reading', methods=['POST'])
 @login_required
+@enforce_subscription_payment()
 def record_reading():
     """Record water reading with improved validation and error handling."""
     try:
@@ -5074,13 +5838,19 @@ def record_reading():
             
             if "error" in response:
                 mongo.db.meter_readings.update_one(
-                    {"_id": reading_id},
+                    {
+                        "_id": reading_id,
+                        "admin_id": admin_id  # Validate admin ownership
+                    },
                     {"$set": {"sms_status": f"failed: {response['error']}"}}
                 )
                 flash(f"Reading recorded but SMS failed: {response['error']}", "warning")
             else:
                 mongo.db.meter_readings.update_one(
-                    {"_id": reading_id},
+                    {
+                        "_id": reading_id,
+                        "admin_id": admin_id  # Validate admin ownership
+                    },
                     {"$set": {"sms_status": "sent"}}
                 )
                 flash("Reading recorded and SMS sent successfully!", "success")
@@ -5088,7 +5858,10 @@ def record_reading():
         except Exception as sms_error:
             app.logger.error(f"SMS error: {sms_error}")
             mongo.db.meter_readings.update_one(
-                {"_id": reading_id},
+                {
+                    "_id": reading_id,
+                    "admin_id": admin_id  # Validate admin ownership
+                },
                 {"$set": {"sms_status": f"failed: {str(sms_error)}"}}
             )
             flash("Reading recorded but SMS sending failed", "warning")
@@ -5101,6 +5874,7 @@ def record_reading():
 
 @app.route('/record_tenant_reading/<tenant_id>', methods=['POST'])
 @login_required
+@enforce_subscription_payment()
 def record_tenant_reading(tenant_id):
     """Record water reading for a specific tenant from their details page."""
     try:
@@ -5249,13 +6023,19 @@ def record_tenant_reading(tenant_id):
             
             if "error" in response:
                 mongo.db.meter_readings.update_one(
-                    {"_id": reading_id},
+                    {
+                        "_id": reading_id,
+                        "admin_id": admin_id  # Validate admin ownership
+                    },
                     {"$set": {"sms_status": f"failed: {response['error']}"}}
                 )
                 flash(f"Reading recorded but SMS failed: {response['error']}", "warning")
             else:
                 mongo.db.meter_readings.update_one(
-                    {"_id": reading_id},
+                    {
+                        "_id": reading_id,
+                        "admin_id": admin_id  # Validate admin ownership
+                    },
                     {"$set": {"sms_status": "sent"}}
                 )
                 flash("Reading recorded and SMS sent successfully!", "success")
@@ -5263,7 +6043,10 @@ def record_tenant_reading(tenant_id):
         except Exception as sms_error:
             app.logger.error(f"SMS error: {sms_error}")
             mongo.db.meter_readings.update_one(
-                {"_id": reading_id},
+                {
+                    "_id": reading_id,
+                    "admin_id": admin_id  # Validate admin ownership
+                },
                 {"$set": {"sms_status": f"failed: {str(sms_error)}"}}
             )
             flash("Reading recorded but SMS sending failed", "warning")
@@ -5512,6 +6295,7 @@ def get_billing_summary(admin_id, bill_type=None):
 
 @app.route('/payments_dashboard', methods=['GET', 'POST'])
 @login_required
+@enforce_subscription_payment()
 def payments_dashboard():
     """Display payments dashboard with all unpaid bills"""
     try:
@@ -5806,8 +6590,12 @@ def record_payment(payment_id):
             flash('Payment amount must be greater than 0', 'danger')
             return redirect(request.referrer or url_for('payments_dashboard'))
         
-        # Get the current payment record
-        payment = mongo.db.payments.find_one({"_id": ObjectId(payment_id)})
+        # Get the current payment record (with admin validation)
+        admin_id = get_admin_id()
+        payment = mongo.db.payments.find_one({
+            "_id": ObjectId(payment_id),
+            "admin_id": admin_id  # Validate admin ownership
+        })
         
         if not payment:
             flash('Payment record not found', 'danger')
@@ -8050,10 +8838,10 @@ def handle_exception(e):
         return render_template('error.html'), 500
 
 # CSRF Error Handlers for Enhanced Security
-@csrf.error_handler
-def csrf_error(reason):
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
     """Handle CSRF token validation errors"""
-    app.logger.warning(f"CSRF validation failed: {reason}")
+    app.logger.warning(f"CSRF validation failed: {e.description}")
 
     # Check if this is an AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':

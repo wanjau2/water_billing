@@ -996,3 +996,26 @@ Error loading subscription page: Could not build url for endpoint 'smartwater'. 
 MongoDB did not initialize—check MONGO_URI and DATABASE_NAME!
 No admins found for migration
 No admins found for migration
+MongoDB did not initialize—check MONGO_URI and DATABASE_NAME!
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+Unhandled exception: day is out of range for month
+404 error: http://127.0.0.1:5000/favicon.ico
+SUBSCRIPTION SUSPENDED - Admin 683f3dca76f29c7fc1633cd0: Your subscription grace period has expired; Your subscription payment is overdue; No payment record found for your subscription

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Suspended - Water Billing System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #dc3545 0%, #6c757d 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .suspension-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .suspension-card {
+            max-width: 600px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            animation: slideIn 0.5s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .suspension-header {
+            background: linear-gradient(135deg, #dc3545, #b02a37);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+        }
+        .suspension-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="40" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="40" cy="80" r="1.5" fill="rgba(255,255,255,0.1)"/></svg>');
+        }
+        .suspension-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .suspension-body {
+            padding: 2rem;
+        }
+        .reason-item {
+            background: #f8f9fa;
+            border-left: 4px solid #dc3545;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 8px 8px 0;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
+        .btn-payment {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+        .btn-payment:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+            color: white;
+        }
+        .btn-contact {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .btn-contact:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+            color: white;
+        }
+        .countdown-timer {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            text-align: center;
+        }
+        .timer-digit {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="suspension-container">
+        <div class="suspension-card">
+            <div class="suspension-header">
+                <div class="suspension-icon">
+                    <i class="fas fa-ban"></i>
+                </div>
+                <h1 class="mb-0">Account Suspended</h1>
+                <p class="mb-0">All operations have been halted</p>
+            </div>
+
+            <div class="suspension-body">
+                <div class="alert alert-danger text-center mb-4">
+                    <h4><i class="fas fa-exclamation-triangle"></i> Immediate Action Required</h4>
+                    <p class="mb-0">Your account has been suspended due to subscription payment issues.</p>
+                </div>
+
+                {% if reasons %}
+                <h5><i class="fas fa-list"></i> Suspension Reasons:</h5>
+                {% for reason in reasons %}
+                <div class="reason-item">
+                    <i class="fas fa-times-circle text-danger me-2"></i>{{ reason }}
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                <div class="countdown-timer">
+                    <h6><i class="fas fa-clock"></i> Account Suspended Since:</h6>
+                    <div class="timer-digit">{{ suspension_date.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-credit-card text-success fs-2 mb-3"></i>
+                                <h6>Make Payment</h6>
+                                <p class="small text-muted">Renew your subscription to restore full access immediately</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-shield-alt text-warning fs-2 mb-3"></i>
+                                <h6>Data Protection</h6>
+                                <p class="small text-muted">Your data is safe and will be restored upon payment</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <a href="{{ url_for('subscription') }}" class="btn-payment">
+                        <i class="fas fa-credit-card me-2"></i>Make Payment Now
+                    </a>
+                    <a href="mailto:support@waterbilling.com" class="btn-contact">
+                        <i class="fas fa-envelope me-2"></i>Contact Support
+                    </a>
+                </div>
+
+                <div class="mt-4 p-3 bg-light rounded">
+                    <h6><i class="fas fa-info-circle text-info"></i> What happens now?</h6>
+                    <ul class="small mb-0">
+                        <li>All tenant management, billing, and reporting operations are blocked</li>
+                        <li>Your data remains secure and unchanged</li>
+                        <li>Access will be restored immediately upon payment</li>
+                        <li>No data will be lost during suspension</li>
+                    </ul>
+                </div>
+
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-lock"></i> Your account and data are secure during suspension
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Auto-refresh every 30 seconds to check if payment has been made
+        setTimeout(() => {
+            window.location.reload();
+        }, 30000);
+
+        // Add visual feedback for payment button
+        document.querySelector('.btn-payment').addEventListener('click', function() {
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Redirecting to Payment...';
+        });
+    </script>
+</body>
+</html>

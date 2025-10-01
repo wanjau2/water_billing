@@ -2,9 +2,258 @@
 
 {% block title %}Property Management - Water Billing System{% endblock %}
 
+{% block styles %}
+<style>
+    .properties-container {
+        padding: 2rem 0;
+    }
+
+    h1, h5, h6 {
+        color: #2d3748;
+    }
+
+    /* Summary Cards with Border Left */
+    .card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e9ecef;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .card:hover {
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        transform: translateY(-3px);
+    }
+
+    .border-left-primary {
+        border-left: 4px solid #667eea !important;
+    }
+
+    .border-left-success {
+        border-left: 4px solid #11998e !important;
+    }
+
+    .border-left-info {
+        border-left: 4px solid #4facfe !important;
+    }
+
+    .text-primary {
+        color: #667eea !important;
+    }
+
+    .text-success {
+        color: #11998e !important;
+    }
+
+    .text-info {
+        color: #4facfe !important;
+    }
+
+    .text-xs {
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+    }
+
+    /* Property Cards */
+    .card.border-primary {
+        border: 3px solid #667eea !important;
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom: none;
+        border-radius: 12px 12px 0 0;
+        padding: 1rem 1.25rem;
+    }
+
+    .card-header h6 {
+        color: white !important;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    .card-footer {
+        background-color: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+        border-radius: 0 0 12px 12px;
+        padding: 0.75rem 1.25rem;
+    }
+
+    /* Badges */
+    .badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-primary, .badge.bg-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white;
+    }
+
+    /* Buttons */
+    .btn {
+        border-radius: 8px;
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        border-color: #667eea !important;
+        color: white !important;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
+        border-color: #5568d3 !important;
+        color: white !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-outline-primary {
+        background-color: white !important;
+        border-color: #667eea !important;
+        color: #667eea !important;
+    }
+
+    .btn-outline-primary:hover {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        border-color: #667eea !important;
+        color: white !important;
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background-color: #6c757d !important;
+        border-color: #6c757d !important;
+        color: white !important;
+    }
+
+    .btn-secondary:hover {
+        background-color: #5c636a !important;
+        border-color: #565e64 !important;
+        color: white !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+    }
+
+    .btn-outline-secondary {
+        background-color: white !important;
+        border-color: #6c757d !important;
+        color: #6c757d !important;
+    }
+
+    .btn-outline-secondary:hover {
+        background-color: #6c757d !important;
+        border-color: #6c757d !important;
+        color: white !important;
+    }
+
+    .btn-outline-info {
+        background-color: white !important;
+        border-color: #4facfe !important;
+        color: #4facfe !important;
+    }
+
+    .btn-outline-info:hover {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+        border-color: #4facfe !important;
+        color: white !important;
+        transform: translateY(-1px);
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .btn i {
+        margin-right: 0.25rem;
+    }
+
+    .btn-group .btn {
+        margin: 0 2px;
+    }
+
+    .btn-group-vertical .btn {
+        margin-bottom: 0.5rem;
+    }
+
+    /* Form Controls */
+    .form-control {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 0.65rem 1rem;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+    }
+
+    /* Modal Styles */
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom: none;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .modal-header .modal-title {
+        color: white;
+        font-weight: 600;
+    }
+
+    .modal-header .btn-close {
+        filter: brightness(0) invert(1);
+    }
+
+    /* Property Stats */
+    .border-right {
+        border-right: 1px solid #dee2e6;
+    }
+
+    /* Empty State */
+    .text-center.py-5 {
+        padding: 3rem 0;
+    }
+
+    .text-gray-300 {
+        color: #d1d5db;
+    }
+
+    .text-gray-800 {
+        color: #2d3748;
+    }
+
+    .text-muted {
+        color: #6c757d !important;
+    }
+
+    /* Shadow utility */
+    .shadow {
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08) !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<br>
-<div class="container-fluid">
+<div class="container-fluid properties-container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0 text-gray-800">Property Management</h1>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPropertyModal">

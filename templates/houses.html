@@ -2,8 +2,322 @@
 
 {% block title %}Houses Management{% endblock %}
 
+{% block styles %}
+<style>
+    .houses-container {
+        padding: 2rem 0;
+    }
+
+    .page-header {
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        color: #2d3748;
+        font-weight: 700;
+        font-size: 2rem;
+    }
+
+    .houses-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e9ecef;
+        margin-bottom: 2rem;
+        transition: all 0.3s ease;
+    }
+
+    .houses-card:hover {
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        transform: translateY(-3px);
+    }
+
+    .houses-card .card-header {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        border-bottom: none;
+        border-radius: 12px 12px 0 0;
+        padding: 1rem 1.25rem;
+    }
+
+    .houses-card .card-header h5 {
+        color: white;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .houses-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Button Styles */
+    .btn {
+        border-radius: 8px;
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        border-color: #667eea !important;
+        color: white !important;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
+        border-color: #5568d3 !important;
+        color: white !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-outline-primary {
+        background-color: white !important;
+        border-color: #667eea !important;
+        color: #667eea !important;
+    }
+
+    .btn-outline-primary:hover {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        border-color: #667eea !important;
+        color: white !important;
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background-color: #6c757d !important;
+        border-color: #6c757d !important;
+        color: white !important;
+    }
+
+    .btn-secondary:hover {
+        background-color: #5c636a !important;
+        border-color: #565e64 !important;
+        color: white !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+    }
+
+    .btn-outline-secondary {
+        background-color: white !important;
+        border-color: #6c757d !important;
+        color: #6c757d !important;
+    }
+
+    .btn-outline-secondary:hover {
+        background-color: #6c757d !important;
+        border-color: #6c757d !important;
+        color: white !important;
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+        border-color: #11998e !important;
+        color: white !important;
+    }
+
+    .btn-success:hover {
+        background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%) !important;
+        border-color: #0e8074 !important;
+        color: white !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3);
+    }
+
+    .btn-outline-success {
+        background-color: white !important;
+        border-color: #11998e !important;
+        color: #11998e !important;
+    }
+
+    .btn-outline-success:hover {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+        border-color: #11998e !important;
+        color: white !important;
+    }
+
+    .btn-danger {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+        border-color: #f093fb !important;
+        color: white !important;
+    }
+
+    .btn-danger:hover {
+        background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%) !important;
+        border-color: #e4405f !important;
+        color: white !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+    }
+
+    .btn-outline-danger {
+        background-color: white !important;
+        border-color: #f5576c !important;
+        color: #f5576c !important;
+    }
+
+    .btn-outline-danger:hover {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+        border-color: #f5576c !important;
+        color: white !important;
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .btn i {
+        margin-right: 0.25rem;
+    }
+
+    .btn-group .btn {
+        margin: 0 2px;
+    }
+
+    /* Form Controls */
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 0.65rem 1rem;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+    }
+
+    /* Status Badges */
+    .badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .badge.bg-success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+    }
+
+    .badge.bg-secondary {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%) !important;
+    }
+
+    .badge.bg-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    }
+
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table thead th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+        color: #495057;
+        padding: 1rem;
+    }
+
+    .table tbody tr {
+        transition: background-color 0.3s ease;
+    }
+
+    .table tbody tr:hover {
+        background-color: rgba(102, 126, 234, 0.05);
+    }
+
+    .table tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+    }
+
+    .table tbody td a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .table tbody td a:hover {
+        color: #764ba2;
+        text-decoration: underline;
+    }
+
+    /* Modal Styles */
+    .modal-header {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        border-bottom: none;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .modal-header .modal-title {
+        color: white;
+        font-weight: 600;
+    }
+
+    .modal-header .btn-close {
+        filter: brightness(0) invert(1);
+    }
+
+    /* Alert Styles */
+    .alert-warning {
+        background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 235, 59, 0.1) 100%);
+        border-left: 4px solid #ffc107;
+        border-radius: 8px;
+    }
+
+    /* Pagination */
+    .pagination {
+        margin: 0;
+    }
+
+    .page-link {
+        border: 1px solid #dee2e6;
+        color: #667eea;
+        padding: 0.5rem 0.75rem;
+        margin: 0 2px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .page-link:hover {
+        background-color: #667eea;
+        border-color: #667eea;
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .page-item.active .page-link {
+        background-color: #667eea;
+        border-color: #667eea;
+        color: white;
+    }
+
+    .page-item.disabled .page-link {
+        color: #6c757d;
+        background-color: #fff;
+        border-color: #dee2e6;
+    }
+
+    /* Search Section */
+    .status-filter-select {
+        max-width: 200px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-4 houses-container">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Houses Management</h1>
     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addHouseModal">
@@ -30,7 +344,7 @@
   </div>
 
   <!-- Houses Table -->
-  <div class="card">
+  <div class="card houses-card">
     <div class="card-header d-flex justify-content-between align-items-center">
       <h5 class="mb-0">Houses</h5>
       <span class="badge bg-primary">{{ pagination.total }} Houses</span>

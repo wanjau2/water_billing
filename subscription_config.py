@@ -5,7 +5,7 @@ SUBSCRIPTION_TIERS = {
         'max_tenants': 20,
         'max_houses': 20,  # Assuming a limit of 10 houses for starter tier
         'features': [
-            'Up to 15 tenants',
+            'Up to 20 tenants',
             'Basic water billing',
             'SMS notifications',
             'Basic reports'
@@ -16,7 +16,7 @@ SUBSCRIPTION_TIERS = {
     'basic': {
         'name': 'Basic',
         'max_tenants': 50,
-        'max_houses': -1,
+        'max_houses': 50,
         'features': [
             'Up to 50 tenants',
             'Water & rent billing',
@@ -30,7 +30,7 @@ SUBSCRIPTION_TIERS = {
     'pro': {
         'name': 'Pro',
         'max_tenants': 100,
-        'max_houses': -1,
+        'max_houses': 100,
         'features': [
             'Up to 100 tenants',
             'All Basic features',
@@ -44,7 +44,7 @@ SUBSCRIPTION_TIERS = {
     'business': {
         'name': 'Business',
         'max_tenants': 250,
-        'max_houses': -1,
+        'max_houses': 250,
 
         'features': [
             'Up to 250 tenants',
@@ -58,7 +58,7 @@ SUBSCRIPTION_TIERS = {
     'enterprise': {
         'name': 'Enterprise',
         'max_tenants': 1000,  # Unlimited
-        'max_houses': -1,
+        'max_houses': 1000,  # Unlimited
         'features': [
             '1000 tenants',
             'All Enterprise features',

@@ -2,6 +2,117 @@
 
 {% block title %}{{ property.name }} - Billing Settings{% endblock %}
 
+{% block styles %}
+<style>
+    .btn {
+        border-radius: 8px;
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
+    }
+
+    .btn-primary {
+        background-color: #0d6efd !important;
+        border-color: #0d6efd !important;
+        color: white !important;
+    }
+
+    .btn-primary:hover {
+        background-color: #0b5ed7 !important;
+        border-color: #0a58ca !important;
+        color: white !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+    }
+
+    .btn-secondary {
+        background-color: #6c757d !important;
+        border-color: #6c757d !important;
+        color: white !important;
+    }
+
+    .btn-secondary:hover {
+        background-color: #5c636a !important;
+        border-color: #565e64 !important;
+        color: white !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+    }
+
+    .btn-lg {
+        padding: 0.75rem 1.5rem;
+        font-size: 1.1rem;
+    }
+
+    .btn i {
+        margin-right: 0.5rem;
+    }
+
+    .card {
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e9ecef;
+        margin-bottom: 1.5rem;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom: none;
+        border-radius: 12px 12px 0 0 !important;
+        padding: 1rem 1.25rem;
+    }
+
+    .card-header h6 {
+        color: white !important;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 0.65rem 1rem;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+    }
+
+    .form-check-input:checked {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+
+    .alert-info {
+        background: linear-gradient(135deg, rgba(79, 172, 254, 0.1) 0%, rgba(0, 242, 254, 0.1) 100%);
+        border-left: 4px solid #4facfe;
+        border-radius: 8px;
+    }
+
+    .text-primary {
+        color: #667eea !important;
+    }
+
+    h1, h6 {
+        color: #2d3748;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <!-- Header -->
@@ -61,7 +172,8 @@
                                 <label for="garbage_rate" class="form-label">Garbage Collection Rate (KES/month)</label>
                                 <input type="number" class="form-control" id="garbage_rate"
                                        name="garbage_rate" step="0.01" min="0"
-                                       value="{{ settings.billing.garbage_rate }}">
+                                       value="{{ settings.billing.garbage_rate or 0 }}"
+                                       placeholder="Enter garbage rate (e.g., 200)">
                             </div>
                         </div>
 

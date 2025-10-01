@@ -1,5 +1,158 @@
 {% extends "base.html" %}
 {% block title %}Subscription Management{% endblock %}
+
+{% block styles %}
+<style>
+    .subscription-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .subscription-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .subscription-card .card-header {
+        padding: 1.5rem;
+        border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .subscription-card.current-plan {
+        border: 3px solid #0d6efd;
+        box-shadow: 0 5px 15px rgba(13, 110, 253, 0.2);
+    }
+
+    .subscription-card .card-body {
+        padding: 1.5rem;
+    }
+
+    .price-display {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #0d6efd;
+        line-height: 1;
+        margin: 1rem 0;
+    }
+
+    .price-period {
+        font-size: 0.875rem;
+        color: #6c757d;
+        font-weight: 400;
+    }
+
+    .feature-list {
+        list-style: none;
+        padding: 0;
+        margin: 1.5rem 0;
+    }
+
+    .feature-list li {
+        padding: 0.5rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .feature-list li i {
+        font-size: 1.2rem;
+        flex-shrink: 0;
+    }
+
+    .btn-subscription {
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        border-radius: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-subscription:hover {
+        transform: scale(1.05);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-upgrade {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+    }
+
+    .btn-upgrade:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        color: white;
+    }
+
+    .btn-change-plan {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border: none;
+        color: white;
+    }
+
+    .btn-change-plan:hover {
+        background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+        color: white;
+    }
+
+    .btn-activate {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        border: none;
+        color: white;
+    }
+
+    .btn-activate:hover {
+        background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+        color: white;
+    }
+
+    .current-plan-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+    }
+
+    .progress-bar {
+        transition: width 0.6s ease;
+    }
+
+    .annual-badge {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .status-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .status-card .card-header {
+        background: transparent;
+        border: none;
+    }
+
+    .status-card .card-body {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 8px;
+        padding: 1.5rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <h1 class="mb-4">Subscription Management</h1>
@@ -18,27 +171,45 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-4">
-                            <p><strong>Status:</strong> 
+                            <p><strong>Status:</strong>
                                 <span class="badge {% if subscription_status == 'active' %}bg-success{% else %}bg-danger{% endif %}">
                                     {{ subscription_status|upper }}
                                 </span>
                             </p>
-                            {% if subscription_type == 'monthly' %}
-                            <p><strong>Expires:</strong> 
-                                {{ subscription_end_date.strftime('%Y-%m-%d') if subscription_end_date else 'N/A' }}
-                                {% if days_remaining %}
-                                <small class="text-muted">({{ days_remaining }} days remaining)</small>
+                            <p><strong>Subscription Type:</strong>
+                                <span class="badge {% if subscription_type == 'annual' %}bg-info{% else %}bg-primary{% endif %}">
+                                    {{ subscription_type|title }}
+                                </span>
+                            </p>
+                            {% if subscription_end_date %}
+                            <p><strong>Expires:</strong>
+                                {{ subscription_end_date.strftime('%B %d, %Y') }}
+                                {% if days_remaining is not none %}
+                                    {% if days_remaining > 0 %}
+                                    <br><small class="text-muted">({{ days_remaining }} days remaining)</small>
+                                    {% elif days_remaining == 0 %}
+                                    <br><small class="text-warning">(Expires today!)</small>
+                                    {% else %}
+                                    <br><small class="text-danger">(Expired {{ -days_remaining }} days ago)</small>
+                                    {% endif %}
                                 {% endif %}
                             </p>
-                            <p><strong>Auto-Renew:</strong> 
+                            {% else %}
+                            <p><strong>Expires:</strong>
+                                <span class="text-muted">Not set</span>
+                                <br>
+                                <a href="{{ url_for('fix_subscription_dates') }}" class="btn btn-sm btn-warning mt-2">
+                                    <i class="fas fa-wrench"></i> Fix Subscription Dates
+                                </a>
+                            </p>
+                            {% endif %}
+                            <p><strong>Auto-Renew:</strong>
                                 <div class="form-check form-switch d-inline-block">
-                                    <input class="form-check-input" type="checkbox" id="autoRenewSwitch" 
+                                    <input class="form-check-input" type="checkbox" id="autoRenewSwitch"
                                            {% if auto_renew %}checked{% endif %}>
                                 </div>
+                                <small class="text-muted d-block">Automatically renew when subscription expires</small>
                             </p>
-                            {% else %}
-                            <p><strong>Type:</strong> <span class="badge bg-success">Lifetime</span></p>
-                            {% endif %}
                         </div>
                         <div class="col-md-4">
                             <h5>Usage:</h5>
@@ -79,39 +250,40 @@
     <div class="row">
         {% for tier_key, tier in subscription_tiers.items() %}
         <div class="col-md mb-4">
-            <div class="card h-100 {% if tier_key == current_subscription_tier %}border-primary border-2{% endif %}">
+            <div class="card h-100 subscription-card {% if tier_key == current_subscription_tier %}current-plan{% endif %}">
                 <div class="card-header text-center {% if tier_key == current_subscription_tier %}bg-primary text-white{% endif %}">
                     <h5 class="mb-0">{{ tier.name }}</h5>
                     {% if tier_key == current_subscription_tier %}
-                    <small>Current Plan</small>
+                    <span class="current-plan-badge">Current Plan</span>
                     {% endif %}
                 </div>
                 <div class="card-body d-flex flex-column">
                     <div class="text-center mb-3">
-                        <h3 class="card-title mb-0">
+                        <div class="price-display">
                             {% if tier.monthly_price == 0 %}
                             Free
                             {% else %}
                             KES {{ "{:,}".format(tier.monthly_price) }}
                             {% endif %}
-                        </h3>
-                        <small class="text-muted">per month</small>
-                        
+                        </div>
+                        <div class="price-period">per month</div>
+
                         {% if tier.annual_price > 0 %}
                         <div class="mt-2">
-                            <span class="badge bg-success">Annual: KES {{ "{:,}".format(tier.annual_price) }}</span>
+                            <span class="annual-badge">Annual: KES {{ "{:,}".format(tier.annual_price) }}</span>
                         </div>
                         {% endif %}
                     </div>
-                    
-                    <ul class="list-unstyled flex-grow-1">
+
+                    <ul class="feature-list flex-grow-1">
                         {% for feature in tier.features %}
-                        <li class="mb-2">
-                            <i class="bi bi-check-circle text-success"></i> {{ feature }}
+                        <li>
+                            <i class="bi bi-check-circle text-success"></i>
+                            <span>{{ feature }}</span>
                         </li>
                         {% endfor %}
                     </ul>
-                    
+
                     {% if tier_key != current_subscription_tier or subscription_type == 'monthly' %}
                     <div class="mt-auto">
                         {% if tier.monthly_price == 0 %}
@@ -119,13 +291,13 @@
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="tier" value="{{ tier_key }}">
                             <input type="hidden" name="payment_type" value="monthly">
-                            <button type="submit" class="btn btn-primary w-100">
+                            <button type="submit" class="btn btn-subscription btn-activate w-100">
                                 {% if tier.monthly_price < current_tier.monthly_price %}Switch to Free{% else %}Activate{% endif %}
                             </button>
                         </form>
                         {% else %}
-                        <button type="button" class="btn btn-primary w-100 mb-2" 
-                                data-bs-toggle="modal" 
+                        <button type="button" class="btn btn-subscription {% if tier.monthly_price > current_tier.monthly_price %}btn-upgrade{% else %}btn-change-plan{% endif %} w-100 mb-2"
+                                data-bs-toggle="modal"
                                 data-bs-target="#paymentModal{{ tier_key }}">
                             {% if tier.monthly_price > current_tier.monthly_price %}Upgrade{% else %}Change Plan{% endif %}
                         </button>
