@@ -156,6 +156,21 @@
 {% block content %}
 <div class="container mt-4">
     <h1 class="mb-4">Subscription Management</h1>
+
+    <!-- Payment Provider Badge -->
+    {% if payment_provider == 'paystack' %}
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <i class="bi bi-credit-card-2-front"></i>
+        <strong>Secure Payments by Paystack</strong> - Accept M-Pesa, Visa, Mastercard, and more
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% elif payment_provider == 'both' %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-wallet2"></i>
+        <strong>Multiple Payment Options</strong> - Pay via Paystack (Cards/M-Pesa) or M-Pesa Direct
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
     
     <!-- Current Plan -->
     <div class="row mb-4">
@@ -296,11 +311,25 @@
                             </button>
                         </form>
                         {% else %}
-                        <button type="button" class="btn btn-subscription {% if tier.monthly_price > current_tier.monthly_price %}btn-upgrade{% else %}btn-change-plan{% endif %} w-100 mb-2"
-                                data-bs-toggle="modal"
-                                data-bs-target="#paymentModal{{ tier_key }}">
-                            {% if tier.monthly_price > current_tier.monthly_price %}Upgrade{% else %}Change Plan{% endif %}
-                        </button>
+                            <!-- Paystack Payment Button (Primary) -->
+                            {% if payment_provider in ['paystack', 'both'] %}
+                            <button type="button" class="btn btn-subscription {% if tier.monthly_price > current_tier.monthly_price %}btn-upgrade{% else %}btn-change-plan{% endif %} w-100 mb-2"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#paystackModal{{ tier_key }}">
+                                <i class="bi bi-credit-card"></i>
+                                {% if tier.monthly_price > current_tier.monthly_price %}Upgrade{% else %}Change Plan{% endif %} with Paystack
+                            </button>
+                            {% endif %}
+
+                            <!-- M-Pesa Direct Button (Secondary or Primary if no Paystack) -->
+                            {% if payment_provider in ['mpesa', 'both'] %}
+                            <button type="button" class="btn btn-subscription {% if payment_provider == 'both' %}btn-outline-primary{% else %}{% if tier.monthly_price > current_tier.monthly_price %}btn-upgrade{% else %}btn-change-plan{% endif %}{% endif %} w-100"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#paymentModal{{ tier_key }}">
+                                <i class="bi bi-phone"></i>
+                                {% if payment_provider == 'both' %}Pay with M-Pesa Direct{% else %}{% if tier.monthly_price > current_tier.monthly_price %}Upgrade{% else %}Change Plan{% endif %}{% endif %}
+                            </button>
+                            {% endif %}
                         {% endif %}
                     </div>
                     {% endif %}
@@ -308,8 +337,76 @@
             </div>
         </div>
         
-        <!-- Payment Modal for each tier -->
-        {% if tier.monthly_price > 0 %}
+        <!-- Paystack Payment Modal -->
+        {% if tier.monthly_price > 0 and payment_provider in ['paystack', 'both'] %}
+        <div class="modal fade" id="paystackModal{{ tier_key }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="bi bi-credit-card-2-front"></i>
+                            Subscribe to {{ tier.name }} - Paystack
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form method="POST" action="{{ url_for('paystack_initiate_subscription_payment') }}" id="paystackForm{{ tier_key }}" target="_top">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="tier" value="{{ tier_key }}">
+
+                            <div class="mb-3">
+                                <label class="form-label">Select Payment Type</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio"
+                                           name="payment_type" value="monthly"
+                                           id="paystack_monthly_{{ tier_key }}" checked>
+                                    <label class="form-check-label" for="paystack_monthly_{{ tier_key }}">
+                                        <strong>Monthly - KES {{ "{:,}".format(tier.monthly_price) }}</strong>
+                                        <br><small class="text-muted">Renews every month</small>
+                                    </label>
+                                </div>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="radio"
+                                           name="payment_type" value="annual"
+                                           id="paystack_annual_{{ tier_key }}">
+                                    <label class="form-check-label" for="paystack_annual_{{ tier_key }}">
+                                        <strong>Annual - KES {{ "{:,}".format(tier.annual_price) }}</strong>
+                                        <span class="badge bg-success">Save {{ ((tier.monthly_price * 12 - tier.annual_price) / (tier.monthly_price * 12) * 100)|int }}%</span>
+                                        <br><small class="text-muted">Renews every year</small>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info">
+                                <strong><i class="bi bi-info-circle"></i> Payment Methods:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>M-Pesa Mobile Money</li>
+                                    <li>Visa & Mastercard</li>
+                                    <li>Bank Transfer</li>
+                                </ul>
+                            </div>
+
+                            <div class="alert alert-success">
+                                <small>
+                                    <strong><i class="bi bi-shield-check"></i> Secure Payment:</strong>
+                                    You'll be redirected to Paystack's secure payment page.
+                                    Transaction fee: <strong>1.5%</strong>
+                                </small>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-arrow-right-circle"></i>
+                                Proceed to Secure Payment
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- M-Pesa Direct Payment Modal -->
+        {% if tier.monthly_price > 0 and payment_provider in ['mpesa', 'both'] %}
         <div class="modal fade" id="paymentModal{{ tier_key }}" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">

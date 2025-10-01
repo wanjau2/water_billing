@@ -107,8 +107,8 @@
                                 </svg>
                             </div>
                             <div>
-                                <p class="small fw-medium text-muted mb-0">Total Due (Bills + Fines)</p>
-                                <p class="fs-4 fw-bold mb-0">KES {{ "%.2f"|format(bills|sum(attribute='total_amount_due')) }}</p>
+                                <p class="small fw-medium text-muted mb-0">Total Outstanding</p>
+                                <p class="fs-4 fw-bold mb-0">KES {{ "%.2f"|format(total_outstanding) }}</p>
                             </div>
                         </div>
                     </div>

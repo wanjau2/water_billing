@@ -79,3 +79,14 @@ MPESA_CONFIG = {
     'PASSKEY': '',  # Your M-Pesa passkey
     'CALLBACK_URL': 'https://yourdomain.com/mpesa/callback',  # Your callback URL
 }
+
+# Paystack configuration
+PAYSTACK_CONFIG = {
+    'SECRET_KEY': '',  # Add your Paystack secret key (get from dashboard)
+    'PUBLIC_KEY': '',  # Add your Paystack public key (for frontend)
+    'CALLBACK_URL': 'https://yourdomain.com/paystack/callback',  # Your callback URL
+    'WEBHOOK_URL': 'https://yourdomain.com/paystack/webhook',  # Your webhook URL
+}
+
+# Payment provider preference
+PAYMENT_PROVIDER = 'paystack'  # Options: 'paystack', 'mpesa', 'both'

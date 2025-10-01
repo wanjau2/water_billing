@@ -318,9 +318,8 @@
       <p><strong>Phone:</strong> {{ tenant.phone }}</p>
       <p><strong>House Number:</strong> {{ tenant.house_number }}</p>
       <p><strong>Total Readings:</strong> {{ readings|length }}</p>
-      {% if readings and readings|length > 0 %}
-        {% set last_reading = readings[0] %}
-        <p><strong>Latest Bill:</strong>  Ksh {{ last_reading.bill_amount }}</p>
+      {% if latest_reading %}
+        <p><strong>Latest Bill:</strong>  Ksh {{ latest_reading.bill_amount }}</p>
       {% endif %}
     </div>
   <div class="card-body">

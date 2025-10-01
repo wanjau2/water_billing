@@ -51,7 +51,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title">Total Billed</h5>
-                        <h2 class="text-warning">KES {{ "{:,.2f}"|format(readings|sum(attribute='bill_amount')) }}</h2>
+                        <h2 class="text-warning">KES {{ "%.2f"|format(readings|sum(attribute='bill_amount')) }}</h2>
                     </div>
                 </div>
             </div>
@@ -59,7 +59,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title">Outstanding</h5>
-                        <h2 class="text-danger">KES {{ "{:,.2f}"|format(readings|sum(attribute='outstanding')) }}</h2>
+                        <h2 class="text-danger">KES {{ "%.2f"|format(readings|sum(attribute='outstanding')) }}</h2>
                     </div>
                 </div>
             </div>
@@ -109,19 +109,19 @@
                             <div class="row">
                                 <div class="col-6">
                                     <small class="text-muted">Bill Amount</small>
-                                    <div class="h6">KES {{ "{:,.2f}"|format(reading.bill_amount) }}</div>
+                                    <div class="h6">KES {{ "%.2f"|format(reading.bill_amount) }}</div>
                                 </div>
                                 <div class="col-6">
                                     <small class="text-muted">Amount Paid</small>
                                     <div class="h6 payment-status-{{ reading.payment_status.lower() }}">
-                                        KES {{ "{:,.2f}"|format(reading.amount_paid) }}
+                                        KES {{ "%.2f"|format(reading.amount_paid) }}
                                     </div>
                                 </div>
                             </div>
 
                             {% if reading.outstanding > 0 %}
                             <div class="mt-2">
-                                <small class="text-danger">Outstanding: KES {{ "{:,.2f}"|format(reading.outstanding) }}</small>
+                                <small class="text-danger">Outstanding: KES {{ "%.2f"|format(reading.outstanding) }}</small>
                             </div>
                             {% endif %}
 

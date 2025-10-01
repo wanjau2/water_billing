@@ -65,7 +65,33 @@
                                     placeholder="Enter your full name">
                             </div>
                         </div>
-                        
+
+                        <!-- Email Input -->
+                        <div class="form-group">
+                            <label for="email">Email Address</label>
+                            <div class="input-group">
+                                <i class="fas fa-envelope input-icon"></i>
+                                <input id="email" name="email" type="email" required
+                                    class="form-control form-control-icon"
+                                    placeholder="Enter your email address">
+                            </div>
+                            <small class="text-muted">Required for payment receipts and notifications</small>
+                        </div>
+
+                        <!-- Phone Input -->
+                        <div class="form-group">
+                            <label for="phone">Phone Number</label>
+                            <div class="input-group">
+                                <i class="fas fa-phone input-icon"></i>
+                                <input id="phone" name="phone" type="tel" required
+                                    class="form-control form-control-icon"
+                                    placeholder="e.g., 0712345678 or +254712345678"
+                                    pattern="^(\+254|0)?[17]\d{8}$"
+                                    title="Enter a valid Kenyan phone number">
+                            </div>
+                            <small class="text-muted">Used for M-Pesa payments and SMS notifications</small>
+                        </div>
+
                         <!-- Payment Method Selection -->
                         <div class="form-group">
                             <label>Payment Method</label>
