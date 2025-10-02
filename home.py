@@ -4207,13 +4207,20 @@ def signup():
             phone = request.form.get('phone', '').strip()
             password = request.form.get('password', '')
             confirm_password = request.form.get('confirm_password', '')
+            cost = request.form.get('cost', '').strip()
+            payment_method = request.form.get('payment_method', '').strip()
 
-            # Get subscription selection
-            subscription_tier = request.form.get('subscription_tier', '').strip()
+            # Get payment method specific fields
+            till = request.form.get('till', '').strip()
+            business_number = request.form.get('business_number', '').strip()
+            account_name = request.form.get('account_name', '').strip()
+
+            # Get subscription selection (use default tier if not provided)
+            subscription_tier = request.form.get('subscription_tier', 'basic').strip()
             subscription_type = request.form.get('subscription_type', 'monthly')  # monthly or annual
 
-            # Basic validation
-            if not all([name, email, phone, password, confirm_password, subscription_tier]):
+            # Basic validation - only validate required fields
+            if not all([name, email, phone, password, confirm_password, cost]):
                 flash('All fields are required', 'danger')
                 return render_template('signup.html', subscription_tiers=SUBSCRIPTION_TIERS)
 
@@ -4221,8 +4228,8 @@ def signup():
                 flash('Passwords do not match', 'danger')
                 return render_template('signup.html', subscription_tiers=SUBSCRIPTION_TIERS)
 
-            # Validate subscription tier
-            if subscription_tier not in SUBSCRIPTION_TIERS:
+            # Validate subscription tier (only if provided and not default)
+            if subscription_tier and subscription_tier != 'basic' and subscription_tier not in SUBSCRIPTION_TIERS:
                 flash('Invalid subscription plan selected', 'danger')
                 return render_template('signup.html', subscription_tiers=SUBSCRIPTION_TIERS)
 
@@ -4252,8 +4259,14 @@ def signup():
                 "email": email,
                 "phone": formatted_phone,
                 "password": hashed_password,
-                "rate_per_unit": RATE_PER_UNIT,  # Default rate
+                "rate_per_unit": float(cost) if cost else RATE_PER_UNIT,  # Use provided cost or default rate
                 "created_at": datetime.now(),
+
+                # Payment method info
+                "payment_method": payment_method,
+                "till": till if payment_method == 'till' else None,
+                "business_number": business_number if payment_method == 'paybill' else None,
+                "account_name": account_name if payment_method == 'paybill' else None,
 
                 # Subscription info - pending payment
                 "subscription_tier": subscription_tier,
