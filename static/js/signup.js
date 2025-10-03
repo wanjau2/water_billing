@@ -11,7 +11,7 @@ text: document.getElementById('password-strength-text')
 }
 },
 confirmPassword: {
-input: document.getElementById('confirm-password'),
+input: document.getElementById('confirm_password'),
 match: document.getElementById('password-match')
 },
 payment: {
